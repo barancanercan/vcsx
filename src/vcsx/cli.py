@@ -8,6 +8,7 @@ import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from rich.prompt import Confirm
 
 from vcsx import __version__
 from vcsx.discovery import run_discovery
@@ -53,7 +54,14 @@ def main(ctx):
     multiple=True,
     default=None,
     type=click.Choice(ALL_TOOLS),
-    help="CLI tools to generate setup for (optional - will ask in discovery)",
+    help="CLI tools to generate setup for (can be used multiple times for multi-tool)",
+)
+@click.option(
+    "--all-tools",
+    "-a",
+    is_flag=True,
+    default=False,
+    help="Generate configs for ALL supported AI tools at once",
 )
 @click.option(
     "--lang",
@@ -69,8 +77,14 @@ def main(ctx):
     default=".",
     help="Target directory for setup",
 )
-def init(cli, lang, output_dir):
-    """Start interactive setup wizard."""
+def init(cli, all_tools, lang, output_dir):
+    """Start interactive setup wizard.
+
+    Examples:
+        vcsx init                          # Single tool (interactive)
+        vcsx init -c claude-code -c cursor # Two specific tools
+        vcsx init --all-tools              # All 10 tools at once
+    """
     console.print(BANNER.format(version=__version__))
     console.print(
         Panel(
@@ -82,8 +96,15 @@ def init(cli, lang, output_dir):
     console.print("\nPHASE 1: DISCOVERY")
     context = run_discovery(console, lang=lang)
 
-    # Use discovered AI tool, or CLI flag if provided
-    selected_tools = list(cli) if cli else [context.ai_tool]
+    # Determine which tools to use
+    if all_tools:
+        selected_tools = list(ALL_TOOLS)
+        console.print(f"\n[cyan]All tools selected:[/] {', '.join(selected_tools)}")
+    elif cli:
+        selected_tools = list(cli)
+        console.print(f"\n[cyan]Tools selected:[/] {', '.join(selected_tools)}")
+    else:
+        selected_tools = [context.ai_tool]
 
     console.print("\nPHASE 2: PLAN")
     generate_plan(context, console, selected_tools)
@@ -97,6 +118,7 @@ def init(cli, lang, output_dir):
 
     console.print("\nSetup complete!")
     console.print(f"Files generated in: {output_dir}")
+    console.print(f"Tools configured: {', '.join(selected_tools)}")
 
 
 @main.command("update")
@@ -148,6 +170,7 @@ def update(output_dir, dry_run, tool):
         ".aider.conf.yaml": "aider",
         ".bolt/": "bolt",
         ".openai/": "codex",
+        ".zed/": "zed",
     }
 
     # Detect what's already present
@@ -213,7 +236,7 @@ def update(output_dir, dry_run, tool):
         gen = get_generator(t)
         console.print(f"\n[cyan]Adding {t}...[/]")
         try:
-            result = gen.generate_all(ctx, str(target))
+            gen.generate_all(ctx, str(target))
             console.print(f"[green]✓ {t} config added[/]")
         except Exception as e:
             console.print(f"[red]✗ Failed to add {t}: {e}[/]")
@@ -224,7 +247,7 @@ def update(output_dir, dry_run, tool):
 @main.command("list")
 def list_tools():
     """List available CLI tools."""
-    table = Table(title="Available AI Tools")
+    table = Table(title="Available AI Tools (10 total)")
     table.add_column("Tool", style="cyan")
     table.add_column("Category", style="magenta")
     table.add_column("Description", style="dim")
@@ -239,12 +262,14 @@ def list_tools():
         table.add_row(tool, category, desc)
 
     console.print(table)
+    console.print(f"\nUse [cyan]vcsx info <tool>[/] for details on any tool.")
+    console.print(f"Use [cyan]vcsx init -c <tool> -c <tool>[/] to set up multiple tools at once.")
 
 
 @main.command("info")
 @click.argument("tool", required=False)
 def info_tool(tool):
-    """Show detailed info about a tool."""
+    """Show detailed info about a tool, including generated files."""
     if not tool:
         console.print("Usage: vcsx info <tool>")
         console.print("Run 'vcsx list' for available tools")
@@ -262,8 +287,16 @@ def info_tool(tool):
             category = cat
             break
 
-    console.print(Panel(f"{tool}\n\n{desc}", title="Tool Info", border_style="cyan"))
-    console.print(f"Category: {category}")
+    gen = get_generator(tool)
+    files = gen.output_files
+
+    console.print(Panel(
+        f"[bold]{tool}[/bold]\n\n{desc}\n\n"
+        f"[dim]Category:[/dim] {category}\n\n"
+        f"[dim]Generated files:[/dim]\n" + "\n".join(f"  • {f}" for f in files),
+        title="Tool Info",
+        border_style="cyan"
+    ))
 
 
 @main.command("install")
@@ -290,7 +323,7 @@ def install_vcsx(method):
             "title": "Standalone Executable",
             "commands": [
                 "# Download from GitHub Releases",
-                "curl -L https://github.com/vibe-coding-setup-expert/vcsx/releases/latest/download/vcsx.exe -o vcsx.exe",
+                "curl -L https://github.com/barancanercan/vcsx/releases/latest/download/vcsx.exe -o vcsx.exe",
                 "./vcsx.exe init",
             ],
         },
@@ -318,40 +351,111 @@ def install_vcsx(method):
 
 
 @main.command("doctor")
-def doctor():
-    """Check vcsx installation and dependencies."""
+@click.option(
+    "--dir",
+    "-d",
+    type=click.Path(),
+    default=".",
+    help="Project directory to inspect (default: current directory)",
+)
+def doctor(dir):
+    """Check vcsx installation and detect AI tools in a project."""
+    target = Path(dir).resolve()
     console.print("Running diagnostics...\n")
 
-    table = Table(show_header=False)
-    table.add_column("Check")
-    table.add_column("Status")
+    # --- Installation Checks ---
+    install_table = Table(title="Installation", show_header=False)
+    install_table.add_column("Check")
+    install_table.add_column("Status")
 
-    version = __version__
-    table.add_row("Version", f"OK {version}")
+    install_table.add_row("vcsx version", f"[green]OK[/] {__version__}")
 
     python_path = shutil.which("python") or shutil.which("python3")
     if python_path:
-        table.add_row("Python", "OK Found")
+        install_table.add_row("Python", f"[green]OK[/] {python_path}")
     else:
-        table.add_row("Python", "Not found")
+        install_table.add_row("Python", "[red]Not found[/]")
 
     vcsx_path = shutil.which("vcsx")
     if vcsx_path:
-        table.add_row("vcsx in PATH", f"OK {vcsx_path}")
+        install_table.add_row("vcsx in PATH", f"[green]OK[/] {vcsx_path}")
     else:
-        table.add_row("vcsx in PATH", "Not in PATH (use python -m vcsx)")
+        install_table.add_row("vcsx in PATH", "[yellow]Not in PATH[/] (use: python -m vcsx)")
 
     plugins = discover_plugins()
-    table.add_row("Plugins", f"OK {len(plugins)} loaded")
+    install_table.add_row("Plugins", f"[green]OK[/] {len(plugins)} loaded")
 
     tools_count = len(ALL_TOOLS)
-    table.add_row("AI Tools", f"OK {tools_count} available")
+    install_table.add_row("AI Tools", f"[green]OK[/] {tools_count} available")
 
     registry = get_registry()
     enabled = len(registry.list_enabled())
-    table.add_row("Generators", f"OK {enabled} enabled")
+    install_table.add_row("Generators", f"[green]OK[/] {enabled} enabled")
 
-    console.print(table)
+    console.print(install_table)
+
+    # --- Project AI Tool Detection ---
+    if target.exists():
+        console.print(f"\n[bold]AI Tool Detection[/] — {target}\n")
+
+        detection_map = {
+            "CLAUDE.md": ("claude-code", ".claude/"),
+            ".cursorrules": ("cursor", ".cursor/rules/"),
+            ".windsurfrules": ("windsurf", ".windsurf/rules/"),
+            ".github/copilot-instructions.md": ("copilot", ".github/instructions/"),
+            "GEMINI.md": ("gemini", None),
+            "AGENTS.md": ("agents-md", None),
+            ".aider.conf.yaml": ("aider", None),
+            ".bolt/workspace.json": ("bolt", None),
+            ".openai/instructions.md": ("codex", None),
+            ".zed/settings.json": ("zed", None),
+        }
+
+        detect_table = Table(title="Project Config Status")
+        detect_table.add_column("Tool", style="cyan")
+        detect_table.add_column("Config File", style="dim")
+        detect_table.add_column("Status", style="bold")
+        detect_table.add_column("Quality", style="dim")
+
+        configured = []
+        missing_tools = []
+
+        for config_file, (tool_name, extra_dir) in detection_map.items():
+            config_path = target / config_file
+            if config_path.exists():
+                configured.append(tool_name)
+                # Quality check: does extra dir also exist?
+                quality = "[green]Complete[/]"
+                if extra_dir:
+                    extra_path = target / extra_dir
+                    if not extra_path.exists():
+                        quality = "[yellow]Basic only[/] (run vcsx update)"
+                detect_table.add_row(tool_name, config_file, "[green]✓ Found[/]", quality)
+            else:
+                missing_tools.append(tool_name)
+                detect_table.add_row(tool_name, config_file, "[dim]✗ Not set up[/]", "—")
+
+        console.print(detect_table)
+
+        if configured:
+            console.print(f"\n[green]✓ Configured:[/] {', '.join(configured)}")
+        if missing_tools:
+            console.print(f"\n[dim]Not configured:[/] {', '.join(missing_tools[:4])}{'...' if len(missing_tools) > 4 else ''}")
+            console.print(
+                "\nTo add a tool: [cyan]vcsx update --tool <name>[/]\n"
+                "To add all:    [cyan]vcsx update --tool " + " --tool ".join(["gemini", "agents-md"]) + "[/]"
+            )
+
+        # Check .claudeignore
+        if (target / "CLAUDE.md").exists() and not (target / ".claudeignore").exists():
+            console.print(
+                "\n[yellow]Tip:[/] Claude Code detected but no .claudeignore found.\n"
+                "Run: [cyan]vcsx update --tool claude-code[/] to generate it."
+            )
+
+    # Platform info
+    console.print(f"\n[dim]Platform:[/] {platform.system()} {platform.machine()}")
+    console.print(f"[dim]Python:[/] {platform.python_version()}")
 
 
 @main.command("plugins")

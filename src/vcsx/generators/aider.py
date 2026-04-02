@@ -1,4 +1,8 @@
-"""Aider AI generator — produces Aider-specific configuration."""
+"""Aider AI generator — produces Aider-specific configuration.
+
+Aider docs: https://aider.chat/docs/config/aider_conf.html
+Valid .aider.conf.yaml keys align with Aider's CLI flags.
+"""
 
 from pathlib import Path
 
@@ -21,138 +25,201 @@ class AiderGenerator(BaseGenerator):
         ]
 
     def generate_config(self, ctx: ProjectContext, output_dir: str) -> str:
-        """Generate Aider configuration file."""
+        """Generate .aider.conf.yaml using valid Aider CLI flags.
+
+        Key valid settings: model, weak-model, editor-model, auto-commits,
+        dirty-commits, git, auto-lint, lint-cmd, auto-test, test-cmd,
+        read, map-tokens, cache-prompts, suggest-shell-commands.
+        """
+        lang = (ctx.language or "").lower()
+
+        # Derive test command
+        test_cmd = _get_test_cmd(ctx)
+
+        # Derive lint command
+        lint_cmd = ctx.linter or ("ruff check" if lang == "python" else "eslint .")
+
+        # Language-specific file patterns for --read (context files to always include)
+        read_files = _get_read_files(ctx)
+
         content = f"""# {ctx.project_name} — Aider Configuration
+# Reference: https://aider.chat/docs/config/aider_conf.html
 
-# Aider Settings
-# https://aider.chat/
-
+##############################################################
 # Model Configuration
-model: gpt-4o
-edit-model: gpt-4o
-weak-model: gpt-4o-mini
+##############################################################
+# Claude Sonnet is recommended for best coding performance.
+# Uncomment the model you want to use:
 
-# Repository
-repo: {ctx.project_name}
+# model: anthropic/claude-sonnet-4-5
+# model: openai/gpt-4o
+model: openai/gpt-4o
 
-# Commit Message Prompt
-commit-prompt: |
-    Write a concise commit message following conventional commits.
+# Weaker model for simple tasks (faster + cheaper)
+weak-model: openai/gpt-4o-mini
 
-    ## Format
-    <type>(<scope>): <description>
+##############################################################
+# Git Integration
+##############################################################
+# Auto-commit AI changes with a generated commit message
+auto-commits: true
 
-    ## Types
-    - feat: New feature
-    - fix: Bug fix
-    - docs: Documentation
-    - style: Code style (formatting)
-    - refactor: Code refactoring
-    - test: Testing
-    - chore: Maintenance
+# Allow commits even when repo has uncommitted changes
+dirty-commits: true
 
-    ## Rules
-    - Use imperative mood
-    - Keep under 72 characters
-    - No period at end
-    - Reference issues: Closes #123
+# Git integration (disable to use aider outside a git repo)
+git: true
 
-    ## Example
-    feat(auth): add OAuth2 login flow
-    fix(api): handle null response from endpoint
-    docs(readme): update installation steps
+##############################################################
+# Linting & Testing
+##############################################################
+# Run linter after every code change
+auto-lint: true
+lint-cmd: {lint_cmd}
 
-# File Patterns
-only:
-    - "*.py"
-    - "*.ts"
-    - "*.js"
-    - "*.go"
-    - "*.rs"
+# Run tests after every code change
+auto-test: false
+test-cmd: {test_cmd}
 
-# Tools
-tools:
-    - bash
-    - format
-    - lint
-    - test
+##############################################################
+# Context Management
+##############################################################
+# Files to always include in context (read-only)
+{_format_read_files(read_files)}
+# Repository map token budget (higher = more context, more tokens)
+map-tokens: 2048
 
-# Commands
-command:
-    format: {ctx.formatter or "black"} {{file}}
-    lint: {ctx.linter or "ruff"} {{file}}
-    test: pytest
+# Cache AI prompts to reduce costs (requires aider >= 0.50)
+cache-prompts: true
 
-# Safety
-no-auto-commit: false
-skip-untracked: false
-dangerous-allow-write: false
+##############################################################
+# UX
+##############################################################
+# Suggest shell commands when appropriate
+suggest-shell-commands: true
 
-# Context
-max-context-characters: 100000
+# Show diffs after applying changes
+show-diffs: false
 """
-
         (Path(output_dir) / ".aider.conf.yaml").write_text(content, encoding="utf-8")
         return content
 
     def generate_skills(self, ctx: ProjectContext, output_dir: str) -> list[str]:
-        """Generate Aider context file."""
-        content = f"""# {ctx.project_name} — Project Context
+        """Generate .aider.context.md — always-loaded project context."""
+        content = f"""# {ctx.project_name} — Aider Project Context
+
+> This file is automatically loaded by Aider as project context.
+> Edit it to give Aider better understanding of your project.
 
 ## Overview
 {ctx.description or f"A {ctx.project_type} project built with {ctx.tech_stack}."}
 
-## Technical Stack
-- **Language**: {ctx.language}
+## Purpose & Problem
+{"**Purpose:** " + ctx.purpose if ctx.purpose else "*(not specified)*"}
+{"**Problem:** " + ctx.problem if ctx.problem else ""}
+
+## Tech Stack
+- **Language**: {ctx.language or "Not specified"}
 - **Framework**: {ctx.framework or "None"}
 - **Testing**: {ctx.test_framework or "None"}
+- **Hosting**: {ctx.hosting or "TBD"}
 
 ## Commands
-- **Setup**: {_get_setup_cmd(ctx)}
-- **Build**: {_get_build_cmd(ctx)}
-- **Test**: {_get_test_cmd(ctx)}
+```bash
+# Setup
+{_get_setup_cmd(ctx)}
 
-## Guidelines
-- Always run tests before committing
-- No secrets in code
-- Write atomic commits
-- Follow conventional commits
+# Build
+{_get_build_cmd(ctx)}
+
+# Test
+{_get_test_cmd(ctx)}
+```
+
+## Code Conventions
+- Follow conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`
+- Never commit secrets, API keys, or `.env` files
+- Write tests for new functionality
+- Keep commits atomic — one logical change per commit
+
+## Architecture
+The project is organized as a `{ctx.project_type}` application.
+{"Primary language: " + ctx.language if ctx.language else ""}
+{"Framework: " + ctx.framework if ctx.framework else ""}
+
+## What NOT to Do
+- Do not run `git push --force`
+- Do not modify production database migrations
+- Do not install global packages without updating requirements
 """
         (Path(output_dir) / ".aider.context.md").write_text(content, encoding="utf-8")
         return [".aider.context.md"]
 
     def generate_hooks(self, ctx: ProjectContext, output_dir: str) -> dict:
-        """Generate hooks configuration."""
+        """Aider handles hooks via auto-lint and auto-test in config."""
         return {}
 
     def generate_agents(self, ctx: ProjectContext, output_dir: str) -> list[str]:
-        """Generate agent definitions."""
         return []
 
     def generate_scaffold(self, ctx: ProjectContext, output_dir: str) -> list[str]:
-        """Generate project scaffold."""
         return []
 
+
+# ─── Private helpers ──────────────────────────────────────────────────────────
 
 def _get_setup_cmd(ctx: ProjectContext) -> str:
     return {
         "typescript": "npm install",
-        "python": "pip install -r requirements.txt",
+        "javascript": "npm install",
+        "python": "pip install -e '.[dev]'" if "pyproject" in (ctx.tech_stack or "").lower() else "pip install -r requirements.txt",
         "go": "go mod tidy",
-    }.get(ctx.language, "npm install")
+        "rust": "cargo build",
+    }.get((ctx.language or "").lower(), "npm install")
 
 
 def _get_build_cmd(ctx: ProjectContext) -> str:
     return {
         "typescript": "npm run build",
-        "python": "python -m compileall src/",
+        "javascript": "npm run build",
+        "python": "python -m build",
         "go": "go build ./...",
-    }.get(ctx.language, "npm run build")
+        "rust": "cargo build --release",
+    }.get((ctx.language or "").lower(), "npm run build")
 
 
 def _get_test_cmd(ctx: ProjectContext) -> str:
-    return {
-        "vitest": "npx vitest run",
-        "pytest": "pytest",
-        "go test": "go test ./...",
-    }.get(ctx.test_framework or "pytest", "npm test")
+    fw = (ctx.test_framework or "").lower()
+    if fw == "pytest" or (not fw and (ctx.language or "").lower() == "python"):
+        return "pytest"
+    if fw in ("vitest", "jest"):
+        return f"npx {fw} run"
+    if fw == "go test":
+        return "go test ./..."
+    if (ctx.language or "").lower() == "rust":
+        return "cargo test"
+    return "npm test"
+
+
+def _get_read_files(ctx: ProjectContext) -> list[str]:
+    """Return files Aider should always read as context."""
+    candidates = ["README.md", "AGENTS.md", "CLAUDE.md"]
+    lang = (ctx.language or "").lower()
+    if lang == "python":
+        candidates.extend(["pyproject.toml", "requirements.txt"])
+    elif lang in ("typescript", "javascript"):
+        candidates.append("package.json")
+    elif lang == "go":
+        candidates.append("go.mod")
+    elif lang == "rust":
+        candidates.append("Cargo.toml")
+    return candidates
+
+
+def _format_read_files(files: list[str]) -> str:
+    if not files:
+        return ""
+    lines = ["read:"]
+    for f in files:
+        lines.append(f"  - {f}")
+    return "\n".join(lines) + "\n"

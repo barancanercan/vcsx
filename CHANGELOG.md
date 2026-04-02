@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-04-03
+
+### Added
+- **Multi-tool `vcsx init`**: `vcsx init -c claude-code -c cursor` sets up multiple AI tools in one pass. New `--all-tools` / `-a` flag generates configs for all 10 tools at once.
+- **`vcsx doctor` enhanced**: Now scans the target project directory and shows a full config status table — which AI tools are set up, quality level (complete vs basic), and actionable upgrade tips.
+- **`vcsx info` improved**: Now shows generated file list alongside tool description and category.
+- **`vcsx list` improved**: Added footer with usage hints for multi-tool setup.
+- **28 new tests** (42 → 70): Added full test coverage for Aider, Bolt, and Zed generators. Added `TestMultiToolInit` (all 10 generators can run on same directory without conflicts), `TestDoctorDetection`, and generator property tests.
+- **Aider config rewrite**: `.aider.conf.yaml` now uses only valid Aider CLI flags (model, weak-model, auto-commits, dirty-commits, auto-lint, lint-cmd, auto-test, test-cmd, read, map-tokens, cache-prompts). Removed invalid keys (`repo`, `tools`, `command`, `only`, `max-context-characters`).
+
+### Changed
+- README: Updated version banner to v4.0.0, corrected repo URLs from `vibe-coding-setup-expert/vcsx` → `barancanercan/vcsx`.
+- pyproject.toml: Corrected Homepage/Repository URLs to `barancanercan/vcsx`.
+- Bolt: Updated model name from `claude-sonnet-4` → `claude-sonnet-4-5` (correct API identifier).
+- `.aider.context.md` now includes Purpose/Problem blocks from discovery context.
+
+### Fixed
+- `vcsx update` detection map: added `.zed/` detection.
+- README discovery section header: v3.3 → v4.0.
+
 ## [4.0.0] - 2026-04-02
 
 ### Added

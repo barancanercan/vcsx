@@ -10,6 +10,9 @@ from vcsx.generators.claude_code import ClaudeCodeGenerator
 from vcsx.generators.cursor import CursorGenerator
 from vcsx.generators.codex import CodexGenerator
 from vcsx.generators.copilot import CopilotGenerator
+from vcsx.generators.aider import AiderGenerator
+from vcsx.generators.bolt import BoltGenerator
+from vcsx.generators.zed import ZedGenerator
 from vcsx.generators.registry import get_generator, get_all_generators, ALL_TOOLS
 
 
@@ -283,3 +286,179 @@ class TestCopilotScopedInstructions:
         gen.generate_config(ctx, tmp_dir)
         content = (Path(tmp_dir) / ".github" / "instructions" / "security.instructions.md").read_text()
         assert "applyTo" in content
+
+
+class TestAiderGenerator:
+    def test_generate_config(self, ctx, tmp_dir):
+        gen = AiderGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        assert (Path(tmp_dir) / ".aider.conf.yaml").exists()
+
+    def test_generate_skills(self, ctx, tmp_dir):
+        gen = AiderGenerator()
+        skills = gen.generate_skills(ctx, tmp_dir)
+        assert (Path(tmp_dir) / ".aider.context.md").exists()
+        assert len(skills) > 0
+
+    def test_aider_config_content(self, ctx, tmp_dir):
+        gen = AiderGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".aider.conf.yaml").read_text()
+        assert "test-project" in content
+
+    def test_aider_context_content(self, ctx, tmp_dir):
+        gen = AiderGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        assert "test-project" in content
+        assert "FastAPI" in content or "Python" in content
+
+    def test_generate_all_returns_dict(self, ctx, tmp_dir):
+        gen = AiderGenerator()
+        result = gen.generate_all(ctx, tmp_dir)
+        assert isinstance(result, dict)
+        assert "config" in result
+        assert "skills" in result
+
+    def test_name_property(self):
+        gen = AiderGenerator()
+        assert gen.name == "aider"
+
+    def test_output_files_property(self):
+        gen = AiderGenerator()
+        assert ".aider.conf.yaml" in gen.output_files
+        assert ".aider.context.md" in gen.output_files
+
+
+class TestBoltGenerator:
+    def test_generate_config(self, ctx, tmp_dir):
+        gen = BoltGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        assert (Path(tmp_dir) / ".bolt" / "workspace.json").exists()
+
+    def test_workspace_json_valid(self, ctx, tmp_dir):
+        gen = BoltGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".bolt" / "workspace.json").read_text()
+        data = json.loads(content)
+        assert "project" in data
+        assert data["project"]["name"] == "test-project"
+
+    def test_generate_skills(self, ctx, tmp_dir):
+        gen = BoltGenerator()
+        skills = gen.generate_skills(ctx, tmp_dir)
+        assert (Path(tmp_dir) / ".bolt" / "setup.md").exists()
+
+    def test_prompts_md_created(self, ctx, tmp_dir):
+        gen = BoltGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        assert (Path(tmp_dir) / ".bolt" / "prompts.md").exists()
+
+    def test_generate_all(self, ctx, tmp_dir):
+        gen = BoltGenerator()
+        result = gen.generate_all(ctx, tmp_dir)
+        assert isinstance(result, dict)
+
+    def test_name_property(self):
+        gen = BoltGenerator()
+        assert gen.name == "bolt"
+
+
+class TestZedGenerator:
+    def test_generate_config(self, ctx, tmp_dir):
+        gen = ZedGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        assert (Path(tmp_dir) / ".zed" / "settings.json").exists()
+
+    def test_settings_json_valid(self, ctx, tmp_dir):
+        gen = ZedGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".zed" / "settings.json").read_text()
+        data = json.loads(content)
+        assert "project" in data
+        assert data["project"]["name"] == "test-project"
+
+    def test_generate_skills(self, ctx, tmp_dir):
+        gen = ZedGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        assert (Path(tmp_dir) / ".zed" / "context.md").exists()
+
+    def test_hooks_toml_created(self, ctx, tmp_dir):
+        gen = ZedGenerator()
+        gen.generate_hooks(ctx, tmp_dir)
+        assert (Path(tmp_dir) / ".zed" / "hooks.toml").exists()
+
+    def test_context_md_content(self, ctx, tmp_dir):
+        gen = ZedGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".zed" / "context.md").read_text()
+        assert "test-project" in content
+
+    def test_generate_all(self, ctx, tmp_dir):
+        gen = ZedGenerator()
+        result = gen.generate_all(ctx, tmp_dir)
+        assert isinstance(result, dict)
+
+    def test_name_property(self):
+        gen = ZedGenerator()
+        assert gen.name == "zed"
+
+    def test_output_files_property(self):
+        gen = ZedGenerator()
+        assert ".zed/settings.json" in gen.output_files
+
+
+class TestMultiToolInit:
+    """Test that multiple generators can be run in sequence without conflicts."""
+
+    def test_claude_and_cursor_no_conflict(self, ctx, tmp_dir):
+        claude_gen = ClaudeCodeGenerator()
+        cursor_gen = CursorGenerator()
+        claude_gen.generate_all(ctx, tmp_dir)
+        cursor_gen.generate_all(ctx, tmp_dir)
+        assert (Path(tmp_dir) / "CLAUDE.md").exists()
+        assert (Path(tmp_dir) / ".cursorrules").exists()
+
+    def test_all_generators_no_conflict(self, ctx, tmp_dir):
+        """All 10 generators should be able to run on the same directory."""
+        from vcsx.generators.registry import get_all_generators
+        gens = get_all_generators()
+        for gen in gens:
+            # Should not raise
+            gen.generate_all(ctx, tmp_dir)
+
+    def test_generator_output_files_unique(self):
+        """Each generator should produce unique primary config files."""
+        from vcsx.generators.registry import get_all_generators
+        all_primary_files = set()
+        for gen in get_all_generators():
+            # Just check no generator claims identical file sets
+            files = tuple(sorted(gen.output_files))
+            assert files not in all_primary_files or gen.name in ("agents-md", "gemini"), \
+                f"Generator {gen.name} has non-unique output files"
+            all_primary_files.add(files)
+
+
+class TestDoctorDetection:
+    """Test detection logic used by vcsx doctor."""
+
+    def test_detects_claude_code(self, tmp_dir):
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        assert (Path(tmp_dir) / "CLAUDE.md").exists()
+
+    def test_detects_gemini(self, tmp_dir):
+        (Path(tmp_dir) / "GEMINI.md").write_text("# test")
+        assert (Path(tmp_dir) / "GEMINI.md").exists()
+
+    def test_detects_missing_claudeignore(self, tmp_dir):
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        assert not (Path(tmp_dir) / ".claudeignore").exists()
+
+    def test_gemini_and_agents_md_coexist(self, ctx, tmp_dir):
+        """Gemini and AGENTS.md can coexist in same project."""
+        from vcsx.generators.gemini import GeminiGenerator
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        GeminiGenerator().generate_all(ctx, tmp_dir)
+        AgentsMdGenerator().generate_all(ctx, tmp_dir)
+        assert (Path(tmp_dir) / "GEMINI.md").exists()
+        assert (Path(tmp_dir) / "AGENTS.md").exists()

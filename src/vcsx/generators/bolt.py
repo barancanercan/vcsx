@@ -38,7 +38,7 @@ class BoltGenerator(BaseGenerator):
                 },
             },
             "ai": {
-                "model": "claude-sonnet-4",
+                "model": "claude-sonnet-4-5",
                 "temperature": 0.7,
                 "maxTokens": 8192,
             },

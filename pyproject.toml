@@ -49,11 +49,11 @@ all = ["uv>=0.1.0"]
 vcsx = "vcsx.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/vibe-coding-setup-expert/vcsx"
-Documentation = "https://vcsx.dev/docs"
-"Bug Tracker" = "https://github.com/vibe-coding-setup-expert/vcsx/issues"
-Repository = "https://github.com/vibe-coding-setup-expert/vcsx"
-"Changelog" = "https://github.com/vibe-coding-setup-expert/vcsx/releases"
+Homepage = "https://github.com/barancanercan/vcsx"
+Documentation = "https://github.com/barancanercan/vcsx#readme"
+"Bug Tracker" = "https://github.com/barancanercan/vcsx/issues"
+Repository = "https://github.com/barancanercan/vcsx"
+"Changelog" = "https://github.com/barancanercan/vcsx/releases"
 
 [project.entry-points."vcsx.plugins"]
 default = "vcsx.plugins.registry:load_default_plugins"

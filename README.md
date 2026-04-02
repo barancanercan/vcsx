@@ -4,7 +4,7 @@
 ╔══════════════════╗
 ║       *          ║
 ║      vcsx        ║
-║     v3.3.0       ║
+║     v4.0.0       ║
 ╚══════════════════╝
 </pre>
 
@@ -12,7 +12,7 @@
 
 **One command. Production-ready AI coding environment.**
 
-[![CI](https://github.com/vibe-coding-setup-expert/vcsx/actions/workflows/ci.yml/badge.svg)](https://github.com/vibe-coding-setup-expert/vcsx/actions/workflows/ci.yml)
+[![CI](https://github.com/barancanercan/vcsx/actions/workflows/ci.yml/badge.svg)](https://github.com/barancanercan/vcsx/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
@@ -36,6 +36,10 @@ $ vcsx init
 🔍 PHASE 5: Claude Code Config   → Skills, hooks, automations
 📋 PHASE 6: PLAN                 → Detailed review & approval
 🛠️ PHASE 7: BUILD               → All files generated automatically
+
+# Multi-tool setup (v4.1+)
+$ vcsx init -c claude-code -c cursor -c gemini  # Three tools at once
+$ vcsx init --all-tools                          # All 10 tools at once
 ```
 
 ## 🚀 Installation (5 Methods)
@@ -47,7 +51,7 @@ pip install vcsx
 
 ### 2. Standalone EXE
 ```bash
-curl -L https://github.com/vibe-coding-setup-expert/vcsx/releases/latest/download/vcsx.exe -o vcsx.exe
+curl -L https://github.com/barancanercan/vcsx/releases/latest/download/vcsx.exe -o vcsx.exe
 ```
 
 ### 3. Homebrew
@@ -81,7 +85,7 @@ npm install -g vcsx
 | **Gemini CLI** | Terminal AI | GEMINI.md (1M token context) |
 | **AGENTS.md** | Universal | AGENTS.md (Linux Foundation standard, all tools) |
 
-## 🎯 Discovery Process (v3.3 - Enhanced)
+## 🎯 Discovery Process (v4.0 - Enhanced)
 
 The discovery phase now includes **purpose-driven questions** for a more intelligent setup:
 
@@ -169,14 +173,17 @@ The discovery phase now includes **purpose-driven questions** for a more intelli
 
 | Command | Description |
 |---------|-------------|
-| `vcsx init` | Start interactive wizard |
+| `vcsx init` | Start interactive wizard (single tool) |
+| `vcsx init -c claude-code -c cursor` | Set up multiple tools at once |
+| `vcsx init --all-tools` | Set up all 10 tools at once |
 | `vcsx update` | Add missing AI configs to existing project |
 | `vcsx update --dry-run` | Preview what would be added |
 | `vcsx update --tool gemini` | Add a specific tool config |
 | `vcsx list` | List all AI tools |
-| `vcsx info <tool>` | Show tool details |
+| `vcsx info <tool>` | Show tool details and generated files |
 | `vcsx install <method>` | Show install instructions |
-| `vcsx doctor` | Check installation |
+| `vcsx doctor` | Check installation + detect project AI tools |
+| `vcsx doctor --dir /path/to/project` | Check a specific project |
 | `vcsx plugins` | List plugins |
 | `vcsx templates` | List templates |
 | `vcsx templates:install <name>` | Install template |
@@ -217,6 +224,6 @@ MIT License — see [LICENSE](LICENSE).
 
 **Made with ❤️ for the AI-assisted development community**
 
-[Report a Bug](https://github.com/vibe-coding-setup-expert/vcsx/issues) · [Request a Feature](https://github.com/vibe-coding-setup-expert/vcsx/issues) · [Contributing Guide](CONTRIBUTING.md)
+[Report a Bug](https://github.com/barancanercan/vcsx/issues) · [Request a Feature](https://github.com/barancanercan/vcsx/issues) · [Contributing Guide](CONTRIBUTING.md)
 
 </div>
