@@ -734,6 +734,46 @@ def list_plugins():
     console.print(table)
 
 
+@main.command("completion")
+@click.argument("shell", type=click.Choice(["bash", "zsh", "fish", "powershell"]))
+def completion(shell):
+    """Print shell completion script.
+
+    To enable completion, add to your shell profile:
+
+    \b
+    # bash (~/.bashrc)
+    eval "$(vcsx completion bash)"
+
+    # zsh (~/.zshrc)
+    eval "$(vcsx completion zsh)"
+
+    # fish (~/.config/fish/completions/vcsx.fish)
+    vcsx completion fish | source
+    """
+    import os
+
+    env_var = "_VCSX_COMPLETE"
+    scripts = {
+        "bash": f'eval "$({env_var}=bash_source vcsx)"',
+        "zsh": f'eval "$({env_var}=zsh_source vcsx)"',
+        "fish": f"eval (env {env_var}=fish_source vcsx)",
+        "powershell": f"Invoke-Expression (& vcsx --{env_var}=powershell_source)",
+    }
+
+    setup_instructions = {
+        "bash": "# Add to ~/.bashrc:\neval \"$(vcsx completion bash)\"",
+        "zsh": "# Add to ~/.zshrc:\neval \"$(vcsx completion zsh)\"",
+        "fish": "# Add to ~/.config/fish/completions/vcsx.fish:\nvcsx completion fish | source",
+        "powershell": "# Add to $PROFILE:\nInvoke-Expression (& vcsx completion powershell)",
+    }
+
+    console.print(f"# vcsx shell completion for {shell}")
+    console.print(setup_instructions[shell])
+    console.print(f"\n# Auto-generated (requires click-completion or Click 8.x):")
+    console.print(scripts[shell])
+
+
 @main.command("templates")
 @click.argument("query", required=False)
 def list_templates(query):
