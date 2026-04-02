@@ -61,7 +61,93 @@ class WindsurfGenerator(BaseGenerator):
 - Keep changes focused and atomic
 """
         (Path(output_dir) / ".windsurfrules").write_text(content, encoding="utf-8")
+
+        # New format: .windsurf/rules/*.md (MDC-style, scoped rules)
+        self._generate_windsurf_rules(ctx, output_dir)
+
         return content
+
+    def _generate_windsurf_rules(self, ctx: ProjectContext, output_dir: str) -> None:
+        """Generate .windsurf/rules/ directory with scoped rule files (new format).
+
+        Windsurf v2+ uses .windsurf/rules/*.md alongside legacy .windsurfrules.
+        Rules support metadata: alwaysApply, glob patterns, description.
+        """
+        import json
+        rules_dir = Path(output_dir) / ".windsurf" / "rules"
+        rules_dir.mkdir(parents=True, exist_ok=True)
+
+        # Core conventions rule (always apply)
+        (rules_dir / "core-conventions.md").write_text(f"""---
+alwaysApply: true
+description: Core project conventions always applied
+---
+
+# Core Conventions for {ctx.project_name}
+
+- **Language:** {ctx.language or "See tech stack"}
+- **Framework:** {ctx.framework or "None"}
+- **Type:** {ctx.project_type}
+
+## Non-negotiable Rules
+- Never commit `.env` files or secrets.
+- Run `{ctx.formatter or "formatter"}` before every commit.
+- Run `{ctx.linter or "linter"}` and fix all warnings.
+- Write tests for new functionality.
+- Keep PRs small and focused.
+""", encoding="utf-8")
+
+        # Testing conventions (auto-attached to test files)
+        lang_glob = "**/*.py" if ctx.language == "python" else "**/*.ts,**/*.tsx,**/*.js"
+        test_glob = "tests/**,**/*.test.*,**/*.spec.*"
+        (rules_dir / "testing.md").write_text(f"""---
+alwaysApply: false
+globs: {test_glob}
+description: Testing conventions — applied when working on test files
+---
+
+# Testing Conventions
+
+- Test framework: {ctx.test_framework or "project standard"}
+- Every new function must have at least one test.
+- Tests should be independent — no shared mutable state.
+- Use descriptive test names: `test_<function>_<scenario>_<expected>`.
+- Mock external services; never hit real APIs in unit tests.
+""", encoding="utf-8")
+
+        # Security rules (always apply)
+        (rules_dir / "security.md").write_text("""---
+alwaysApply: true
+description: Security guardrails — always enforced
+---
+
+# Security Rules
+
+- NEVER hardcode API keys, passwords, or tokens.
+- NEVER use `eval()` or `exec()` with user input.
+- NEVER trust user input — validate and sanitize everything.
+- NEVER log sensitive data (tokens, passwords, PII).
+- Use environment variables for all secrets.
+- Dependencies: check for known vulnerabilities before adding.
+""", encoding="utf-8")
+
+        # API conventions if applicable
+        if ctx.project_type == "api":
+            (rules_dir / "api-conventions.md").write_text("""---
+alwaysApply: false
+globs: src/routes/**,src/api/**,src/controllers/**
+description: REST API design conventions
+---
+
+# API Conventions
+
+- Use correct HTTP verbs: GET (read), POST (create), PUT/PATCH (update), DELETE.
+- Return consistent response shapes: `{data, error, message}`.
+- Use HTTP status codes correctly: 200, 201, 400, 401, 403, 404, 409, 422, 500.
+- Validate all request body fields — return 422 with field-level errors.
+- Paginate list endpoints: `{data, page, limit, total}`.
+- Version the API: `/api/v1/`.
+""", encoding="utf-8")
 
     def generate_skills(self, ctx: ProjectContext, output_dir: str) -> list[str]:
         """Generate Windsurf-specific skill files."""
