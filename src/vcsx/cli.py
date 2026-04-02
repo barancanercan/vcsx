@@ -99,6 +99,128 @@ def init(cli, lang, output_dir):
     console.print(f"Files generated in: {output_dir}")
 
 
+@main.command("update")
+@click.option(
+    "--output-dir",
+    "-o",
+    type=click.Path(),
+    default=".",
+    help="Directory to update (default: current directory)",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Show what would be added/updated without writing files",
+)
+@click.option(
+    "--tool",
+    "-t",
+    multiple=True,
+    type=click.Choice(ALL_TOOLS),
+    help="Specific tool configs to add (default: auto-detect from existing files)",
+)
+def update(output_dir, dry_run, tool):
+    """Update an existing project — add missing AI config files.
+
+    Detects which config files exist and which are missing, then
+    generates the missing ones without overwriting existing files.
+
+    Examples:
+        vcsx update               # Auto-detect and add missing configs
+        vcsx update --dry-run     # Preview what would be added
+        vcsx update --tool gemini # Add Gemini CLI config only
+    """
+    target = Path(output_dir).resolve()
+    console.print(f"\n[bold cyan]vcsx update[/] — Scanning: {target}\n")
+
+    # Detection map: file/dir → tool name
+    detection_map = {
+        "CLAUDE.md": "claude-code",
+        ".claude/": "claude-code",
+        ".cursorrules": "cursor",
+        ".cursor/rules/": "cursor",
+        ".windsurfrules": "windsurf",
+        ".windsurf/": "windsurf",
+        ".github/copilot-instructions.md": "copilot",
+        "AGENTS.md": "agents-md",
+        "GEMINI.md": "gemini",
+        ".aider.conf.yaml": "aider",
+        ".bolt/": "bolt",
+        ".openai/": "codex",
+    }
+
+    # Detect what's already present
+    present = []
+    for path_str, tool_name in detection_map.items():
+        p = target / path_str
+        if p.exists():
+            present.append(tool_name)
+
+    # Detect what's missing (keys: claudeignore, agents.md, etc.)
+    missing_files = []
+    if (target / "CLAUDE.md").exists() and not (target / ".claudeignore").exists():
+        missing_files.append(".claudeignore")
+    if (target / "CLAUDE.md").exists() and not (target / "AGENTS.md").exists():
+        missing_files.append("AGENTS.md")
+    if (target / ".windsurfrules").exists() and not (target / ".windsurf" / "rules").exists():
+        missing_files.append(".windsurf/rules/ (new format)")
+
+    # Determine which tools to add
+    tools_to_add = list(tool) if tool else []
+
+    # Summary table
+    table = Table(title="Config Status")
+    table.add_column("File / Config", style="cyan")
+    table.add_column("Status", style="bold")
+
+    for path_str, tool_name in detection_map.items():
+        p = target / path_str
+        status = "[green]✓ Present[/]" if p.exists() else "[yellow]✗ Missing[/]"
+        table.add_row(path_str, status)
+
+    for mf in missing_files:
+        table.add_row(mf, "[yellow]✗ Missing (upgrade available)[/]")
+
+    console.print(table)
+
+    if missing_files:
+        console.print(f"\n[yellow]Upgrade opportunities:[/] {', '.join(missing_files)}")
+
+    if not tools_to_add and not missing_files:
+        console.print("\n[green]✓ Everything looks up to date![/]")
+        return
+
+    if dry_run:
+        console.print("\n[dim]Dry run — no files written.[/]")
+        if tools_to_add:
+            console.print(f"Would add configs for: {', '.join(tools_to_add)}")
+        if missing_files:
+            console.print(f"Would generate: {', '.join(missing_files)}")
+        return
+
+    if not tools_to_add:
+        console.print("\nRun with [cyan]--tool <name>[/] to add a specific tool, e.g.:")
+        console.print("  vcsx update --tool gemini")
+        console.print("  vcsx update --tool agents-md")
+        return
+
+    # Run generators for requested tools
+    from vcsx.core.context import ProjectContext
+    ctx = ProjectContext(project_name=target.name, lang="en")
+
+    for t in tools_to_add:
+        gen = get_generator(t)
+        console.print(f"\n[cyan]Adding {t}...[/]")
+        try:
+            result = gen.generate_all(ctx, str(target))
+            console.print(f"[green]✓ {t} config added[/]")
+        except Exception as e:
+            console.print(f"[red]✗ Failed to add {t}: {e}[/]")
+
+    console.print("\n[green]Done![/]")
+
+
 @main.command("list")
 def list_tools():
     """List available CLI tools."""
