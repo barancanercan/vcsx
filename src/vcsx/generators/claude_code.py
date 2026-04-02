@@ -292,6 +292,12 @@ class ClaudeCodeGenerator(BaseGenerator):
         if ctx.test_level != "none":
             created.append(_agent_test_writer(agents_dir, ctx))
         created.append(_agent_researcher(agents_dir))
+        created.append(_agent_code_reviewer(agents_dir, ctx))
+        created.append(_agent_debugger(agents_dir, ctx))
+        if ctx.project_type == "api":
+            created.append(_agent_api_designer(agents_dir, ctx))
+        if ctx.project_type in ("data-pipeline", "ml-model"):
+            created.append(_agent_data_analyst(agents_dir, ctx))
 
         return created
 
@@ -1540,6 +1546,204 @@ You are a senior QA engineer. Write tests that:
     p = agents_dir / "test-writer.md"
     p.write_text(content, encoding="utf-8")
     return "test-writer"
+
+
+def _agent_code_reviewer(agents_dir: Path, ctx: ProjectContext) -> str:
+    content = f"""---
+name: code-reviewer
+description: Reviews code changes for quality, maintainability, and best practices
+tools: Read, Grep, Glob, Bash
+---
+
+You are a senior software engineer doing a thorough code review.
+
+## Review Checklist
+- **Correctness**: Does the code do what it's supposed to?
+- **Readability**: Is the code easy to understand?
+- **Maintainability**: Will this be easy to modify later?
+- **Performance**: Any obvious performance issues?
+- **Error handling**: Are edge cases handled?
+- **Tests**: Are there adequate tests?
+- **Documentation**: Are complex parts documented?
+
+## Language: {ctx.language}
+## Framework: {ctx.framework or "None"}
+
+## Process
+1. Read the changed files
+2. Understand the intent
+3. Check each item on the checklist
+4. Provide line-specific feedback with concrete suggestions
+5. Rate each issue: [BLOCKING] [SUGGESTION] [NITPICK]
+
+## Output Format
+```
+## Code Review Summary
+
+### Blocking Issues
+- [file:line] Issue description → Suggested fix
+
+### Suggestions
+- [file:line] Suggestion → Why it matters
+
+### Nitpicks
+- [file:line] Minor style/naming issue
+
+### Overall Assessment
+[APPROVE / REQUEST_CHANGES / NEEDS_DISCUSSION]
+```
+"""
+    p = agents_dir / "code-reviewer.md"
+    p.write_text(content, encoding="utf-8")
+    return "code-reviewer"
+
+
+def _agent_debugger(agents_dir: Path, ctx: ProjectContext) -> str:
+    content = f"""---
+name: debugger
+description: Diagnoses and fixes bugs systematically using root cause analysis
+tools: Read, Grep, Glob, Bash, Write
+---
+
+You are an expert debugger. Find the root cause and fix bugs systematically.
+
+## Language: {ctx.language}
+## Test Command: {ctx.test_framework or "pytest" if ctx.language == "python" else "npm test"}
+
+## Debugging Process
+1. **Reproduce** — Understand the exact failure condition
+2. **Isolate** — Narrow down which component is failing
+3. **Hypothesize** — Form a theory about the root cause
+4. **Verify** — Test the hypothesis
+5. **Fix** — Apply the minimal fix
+6. **Validate** — Run tests to confirm the fix
+
+## Rules
+- Never fix symptoms, fix root causes
+- Minimal diffs only — don't refactor while fixing
+- Run tests after every change
+- Document what you found and why the fix works
+
+## Output Format
+```
+## Bug Report
+
+### Root Cause
+[Explain exactly what was wrong and why]
+
+### Fix Applied
+[Describe the change made]
+
+### Verification
+[Test output showing the fix works]
+```
+"""
+    p = agents_dir / "debugger.md"
+    p.write_text(content, encoding="utf-8")
+    return "debugger"
+
+
+def _agent_api_designer(agents_dir: Path, ctx: ProjectContext) -> str:
+    content = f"""---
+name: api-designer
+description: Designs RESTful API endpoints following best practices
+tools: Read, Grep, Glob, Write
+---
+
+You are a senior API architect. Design clean, consistent REST APIs.
+
+## Framework: {ctx.framework or "None"}
+## Project: {ctx.project_name or "Project"}
+
+## API Design Principles
+- **REST conventions**: GET (read), POST (create), PUT (replace), PATCH (update), DELETE
+- **Consistent naming**: plural nouns for collections (`/users`, `/orders`)
+- **Versioning**: always version your API (`/v1/users`)
+- **Error responses**: consistent shape `{{"error": "...", "message": "...", "code": "..."}}`
+- **HTTP status codes**: use them correctly (200/201/400/401/403/404/422/500)
+
+## Process
+1. Understand the resource being modeled
+2. Define the collection and item endpoints
+3. Specify request/response schemas
+4. Document error cases
+5. Note authentication requirements
+
+## Output Format
+```
+## API Design: [Resource Name]
+
+### Endpoints
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET    | /v1/resource | List all | Yes |
+
+### Request Schema
+[JSON schema]
+
+### Response Schema
+[JSON schema]
+
+### Error Cases
+[List of error responses]
+```
+"""
+    p = agents_dir / "api-designer.md"
+    p.write_text(content, encoding="utf-8")
+    return "api-designer"
+
+
+def _agent_data_analyst(agents_dir: Path, ctx: ProjectContext) -> str:
+    content = f"""---
+name: data-analyst
+description: Analyzes data pipelines, schemas, and data quality issues
+tools: Read, Grep, Glob, Bash, Write
+---
+
+You are a senior data engineer. Analyze data pipelines and schemas.
+
+## Project Type: {ctx.project_type}
+## Language: {ctx.language}
+
+## Analysis Areas
+- **Data quality**: nulls, duplicates, outliers, schema violations
+- **Pipeline performance**: bottlenecks, chunking, memory usage
+- **Schema design**: normalization, indexing, relationships
+- **Idempotency**: can the pipeline run twice safely?
+- **Error handling**: what happens when upstream data is malformed?
+
+## SQLite Best Practices
+```sql
+PRAGMA journal_mode=WAL;
+PRAGMA synchronous=OFF;
+PRAGMA cache_size=-64000;  -- 64MB cache
+PRAGMA temp_store=MEMORY;
+```
+
+## Process
+1. Read the pipeline/schema files
+2. Identify the data flow
+3. Check for quality issues
+4. Suggest optimizations
+5. Verify idempotency
+
+## Output Format
+```
+## Data Analysis Report
+
+### Data Flow
+[Describe the pipeline steps]
+
+### Issues Found
+- [CRITICAL/WARNING/INFO] Description
+
+### Recommendations
+[Concrete improvements with code examples]
+```
+"""
+    p = agents_dir / "data-analyst.md"
+    p.write_text(content, encoding="utf-8")
+    return "data-analyst"
 
 
 def _agent_researcher(agents_dir: Path) -> str:

@@ -721,6 +721,130 @@ def new_project(project_name, project_type, lang, tool, output_dir):
         console.print("  npm install")
 
 
+@main.command("stats")
+@click.argument("path", default=".", type=click.Path(exists=True))
+def stats(path):
+    """Show statistics about AI config files in a project.
+
+    Counts skills, hooks, agents, rules, and config files.
+
+    Examples:
+        vcsx stats                  # Current directory
+        vcsx stats ~/my-project     # Specific project
+    """
+    target = Path(path).resolve()
+    console.print(f"\n[bold]vcsx stats[/] — {target}\n")
+
+    stats_data = {
+        "tools_configured": 0,
+        "skills": 0,
+        "hooks": 0,
+        "agents": 0,
+        "rules": 0,
+        "total_config_files": 0,
+        "total_config_lines": 0,
+    }
+
+    tool_counts = {}
+
+    # Claude Code
+    claude_md = target / "CLAUDE.md"
+    if claude_md.exists():
+        stats_data["tools_configured"] += 1
+        stats_data["total_config_files"] += 1
+        stats_data["total_config_lines"] += len(claude_md.read_text().splitlines())
+        tool_counts["claude-code"] = {"skills": 0, "hooks": 0, "agents": 0}
+
+        skills_dir = target / ".claude" / "skills"
+        if skills_dir.exists():
+            skill_count = sum(1 for _ in skills_dir.glob("*/SKILL.md"))
+            stats_data["skills"] += skill_count
+            tool_counts["claude-code"]["skills"] = skill_count
+
+        hooks_dir = target / ".claude" / "hooks"
+        if hooks_dir.exists():
+            hook_count = sum(1 for _ in hooks_dir.glob("*.sh"))
+            stats_data["hooks"] += hook_count
+            tool_counts["claude-code"]["hooks"] = hook_count
+
+        agents_dir = target / ".claude" / "agents"
+        if agents_dir.exists():
+            agent_count = sum(1 for _ in agents_dir.glob("*.md"))
+            stats_data["agents"] += agent_count
+            tool_counts["claude-code"]["agents"] = agent_count
+
+    # Cursor
+    if (target / ".cursorrules").exists():
+        stats_data["tools_configured"] += 1
+        stats_data["total_config_files"] += 1
+        rules_dir = target / ".cursor" / "rules"
+        if rules_dir.exists():
+            rule_count = sum(1 for _ in rules_dir.glob("*.mdc"))
+            stats_data["rules"] += rule_count
+            tool_counts["cursor"] = {"rules": rule_count}
+
+    # Windsurf
+    if (target / ".windsurfrules").exists():
+        stats_data["tools_configured"] += 1
+        stats_data["total_config_files"] += 1
+        rules_dir = target / ".windsurf" / "rules"
+        if rules_dir.exists():
+            rule_count = sum(1 for _ in rules_dir.glob("*.md"))
+            stats_data["rules"] += rule_count
+            tool_counts["windsurf"] = {"rules": rule_count}
+
+    # Other tools
+    simple_checks = {
+        "GEMINI.md": "gemini",
+        "AGENTS.md": "agents-md",
+        ".aider.conf.yaml": "aider",
+        ".bolt/workspace.json": "bolt",
+        ".openai/instructions.md": "codex",
+        ".github/copilot-instructions.md": "copilot",
+        ".zed/settings.json": "zed",
+    }
+    for f, tool in simple_checks.items():
+        if (target / f).exists():
+            stats_data["tools_configured"] += 1
+            stats_data["total_config_files"] += 1
+
+    # Copilot scoped instructions
+    instructions_dir = target / ".github" / "instructions"
+    if instructions_dir.exists():
+        instr_count = sum(1 for _ in instructions_dir.glob("*.instructions.md"))
+        if instr_count:
+            tool_counts["copilot"] = {"scoped_instructions": instr_count}
+
+    if stats_data["tools_configured"] == 0:
+        console.print("[yellow]No AI tool configs found.[/]")
+        console.print("Run [cyan]vcsx init[/] to get started.")
+        return
+
+    # Summary table
+    table = Table(title="AI Config Statistics", border_style="cyan")
+    table.add_column("Metric", style="dim")
+    table.add_column("Count", style="bold cyan", justify="right")
+
+    table.add_row("Tools configured", str(stats_data["tools_configured"]))
+    table.add_row("Skills (Claude Code)", str(stats_data["skills"]))
+    table.add_row("Hooks (Claude Code)", str(stats_data["hooks"]))
+    table.add_row("Agents (Claude Code)", str(stats_data["agents"]))
+    table.add_row("Scoped rules (Cursor/Windsurf)", str(stats_data["rules"]))
+    table.add_row("Config files total", str(stats_data["total_config_files"]))
+    if stats_data["total_config_lines"]:
+        table.add_row("Config lines (CLAUDE.md)", str(stats_data["total_config_lines"]))
+
+    console.print(table)
+
+    # Per-tool breakdown
+    if tool_counts:
+        console.print("\n[bold]Per-tool breakdown:[/]")
+        for tool, counts in tool_counts.items():
+            parts = ", ".join(f"{v} {k}" for k, v in counts.items() if v)
+            if parts:
+                console.print(f"  [cyan]{tool}:[/] {parts}")
+
+
 @main.command("plugins")
 def list_plugins():
     """List available plugins."""
