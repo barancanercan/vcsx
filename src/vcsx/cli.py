@@ -8,7 +8,6 @@ import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.prompt import Confirm
 
 from vcsx import __version__
 from vcsx.discovery import run_discovery
@@ -17,7 +16,6 @@ from vcsx.generators.registry import (
     TOOL_CATEGORIES,
     TOOL_DESCRIPTIONS,
     get_generator,
-    get_tools_by_category,
 )
 from vcsx.implementation import run_implementation
 from vcsx.planner import confirm_plan, generate_plan
@@ -267,8 +265,8 @@ def list_tools():
         table.add_row(tool, category, desc)
 
     console.print(table)
-    console.print(f"\nUse [cyan]vcsx info <tool>[/] for details on any tool.")
-    console.print(f"Use [cyan]vcsx init -c <tool> -c <tool>[/] to set up multiple tools at once.")
+    console.print("\nUse [cyan]vcsx info <tool>[/] for details on any tool.")
+    console.print("Use [cyan]vcsx init -c <tool> -c <tool>[/] to set up multiple tools at once.")
 
 
 @main.command("info")
@@ -477,7 +475,7 @@ def check_project(path, output_json):
         vcsx check ~/my-project --json  # JSON output for CI
     """
     import json as json_mod
-    from vcsx.generators.registry import get_generator
+
 
     target = Path(path).resolve()
 
@@ -707,12 +705,12 @@ def new_project(project_name, project_type, lang, tool, output_dir):
     console.print(f"\n[green]✓ Done![/] Project ready at: {project_dir}")
     console.print("\nNext steps:")
     console.print(f"  cd {project_name}")
-    console.print(f"  git init && git add . && git commit -m 'chore: initial vcsx setup'")
+    console.print("  git init && git add . && git commit -m 'chore: initial vcsx setup'")
     if lang == "python":
-        console.print(f"  python -m venv .venv && source .venv/bin/activate")
-        console.print(f"  pip install -e '.[dev]'  # if pyproject.toml exists")
+        console.print("  python -m venv .venv && source .venv/bin/activate")
+        console.print("  pip install -e '.[dev]'  # if pyproject.toml exists")
     elif lang in ("typescript", "javascript"):
-        console.print(f"  npm install")
+        console.print("  npm install")
 
 
 @main.command("plugins")
@@ -789,7 +787,7 @@ def migrate(tool, target_dir, dry_run):
 
         from vcsx.generators.windsurf import WindsurfGenerator
         WindsurfGenerator()._generate_windsurf_rules(ctx, str(target))
-        console.print(f"\n[green]✓ Migrated![/] .windsurf/rules/ created.")
+        console.print("\n[green]✓ Migrated![/] .windsurf/rules/ created.")
         console.print("[dim]Old .windsurfrules retained for backward compatibility.[/]")
 
     elif tool == "cursor":
@@ -816,7 +814,7 @@ def migrate(tool, target_dir, dry_run):
 
         from vcsx.generators.cursor import CursorGenerator
         CursorGenerator().generate_skills(ctx, str(target))
-        console.print(f"\n[green]✓ Migrated![/] .cursor/rules/ created.")
+        console.print("\n[green]✓ Migrated![/] .cursor/rules/ created.")
         console.print("[dim]Old .cursorrules retained for backward compatibility.[/]")
 
     elif tool == "claude-code":
@@ -848,7 +846,7 @@ def migrate(tool, target_dir, dry_run):
             gen.generate_scaffold(ctx, str(target))
         if ".claude/agents/" in missing:
             gen.generate_agents(ctx, str(target))
-        console.print(f"\n[green]✓ Claude Code config upgraded![/]")
+        console.print("\n[green]✓ Claude Code config upgraded![/]")
 
     elif tool == "copilot":
         main_file = target / ".github" / "copilot-instructions.md"
@@ -862,7 +860,7 @@ def migrate(tool, target_dir, dry_run):
             console.print("[green]✓ Scoped instructions already exist.[/]")
             return
 
-        console.print(f"Will create: .github/instructions/")
+        console.print("Will create: .github/instructions/")
         console.print("  • code-style.instructions.md")
         console.print("  • testing.instructions.md")
         console.print("  • security.instructions.md")
@@ -873,7 +871,7 @@ def migrate(tool, target_dir, dry_run):
 
         from vcsx.generators.copilot import CopilotGenerator
         CopilotGenerator()._generate_scoped_instructions(ctx, str(target))
-        console.print(f"\n[green]✓ Copilot scoped instructions created![/]")
+        console.print("\n[green]✓ Copilot scoped instructions created![/]")
 
 
 @main.command("completion")
@@ -893,7 +891,6 @@ def completion(shell):
     # fish (~/.config/fish/completions/vcsx.fish)
     vcsx completion fish | source
     """
-    import os
 
     env_var = "_VCSX_COMPLETE"
     scripts = {
@@ -912,7 +909,7 @@ def completion(shell):
 
     console.print(f"# vcsx shell completion for {shell}")
     console.print(setup_instructions[shell])
-    console.print(f"\n# Auto-generated (requires click-completion or Click 8.x):")
+    console.print("\n# Auto-generated (requires click-completion or Click 8.x):")
     console.print(scripts[shell])
 
 
@@ -945,7 +942,6 @@ def list_templates(query):
 @click.argument("template_name")
 def install_template(template_name):
     """Install a template."""
-    from vcsx.templates import get_template_registry
 
     registry = get_template_registry()
     template = registry.get(template_name)

@@ -7,9 +7,9 @@ To add a new CLI tool:
 4. Done.
 """
 
-from vcsx.generators.base import BaseGenerator
 from vcsx.generators.agents_md import AgentsMdGenerator
 from vcsx.generators.aider import AiderGenerator
+from vcsx.generators.base import BaseGenerator
 from vcsx.generators.bolt import BoltGenerator
 from vcsx.generators.claude_code import ClaudeCodeGenerator
 from vcsx.generators.codex import CodexGenerator

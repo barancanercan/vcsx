@@ -1,7 +1,7 @@
 """Question bank for discovery phase — Turkish and English with intelligent defaults."""
 
-import platform
 import os
+import platform
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -88,7 +88,7 @@ def detect_ai_tool() -> str | None:
 
     Checks in priority order (project-specific files first).
     """
-    current_dir = Path(".")
+    Path(".")
 
     # File to tool mapping (priority order)
     checks = [
@@ -156,7 +156,7 @@ def _load_best_practices() -> dict:
 
         try:
             return json.loads(cache_file.read_text(encoding="utf-8"))
-        except:
+        except Exception:
             pass
 
     # Return default practices while async fetch would happen
@@ -319,11 +319,11 @@ _TR_PROMPTS = {
 =============================================================
    Vibe Coding Setup Expert - Keşif Aşaması (v3.3)
 =============================================================
-   Projeni derinlemesine anlayarak sana özel bir AI 
+   Projeni derinlemesine anlayarak sana özel bir AI
    kodlama ortamı kuracağım.
-   
+
    📌 Süreç: 3 tur + detaylı plan onayı
-   🎯 Amaç: Sadece yapılandırma değil, projenin 
+   🎯 Amaç: Sadece yapılandırma değil, projenin
             başarısını destekleyecek akıllı bir ortam
 =============================================================
 """,
@@ -530,7 +530,7 @@ _EN_PROMPTS = {
 =============================================================
    I'll deeply understand your project and create a custom
    AI coding environment tailored to your success.
-   
+
    📌 Process: 3 rounds + detailed plan approval
    🎯 Goal: Not just config, but an intelligent environment
             that supports your project's success

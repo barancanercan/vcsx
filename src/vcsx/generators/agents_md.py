@@ -12,8 +12,9 @@ Reference: https://agents.md/
 """
 
 import os
-from vcsx.generators.base import BaseGenerator
+
 from vcsx.core.context import ProjectContext
+from vcsx.generators.base import BaseGenerator
 
 
 class AgentsMdGenerator(BaseGenerator):
@@ -131,7 +132,7 @@ Use conventional commits:
 
         if lang == "python":
             install = "pip install -e '.[dev]'" if "pyproject" in framework or not framework else "pip install -r requirements.txt"
-            test_cmd = f"pytest" if not test_fw or test_fw == "pytest" else test_fw
+            test_cmd = "pytest" if not test_fw or test_fw == "pytest" else test_fw
             fmt = f"{ctx.formatter}" if ctx.formatter else "ruff format ."
             lint = f"{ctx.linter}" if ctx.linter else "ruff check ."
             return f"""```bash
@@ -202,7 +203,7 @@ cargo fmt
         fmt_line = f"# Format: {ctx.formatter}" if ctx.formatter else ""
         lint_line = f"# Lint: {ctx.linter}" if ctx.linter else ""
         test_line = f"# Test: {ctx.test_framework}" if ctx.test_framework else ""
-        lines = [l for l in [fmt_line, lint_line, test_line] if l]
+        lines = [ln for ln in [fmt_line, lint_line, test_line] if ln]
         if lines:
             return "```bash\n" + "\n".join(lines) + "\n```"
         return "*(Commands not specified — infer from project tooling)*"

@@ -12,18 +12,15 @@ from vcsx.core.inference import (
     infer_linter,
     infer_test_framework,
 )
-from vcsx.utils.prompts import (
-    AI_TOOLS,
-    get_prompts,
-    detect_platform,
-    detect_ai_tool,
-    get_intelligent_defaults,
-    get_prompt_question,
-    get_prompt_hint,
-    get_prompt_placeholder,
-    get_prompt_value,
-)
 from vcsx.generators.registry import ALL_TOOLS
+from vcsx.utils.prompts import (
+    detect_ai_tool,
+    detect_platform,
+    get_intelligent_defaults,
+    get_prompt_placeholder,
+    get_prompt_question,
+    get_prompts,
+)
 
 
 def run_discovery(console: Console, lang: str = "tr") -> ProjectContext:
@@ -164,7 +161,7 @@ def run_discovery(console: Console, lang: str = "tr") -> ProjectContext:
         default_string=get_prompt_placeholder(prompts, "hosting"),
     )
 
-    auth_needed_prompt = prompts.get("auth_needed", {})
+    prompts.get("auth_needed", {})
     ctx.auth_needed = Confirm.ask(
         get_prompt_question(prompts, "auth_needed"),
         default=False,

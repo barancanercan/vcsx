@@ -11,7 +11,7 @@ from vcsx.core.inference import infer_formatter, infer_linter, infer_test_framew
 def get_setup_cmd(ctx: ProjectContext) -> str:
     """Return the project setup/install command based on language."""
     lang = (ctx.language or "").lower()
-    framework = (ctx.framework or "").lower()
+    (ctx.framework or "").lower()
     tech = (ctx.tech_stack or "").lower()
 
     if lang == "python":

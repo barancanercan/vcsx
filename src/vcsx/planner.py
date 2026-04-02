@@ -116,10 +116,8 @@ def generate_plan(ctx: ProjectContext, console: Console, cli_tools: list[str]) -
                 "",
                 "  📁 .claude/settings.json (Hook'lar - Otomatik Çalışan)",
                 "     ├─ PreToolUse → rm -rf, git push --force gibi tehlikeli komutları bloklar",
-                "     ├─ PostToolUse → Dosya kaydettiğinde {formatter} çalıştırır".format(
-                    formatter=ctx.formatter
-                ),
-                "     ├─ PostToolUse → Edit sonrası {linter} çalıştırır".format(linter=ctx.linter),
+                f"     ├─ PostToolUse → Dosya kaydettiğinde {ctx.formatter} çalıştırır",
+                f"     ├─ PostToolUse → Edit sonrası {ctx.linter} çalıştırır",
                 "     └─ SessionStart/Stop → Test suite çalıştırır",
                 "",
                 "  📁 .claude/agents/ (Subagent'lar)",
@@ -178,7 +176,7 @@ def generate_plan(ctx: ProjectContext, console: Console, cli_tools: list[str]) -
                 "     └─ Kullanım: Her oturumda yüklenir",
                 "",
                 "  📄 .zed/hooks.toml (Zed Hook'ları)",
-                "     ├─ Pre-commit: {linter} + test çalıştırır".format(linter=ctx.linter),
+                f"     ├─ Pre-commit: {ctx.linter} + test çalıştırır",
                 "     └─ On-save: Format on save, trim whitespace",
                 "",
             ]

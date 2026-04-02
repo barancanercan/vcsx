@@ -27,7 +27,7 @@ def render_template(template: str, context: dict[str, Any]) -> str:
 
 def render_template_file(template_path: str, context: dict[str, Any]) -> str:
     """Render a template file with context variables."""
-    with open(template_path, "r", encoding="utf-8") as f:
+    with open(template_path, encoding="utf-8") as f:
         template = f.read()
     return render_template(template, context)
 

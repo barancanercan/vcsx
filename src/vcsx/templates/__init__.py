@@ -1,7 +1,6 @@
 """Template system for vcsx — starter templates and community templates."""
 
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 

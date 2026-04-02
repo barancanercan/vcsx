@@ -1,8 +1,9 @@
 """Gemini CLI generator — GEMINI.md configuration for Google's Gemini CLI."""
 
 import os
-from vcsx.generators.base import BaseGenerator
+
 from vcsx.core.context import ProjectContext
+from vcsx.generators.base import BaseGenerator
 
 
 class GeminiGenerator(BaseGenerator):

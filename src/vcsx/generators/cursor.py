@@ -5,13 +5,19 @@ from pathlib import Path
 
 from vcsx.core.context import ProjectContext
 from vcsx.core.inference import infer_formatter, infer_linter, infer_test_framework
-from vcsx.generators.base import BaseGenerator
+from vcsx.generators._shared import (
+    get_build_cmd as _shared_build,
+)
 from vcsx.generators._shared import (
     get_setup_cmd as _shared_setup,
-    get_build_cmd as _shared_build,
-    get_test_cmd as _shared_test,
+)
+from vcsx.generators._shared import (
     get_style_rules as _shared_style,
 )
+from vcsx.generators._shared import (
+    get_test_cmd as _shared_test,
+)
+from vcsx.generators.base import BaseGenerator
 
 
 class CursorGenerator(BaseGenerator):

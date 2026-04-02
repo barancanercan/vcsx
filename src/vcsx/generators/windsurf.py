@@ -73,7 +73,6 @@ class WindsurfGenerator(BaseGenerator):
         Windsurf v2+ uses .windsurf/rules/*.md alongside legacy .windsurfrules.
         Rules support metadata: alwaysApply, glob patterns, description.
         """
-        import json
         rules_dir = Path(output_dir) / ".windsurf" / "rules"
         rules_dir.mkdir(parents=True, exist_ok=True)
 
@@ -98,7 +97,6 @@ description: Core project conventions always applied
 """, encoding="utf-8")
 
         # Testing conventions (auto-attached to test files)
-        lang_glob = "**/*.py" if ctx.language == "python" else "**/*.ts,**/*.tsx,**/*.js"
         test_glob = "tests/**,**/*.test.*,**/*.spec.*"
         (rules_dir / "testing.md").write_text(f"""---
 alwaysApply: false

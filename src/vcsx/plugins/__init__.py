@@ -1,10 +1,10 @@
 """Plugin base classes and loader system for vcsx."""
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from importlib import import_module, metadata
-from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 
 @dataclass
@@ -129,7 +129,7 @@ def get_registry() -> PluginRegistry:
 
 def load_default_plugins() -> None:
     """Load all default vcsx plugins."""
-    registry = get_registry()
+    get_registry()
 
     builtins = [
         "vcsx.generators.claude_code",

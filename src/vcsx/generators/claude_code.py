@@ -160,7 +160,6 @@ class ClaudeCodeGenerator(BaseGenerator):
 
         # Platform detection for script extension
         platform = getattr(ctx, "platform", "") or "macos"
-        is_windows = platform in ("windows-powershell", "wsl")
         ext = ".ps1" if platform == "windows-powershell" else ".sh"
 
         # Generate platform-specific scripts
