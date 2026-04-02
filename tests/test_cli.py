@@ -196,6 +196,70 @@ class TestNewCommand:
         assert (Path(tmp_dir) / "my-web" / ".cursorrules").exists()
 
 
+class TestValidateCommand:
+    def test_validate_empty_dir(self, runner, tmp_dir):
+        result = runner.invoke(main, ["validate", tmp_dir])
+        assert result.exit_code == 0
+        assert "No AI config" in result.output or "vcsx init" in result.output
+
+    def test_validate_with_claude_md(self, runner, tmp_dir):
+        (Path(tmp_dir) / "CLAUDE.md").write_text(
+            "# Test\n\n## Quick Commands\n```bash\npytest\n```\n\nNEVER commit secrets.\n"
+        )
+        result = runner.invoke(main, ["validate", tmp_dir])
+        assert result.exit_code == 0
+        assert "CLAUDE.md" in result.output
+
+    def test_validate_large_claude_md(self, runner, tmp_dir):
+        # 250 lines is too many
+        content = "# Test\n" + "line\n" * 250
+        (Path(tmp_dir) / "CLAUDE.md").write_text(content)
+        result = runner.invoke(main, ["validate", tmp_dir])
+        assert result.exit_code == 0
+        assert "250" in result.output or "large" in result.output.lower() or "200" in result.output
+
+    def test_validate_aider_invalid_keys(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".aider.conf.yaml").write_text(
+            "model: gpt-4o\nrepo: my-project\ntools:\n  - bash\n"
+        )
+        result = runner.invoke(main, ["validate", tmp_dir])
+        assert result.exit_code == 0
+        assert "invalid" in result.output.lower() or "repo:" in result.output
+
+    def test_validate_all_passed(self, runner, tmp_dir):
+        # Generate valid configs
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python", project_type="api")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["validate", tmp_dir])
+        assert result.exit_code == 0
+
+
+class TestMigrateCommand:
+    def test_migrate_windsurf_dry_run(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".windsurfrules").write_text("# Old rules")
+        result = runner.invoke(main, ["migrate", "windsurf", "--dir", tmp_dir, "--dry-run"])
+        assert result.exit_code == 0
+        assert "Dry run" in result.output or "dry run" in result.output
+
+    def test_migrate_windsurf_creates_rules(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".windsurfrules").write_text("# Old rules")
+        result = runner.invoke(main, ["migrate", "windsurf", "--dir", tmp_dir])
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / ".windsurf" / "rules").exists()
+
+    def test_migrate_windsurf_no_file(self, runner, tmp_dir):
+        result = runner.invoke(main, ["migrate", "windsurf", "--dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "nothing to migrate" in result.output or "No .windsurfrules" in result.output
+
+    def test_migrate_cursor_dry_run(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".cursorrules").write_text("# Old rules")
+        result = runner.invoke(main, ["migrate", "cursor", "--dir", tmp_dir, "--dry-run"])
+        assert result.exit_code == 0
+
+
 class TestInstallCommand:
     def test_install_pip(self, runner):
         result = runner.invoke(main, ["install", "pip"])

@@ -740,6 +740,175 @@ def list_plugins():
     console.print(table)
 
 
+@main.command("validate")
+@click.argument("path", default=".", type=click.Path(exists=True))
+def validate_config(path):
+    """Validate AI config files for best practices and common mistakes.
+
+    Checks CLAUDE.md, GEMINI.md, AGENTS.md, .cursorrules etc. for:
+    - File size (too large → context bloat)
+    - Missing required sections
+    - Common anti-patterns
+
+    Examples:
+        vcsx validate               # Validate current directory
+        vcsx validate ~/my-project  # Validate specific project
+    """
+    target = Path(path).resolve()
+    console.print(f"\n[bold]vcsx validate[/] — {target}\n")
+
+    issues = []
+    warnings = []
+    info = []
+
+    # === CLAUDE.md checks ===
+    claude_md = target / "CLAUDE.md"
+    if claude_md.exists():
+        content = claude_md.read_text(encoding="utf-8", errors="replace")
+        lines = content.splitlines()
+        line_count = len(lines)
+
+        if line_count > 200:
+            issues.append(
+                f"CLAUDE.md is {line_count} lines (max recommended: 200). "
+                "Large context files slow down AI responses and reduce quality."
+            )
+        elif line_count > 150:
+            warnings.append(f"CLAUDE.md is {line_count} lines — consider trimming to < 150.")
+
+        if "## Quick Commands" not in content and "## Commands" not in content:
+            warnings.append(
+                "CLAUDE.md: Missing 'Quick Commands' section. Add build/test/lint commands."
+            )
+
+        if "NEVER" not in content.upper() and "DO NOT" not in content.upper():
+            info.append(
+                "CLAUDE.md: No explicit prohibitions found. Consider adding forbidden actions."
+            )
+
+        if (
+            "api_key" in content.lower()
+            or "secret" in content.lower()
+            and "never" not in content.lower()
+        ):
+            warnings.append(
+                "CLAUDE.md: Contains 'api_key' or 'secret' — ensure it's a rule, not a leaked credential."
+            )
+
+        info.append(f"CLAUDE.md: {line_count} lines ✓")
+
+    # === GEMINI.md checks ===
+    gemini_md = target / "GEMINI.md"
+    if gemini_md.exists():
+        content = gemini_md.read_text(encoding="utf-8", errors="replace")
+        lines = len(content.splitlines())
+        if lines < 10:
+            warnings.append(
+                f"GEMINI.md is very short ({lines} lines). Gemini CLI benefits from rich context."
+            )
+        info.append(f"GEMINI.md: {lines} lines ✓")
+
+    # === AGENTS.md checks ===
+    agents_md = target / "AGENTS.md"
+    if agents_md.exists():
+        content = agents_md.read_text(encoding="utf-8", errors="replace")
+        if "## Build & Test Commands" not in content and "```bash" not in content:
+            warnings.append(
+                "AGENTS.md: Missing commands block. Add build/test commands for AI agents."
+            )
+        if "## Forbidden" not in content and "## What NOT" not in content:
+            info.append("AGENTS.md: Consider adding a 'Forbidden Actions' section.")
+        info.append(f"AGENTS.md: {len(content.splitlines())} lines ✓")
+
+    # === .aider.conf.yaml checks ===
+    aider_conf = target / ".aider.conf.yaml"
+    if aider_conf.exists():
+        content = aider_conf.read_text(encoding="utf-8", errors="replace")
+        # Check for common invalid keys
+        invalid_keys = ["repo:", "tools:", "command:", "only:", "max-context-characters:"]
+        found_invalid = [k for k in invalid_keys if k in content]
+        if found_invalid:
+            issues.append(
+                f".aider.conf.yaml contains invalid keys: {', '.join(found_invalid)}. "
+                "These are not valid Aider CLI flags. Run 'vcsx migrate aider' to fix."
+            )
+        else:
+            info.append(".aider.conf.yaml: no invalid keys ✓")
+
+    # === .cursorrules checks ===
+    cursorrules = target / ".cursorrules"
+    if cursorrules.exists():
+        content = cursorrules.read_text(encoding="utf-8", errors="replace")
+        cursor_rules_dir = target / ".cursor" / "rules"
+        if not cursor_rules_dir.exists():
+            info.append(
+                ".cursorrules found but no .cursor/rules/ directory. "
+                "Run 'vcsx migrate cursor' to add modern scoped rules."
+            )
+
+    # === .windsurfrules checks ===
+    windsurfrules = target / ".windsurfrules"
+    if windsurfrules.exists():
+        windsurf_rules = target / ".windsurf" / "rules"
+        if not windsurf_rules.exists():
+            info.append(
+                ".windsurfrules found but no .windsurf/rules/ directory. "
+                "Run 'vcsx migrate windsurf' to add new format."
+            )
+
+    # === .env check ===
+    for env_file in [".env", ".env.local"]:
+        env_path = target / env_file
+        if env_path.exists():
+            try:
+                content = env_path.read_text(encoding="utf-8", errors="replace")
+                if any(kw in content.upper() for kw in ["API_KEY", "SECRET", "TOKEN", "PASSWORD"]):
+                    issues.append(
+                        f"SECURITY: {env_file} contains secrets. "
+                        "Ensure it's in .gitignore and .claudeignore."
+                    )
+                    # Check .gitignore
+                    gitignore = target / ".gitignore"
+                    if gitignore.exists():
+                        gi_content = gitignore.read_text()
+                        if ".env" not in gi_content:
+                            issues.append(".gitignore: .env not listed! Add it immediately.")
+            except Exception:
+                pass
+
+    # === Summary ===
+    if not issues and not warnings and not info:
+        console.print("[dim]No AI config files found to validate.[/]")
+        console.print("Run [cyan]vcsx init[/] to set up AI configs.")
+        return
+
+    if issues:
+        console.print("[bold red]Issues (fix required):[/]")
+        for issue in issues:
+            console.print(f"  ✗ {issue}")
+        console.print()
+
+    if warnings:
+        console.print("[bold yellow]Warnings:[/]")
+        for w in warnings:
+            console.print(f"  ⚠ {w}")
+        console.print()
+
+    if info:
+        console.print("[bold green]Passed:[/]")
+        for i in info:
+            console.print(f"  ✓ {i}")
+        console.print()
+
+    total = len(issues) + len(warnings)
+    if total == 0:
+        console.print("[bold green]All checks passed![/]")
+    elif issues:
+        console.print(f"[bold red]{len(issues)} issue(s) found — fix required.[/]")
+    else:
+        console.print(f"[yellow]{len(warnings)} warning(s) found.[/] Consider addressing them.")
+
+
 @main.command("migrate")
 @click.argument("tool", type=click.Choice(["windsurf", "cursor", "claude-code", "copilot"]))
 @click.option(
