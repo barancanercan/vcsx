@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-04-02
+
+### Added
+- **Gemini CLI generator** (`gemini`): Generates `GEMINI.md` for Google's Gemini CLI with 1M token context window. Includes project-type-specific guidance and context management tips.
+- **AGENTS.md generator** (`agents-md`): Generates the Linux Foundation-stewarded universal `AGENTS.md` standard. Supported by Codex CLI, Claude Code (fallback), Cursor, Gemini CLI, Aider, Continue.dev, and OpenHands.
+- **.claudeignore generation**: Claude Code setup now automatically generates `.claudeignore` to keep context windows clean. Includes language-specific and project-type-specific patterns. Based on 2026 best practices ("context engineering").
+- **`vcsx update` command**: Detect and add missing AI config files to existing projects. Supports `--dry-run` and `--tool` flags.
+- **Windsurf new format**: Added `.windsurf/rules/*.md` scoped rule files (alwaysApply, globs). Core conventions, testing, security, and API rules generated automatically.
+- **GitHub Copilot scoped instructions**: Added `.github/instructions/*.instructions.md` files with `applyTo` frontmatter. Generates code-style, testing, and security instruction files.
+- **`data-pipeline` project type**: Dedicated structure for scraping/ETL/data science projects (`scrapers/`, `intel/`, `data/`, `reports/`). SQLite best practices, chunked processing rules included.
+- **`ml-model` project type**: ML project structure (`src/data/`, `models/`, `experiments/`, `notebooks/`).
+- **Improved hook scripts**: `block_destructive.sh` now blocks curl|sh, wget|bash, chmod 777 /, git push --force (various forms). `secret_scan.sh` uses real provider-specific regex patterns (OpenAI sk-, AWS AKIA, GitHub ghp_, Stripe sk_live_, etc.).
+
+### Changed
+- `AI_TOOLS` list now includes `gemini` and `agents-md`.
+- Tool count: 8 → 10 tools.
+- `TOOL_DESCRIPTIONS` updated with 2026-accurate descriptions.
+- Windsurf: legacy `.windsurfrules` retained for backward compat + new `.windsurf/rules/` added.
+
+### Fixed
+- Existing test for `get_all_generators` count updated to reflect new tools.
+
 ## [3.3.0] - 2026-04-02
 
 ### Added

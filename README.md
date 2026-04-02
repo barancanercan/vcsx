@@ -16,7 +16,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-**Claude Code** · **Cursor** · **Windsurf** · **Zed** · **Aider** · **Bolt** · **Codex** · **Copilot**
+**Claude Code** · **Cursor** · **Windsurf** · **Zed** · **Aider** · **Bolt** · **Codex** · **Copilot** · **Gemini CLI** · **AGENTS.md**
 
 </div>
 
@@ -24,7 +24,7 @@
 
 ## ✨ What It Does
 
-`vcsx` is a CLI tool that generates **production-ready AI coding environments** in seconds. It supports 8+ AI coding tools and creates skills, hooks, agents, and project scaffolding automatically.
+`vcsx` is a CLI tool that generates **production-ready AI coding environments** in seconds. It supports 10+ AI coding tools and creates skills, hooks, agents, and project scaffolding automatically.
 
 ```bash
 $ vcsx init
@@ -66,18 +66,20 @@ npx vcsx init
 npm install -g vcsx
 ```
 
-## 📦 Supported AI Tools (8 Tools)
+## 📦 Supported AI Tools (10 Tools)
 
 | Tool | Category | Files Generated |
 |------|----------|-----------------|
-| **Claude Code** | AI Editor | CLAUDE.md, skills, hooks, agents |
+| **Claude Code** | AI Editor | CLAUDE.md, .claudeignore, skills, hooks, agents |
 | **Cursor** | AI Editor | .cursorrules, .cursor/rules/*.mdc |
-| **Windsurf** | AI Editor | .windsurfrules, workspace.json, conventions.md |
+| **Windsurf** | AI Editor | .windsurfrules, .windsurf/rules/*.md (new format) |
 | **Zed** | AI Editor | .zed/settings.json, context.md, hooks.toml |
 | **Aider** | Terminal AI | .aider.conf.yaml, context.md |
 | **Bolt** | Web AI | .bolt/workspace.json, setup.md, prompts.md |
 | **Codex** | Code Assist | .openai/instructions.md |
-| **Copilot** | Code Assist | .github/copilot-instructions.md |
+| **Copilot** | Code Assist | .github/copilot-instructions.md, .github/instructions/*.md |
+| **Gemini CLI** | Terminal AI | GEMINI.md (1M token context) |
+| **AGENTS.md** | Universal | AGENTS.md (Linux Foundation standard, all tools) |
 
 ## 🎯 Discovery Process (v3.3 - Enhanced)
 
@@ -168,6 +170,9 @@ The discovery phase now includes **purpose-driven questions** for a more intelli
 | Command | Description |
 |---------|-------------|
 | `vcsx init` | Start interactive wizard |
+| `vcsx update` | Add missing AI configs to existing project |
+| `vcsx update --dry-run` | Preview what would be added |
+| `vcsx update --tool gemini` | Add a specific tool config |
 | `vcsx list` | List all AI tools |
 | `vcsx info <tool>` | Show tool details |
 | `vcsx install <method>` | Show install instructions |
