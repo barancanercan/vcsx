@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.3.0] - 2026-04-03
+
+### Added
+- **`vcsx migrate <tool>`**: Migrate existing configs to latest format. Supports windsurf (→ .windsurf/rules/), cursor (→ .cursor/rules/), claude-code (+ .claudeignore + agents/), copilot (+ scoped instructions/). Includes `--dry-run` flag.
+- **`vcsx completion <shell>`**: Print shell completion setup for bash, zsh, fish, powershell.
+- **CLI integration tests** (tests/test_cli.py): 26 tests using Click test runner covering all commands.
+
+### Changed
+- README: Updated version banner to v4.2.0.
+- `vcsx check`: improved JSON output format with path field.
+
 ## [4.2.0] - 2026-04-03
 
 ### Added

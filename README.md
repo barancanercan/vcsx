@@ -4,7 +4,7 @@
 ╔══════════════════╗
 ║       *          ║
 ║      vcsx        ║
-║     v4.0.0       ║
+║     v4.3.0       ║
 ╚══════════════════╝
 </pre>
 
@@ -188,6 +188,9 @@ The discovery phase now includes **purpose-driven questions** for a more intelli
 | `vcsx check ~/my-project --json` | JSON output for CI integration |
 | `vcsx new my-app` | Scaffold new project without wizard |
 | `vcsx new my-api --type api --lang python` | Scaffold typed project |
+| `vcsx migrate windsurf` | Migrate .windsurfrules → .windsurf/rules/ (v2 format) |
+| `vcsx migrate cursor` | Migrate .cursorrules → .cursor/rules/*.mdc |
+| `vcsx completion bash` | Print bash shell completion setup |
 | `vcsx plugins` | List plugins |
 | `vcsx templates` | List templates |
 | `vcsx templates:install <name>` | Install template |

@@ -734,6 +734,148 @@ def list_plugins():
     console.print(table)
 
 
+@main.command("migrate")
+@click.argument("tool", type=click.Choice(["windsurf", "cursor", "claude-code", "copilot"]))
+@click.option(
+    "--dir",
+    "-d",
+    "target_dir",
+    type=click.Path(exists=True),
+    default=".",
+    help="Project directory to migrate (default: current)",
+)
+@click.option("--dry-run", is_flag=True, help="Preview changes without writing files")
+def migrate(tool, target_dir, dry_run):
+    """Migrate an existing AI tool config to the latest format.
+
+    \b
+    windsurf   — .windsurfrules → .windsurf/rules/*.md (v2 format)
+    cursor     — .cursorrules → .cursor/rules/*.mdc (modern format)
+    claude-code — CLAUDE.md → add missing .claudeignore + agents/
+    copilot    — copilot-instructions.md → add scoped instructions/
+
+    Examples:
+        vcsx migrate windsurf
+        vcsx migrate cursor --dry-run
+        vcsx migrate claude-code --dir ~/my-project
+    """
+    from vcsx.core.context import ProjectContext
+
+    target = Path(target_dir).resolve()
+    ctx = ProjectContext(project_name=target.name, lang="en")
+
+    console.print(f"\n[bold]vcsx migrate {tool}[/] — {target}\n")
+
+    if tool == "windsurf":
+        old_file = target / ".windsurfrules"
+        new_dir = target / ".windsurf" / "rules"
+
+        if not old_file.exists():
+            console.print("[yellow]No .windsurfrules found — nothing to migrate.[/]")
+            return
+
+        if new_dir.exists():
+            console.print("[green]✓ .windsurf/rules/ already exists.[/] Already on new format.")
+            return
+
+        console.print(f"Will create: {new_dir}/")
+        console.print("  • core-conventions.md (alwaysApply: true)")
+        console.print("  • testing.md (globs: tests/**)")
+        console.print("  • security.md (alwaysApply: false)")
+
+        if dry_run:
+            console.print("\n[dim]Dry run — no files written.[/]")
+            return
+
+        from vcsx.generators.windsurf import WindsurfGenerator
+        WindsurfGenerator()._generate_windsurf_rules(ctx, str(target))
+        console.print(f"\n[green]✓ Migrated![/] .windsurf/rules/ created.")
+        console.print("[dim]Old .windsurfrules retained for backward compatibility.[/]")
+
+    elif tool == "cursor":
+        old_file = target / ".cursorrules"
+        new_dir = target / ".cursor" / "rules"
+
+        if not old_file.exists():
+            console.print("[yellow]No .cursorrules found — nothing to migrate.[/]")
+            return
+
+        if new_dir.exists():
+            console.print("[green]✓ .cursor/rules/ already exists.[/] Already on new format.")
+            return
+
+        console.print(f"Will create: {new_dir}/")
+        console.print("  • build-test.mdc")
+        console.print("  • commit-message.mdc")
+        console.print("  • pr-review.mdc")
+        console.print("  • test-patterns.mdc")
+
+        if dry_run:
+            console.print("\n[dim]Dry run — no files written.[/]")
+            return
+
+        from vcsx.generators.cursor import CursorGenerator
+        CursorGenerator().generate_skills(ctx, str(target))
+        console.print(f"\n[green]✓ Migrated![/] .cursor/rules/ created.")
+        console.print("[dim]Old .cursorrules retained for backward compatibility.[/]")
+
+    elif tool == "claude-code":
+        claude_md = target / "CLAUDE.md"
+
+        if not claude_md.exists():
+            console.print("[yellow]No CLAUDE.md found — run 'vcsx init' first.[/]")
+            return
+
+        missing = []
+        if not (target / ".claudeignore").exists():
+            missing.append(".claudeignore")
+        if not (target / ".claude" / "agents").exists():
+            missing.append(".claude/agents/")
+
+        if not missing:
+            console.print("[green]✓ Claude Code config is already complete.[/]")
+            return
+
+        console.print(f"Will create: {', '.join(missing)}")
+
+        if dry_run:
+            console.print("\n[dim]Dry run — no files written.[/]")
+            return
+
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        gen = ClaudeCodeGenerator()
+        if ".claudeignore" in missing:
+            gen.generate_scaffold(ctx, str(target))
+        if ".claude/agents/" in missing:
+            gen.generate_agents(ctx, str(target))
+        console.print(f"\n[green]✓ Claude Code config upgraded![/]")
+
+    elif tool == "copilot":
+        main_file = target / ".github" / "copilot-instructions.md"
+        instructions_dir = target / ".github" / "instructions"
+
+        if not main_file.exists():
+            console.print("[yellow]No .github/copilot-instructions.md found — nothing to migrate.[/]")
+            return
+
+        if instructions_dir.exists():
+            console.print("[green]✓ Scoped instructions already exist.[/]")
+            return
+
+        console.print(f"Will create: .github/instructions/")
+        console.print("  • code-style.instructions.md")
+        console.print("  • testing.instructions.md")
+        console.print("  • security.instructions.md")
+
+        if dry_run:
+            console.print("\n[dim]Dry run — no files written.[/]")
+            return
+
+        from vcsx.generators.copilot import CopilotGenerator
+        CopilotGenerator()._generate_scoped_instructions(ctx, str(target))
+        console.print(f"\n[green]✓ Copilot scoped instructions created![/]")
+
+
 @main.command("completion")
 @click.argument("shell", type=click.Choice(["bash", "zsh", "fish", "powershell"]))
 def completion(shell):
