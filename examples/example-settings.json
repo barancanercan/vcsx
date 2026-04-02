@@ -1,0 +1,41 @@
+# Example: Generated settings.json with Hooks
+# This is what vcsx generates for the hooks configuration
+
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/block_destructive.sh",
+            "statusMessage": "Checking for destructive commands..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/auto_format.sh",
+            "statusMessage": "Auto-formatting file..."
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/auto_lint.sh",
+            "statusMessage": "Linting file..."
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/secret_scan.sh",
+            "statusMessage": "Scanning for secrets..."
+          }
+        ]
+      }
+    ]
+  }
+}
