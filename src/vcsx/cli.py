@@ -463,6 +463,166 @@ def doctor(dir):
     console.print(f"[dim]Python:[/] {platform.python_version()}")
 
 
+@main.command("check")
+@click.argument("path", default=".", type=click.Path(exists=True))
+@click.option("--json", "output_json", is_flag=True, help="Output results as JSON")
+def check_project(path, output_json):
+    """Analyze a project's AI config quality and give a score.
+
+    Checks for: config files present, quality indicators, best practices.
+
+    Examples:
+        vcsx check                    # Check current directory
+        vcsx check ~/my-project       # Check specific project
+        vcsx check ~/my-project --json  # JSON output for CI
+    """
+    import json as json_mod
+    from vcsx.generators.registry import get_generator
+
+    target = Path(path).resolve()
+
+    checks = {
+        "claude-code": {
+            "files": ["CLAUDE.md", ".claude/settings.json", ".claude/skills"],
+            "quality": [".claudeignore", ".claude/agents"],
+        },
+        "cursor": {
+            "files": [".cursorrules"],
+            "quality": [".cursor/rules"],
+        },
+        "windsurf": {
+            "files": [".windsurfrules"],
+            "quality": [".windsurf/rules"],
+        },
+        "copilot": {
+            "files": [".github/copilot-instructions.md"],
+            "quality": [".github/instructions"],
+        },
+        "gemini": {
+            "files": ["GEMINI.md"],
+            "quality": [],
+        },
+        "agents-md": {
+            "files": ["AGENTS.md"],
+            "quality": [],
+        },
+        "aider": {
+            "files": [".aider.conf.yaml"],
+            "quality": [".aider.context.md"],
+        },
+        "bolt": {
+            "files": [".bolt/workspace.json"],
+            "quality": [".bolt/prompts.md"],
+        },
+        "codex": {
+            "files": [".openai/instructions.md"],
+            "quality": [],
+        },
+        "zed": {
+            "files": [".zed/settings.json"],
+            "quality": [".zed/context.md", ".zed/hooks.toml"],
+        },
+    }
+
+    results = {}
+    total_score = 0
+    max_score = 0
+
+    for tool, cfg in checks.items():
+        present_files = []
+        missing_files = []
+        quality_files = []
+
+        for f in cfg["files"]:
+            p = target / f
+            if p.exists():
+                present_files.append(f)
+            else:
+                missing_files.append(f)
+
+        for f in cfg.get("quality", []):
+            p = target / f
+            if p.exists():
+                quality_files.append(f)
+
+        has_basic = len(present_files) > 0
+        score = len(present_files) * 2 + len(quality_files)
+        max_tool_score = len(cfg["files"]) * 2 + len(cfg.get("quality", []))
+
+        results[tool] = {
+            "configured": has_basic,
+            "present": present_files,
+            "missing": missing_files,
+            "quality": quality_files,
+            "score": score,
+            "max_score": max_tool_score,
+        }
+
+        if has_basic:
+            total_score += score
+            max_score += max_tool_score
+
+    configured_tools = [t for t, r in results.items() if r["configured"]]
+    overall_pct = int((total_score / max_score * 100) if max_score > 0 else 0)
+
+    if output_json:
+        output = {
+            "path": str(target),
+            "tools_configured": len(configured_tools),
+            "total_tools": len(checks),
+            "overall_score": overall_pct,
+            "tools": results,
+        }
+        console.print(json_mod.dumps(output, indent=2))
+        return
+
+    # Rich output
+    console.print(f"\n[bold]vcsx check[/] — {target}\n")
+
+    if not configured_tools:
+        console.print("[yellow]No AI tool configs found.[/]")
+        console.print("Run [cyan]vcsx init[/] to get started.")
+        return
+
+    table = Table(title=f"AI Config Quality — {len(configured_tools)}/{len(checks)} tools configured")
+    table.add_column("Tool", style="cyan")
+    table.add_column("Status")
+    table.add_column("Core Files")
+    table.add_column("Quality Extras")
+    table.add_column("Score")
+
+    for tool, r in results.items():
+        if not r["configured"]:
+            continue
+        status = "[green]✓[/]"
+        core = f"{len(r['present'])}/{len(r['present']) + len(r['missing'])}"
+        quality = f"+{len(r['quality'])} extras" if r["quality"] else "—"
+        pct = int(r["score"] / r["max_score"] * 100) if r["max_score"] > 0 else 0
+        score_color = "green" if pct >= 80 else "yellow" if pct >= 50 else "red"
+        table.add_row(tool, status, core, quality, f"[{score_color}]{pct}%[/]")
+
+    console.print(table)
+
+    # Overall score
+    score_color = "green" if overall_pct >= 80 else "yellow" if overall_pct >= 50 else "red"
+    console.print(f"\n[bold]Overall config quality:[/] [{score_color}]{overall_pct}%[/]")
+
+    # Recommendations
+    suggestions = []
+    if "claude-code" in configured_tools:
+        if not (target / ".claudeignore").exists():
+            suggestions.append("Add .claudeignore: vcsx update --tool claude-code")
+        if not (target / ".claude" / "agents").exists():
+            suggestions.append("Add Claude agents: vcsx update --tool claude-code")
+    if "CLAUDE.md" not in str(configured_tools) and "agents-md" not in configured_tools:
+        suggestions.append("Add AGENTS.md (universal standard): vcsx update --tool agents-md")
+
+    if suggestions:
+        console.print("\n[bold]Recommendations:[/]")
+        for s in suggestions:
+            console.print(f"  • {s}")
+
+
 @main.command("new")
 @click.argument("project_name")
 @click.option(

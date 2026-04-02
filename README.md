@@ -184,6 +184,10 @@ The discovery phase now includes **purpose-driven questions** for a more intelli
 | `vcsx install <method>` | Show install instructions |
 | `vcsx doctor` | Check installation + detect project AI tools |
 | `vcsx doctor --dir /path/to/project` | Check a specific project |
+| `vcsx check` | Score AI config quality (0-100%) |
+| `vcsx check ~/my-project --json` | JSON output for CI integration |
+| `vcsx new my-app` | Scaffold new project without wizard |
+| `vcsx new my-api --type api --lang python` | Scaffold typed project |
 | `vcsx plugins` | List plugins |
 | `vcsx templates` | List templates |
 | `vcsx templates:install <name>` | Install template |

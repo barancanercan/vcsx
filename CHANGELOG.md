@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-04-03
+
+### Added
+- **`vcsx check [path]`**: Analyze project's AI config quality and produce a 0-100% score per tool. Detects core files, quality extras, and gives actionable recommendations. Supports `--json` for CI integration.
+- **`vcsx new <name>`**: Scaffold a new project without the full wizard. Flags: `--type`, `--lang`, `--tool` (multi-value). Creates project directory and runs generators automatically.
+- **`generators/_shared.py`**: Centralized helper module — `get_setup_cmd`, `get_build_cmd`, `get_dev_cmd`, `get_test_cmd`, `get_lint_cmd`, `get_format_cmd`, `get_style_rules`, `get_commands_block`. Eliminates duplication across 8 generator modules.
+- **Multi-tool discovery**: Discovery Phase 0 now supports `all` keyword and comma-separated tool list (e.g., `claude-code, cursor, gemini`).
+
+### Changed
+- `ProjectContext`: Added `ai_tools_list: list` field for multi-tool selection tracking.
+- `vcsx init`: Uses `ai_tools_list` from discovery context when `--cli` flags not provided.
+- `_shared.get_setup_cmd`: pnpm/yarn-aware, pyproject.toml detection.
+- `_shared.get_dev_cmd`: FastAPI/Flask/Django-aware dev server commands.
+
 ## [4.1.0] - 2026-04-03
 
 ### Added
