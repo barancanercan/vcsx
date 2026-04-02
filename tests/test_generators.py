@@ -439,6 +439,76 @@ class TestMultiToolInit:
             all_primary_files.add(files)
 
 
+class TestSharedHelpers:
+    """Test the shared generator utilities module."""
+
+    def test_setup_cmd_python(self):
+        from vcsx.generators._shared import get_setup_cmd
+        ctx = ProjectContext(language="python")
+        assert "pip install" in get_setup_cmd(ctx)
+
+    def test_setup_cmd_typescript(self):
+        from vcsx.generators._shared import get_setup_cmd
+        ctx = ProjectContext(language="typescript")
+        assert "npm install" in get_setup_cmd(ctx)
+
+    def test_setup_cmd_go(self):
+        from vcsx.generators._shared import get_setup_cmd
+        ctx = ProjectContext(language="go")
+        assert "go mod tidy" == get_setup_cmd(ctx)
+
+    def test_setup_cmd_pnpm(self):
+        from vcsx.generators._shared import get_setup_cmd
+        ctx = ProjectContext(language="typescript", tech_stack="pnpm, react")
+        assert "pnpm install" == get_setup_cmd(ctx)
+
+    def test_test_cmd_python(self):
+        from vcsx.generators._shared import get_test_cmd
+        ctx = ProjectContext(language="python")
+        assert "pytest" == get_test_cmd(ctx)
+
+    def test_test_cmd_vitest(self):
+        from vcsx.generators._shared import get_test_cmd
+        ctx = ProjectContext(test_framework="vitest")
+        assert "vitest" in get_test_cmd(ctx)
+
+    def test_test_cmd_go(self):
+        from vcsx.generators._shared import get_test_cmd
+        ctx = ProjectContext(language="go")
+        assert "go test" in get_test_cmd(ctx)
+
+    def test_style_rules_python(self):
+        from vcsx.generators._shared import get_style_rules
+        ctx = ProjectContext(language="python")
+        rules = get_style_rules(ctx)
+        assert any("PEP 8" in r for r in rules)
+        assert any("type hint" in r for r in rules)
+
+    def test_style_rules_api_additions(self):
+        from vcsx.generators._shared import get_style_rules
+        ctx = ProjectContext(language="python", project_type="api")
+        rules = get_style_rules(ctx)
+        assert any("HTTP status" in r for r in rules)
+
+    def test_commands_block_format(self):
+        from vcsx.generators._shared import get_commands_block
+        ctx = ProjectContext(language="python", test_framework="pytest")
+        block = get_commands_block(ctx)
+        assert "```bash" in block
+        assert "pytest" in block
+        assert "pip install" in block
+
+    def test_dev_cmd_fastapi(self):
+        from vcsx.generators._shared import get_dev_cmd
+        ctx = ProjectContext(language="python", framework="FastAPI")
+        assert "uvicorn" in get_dev_cmd(ctx)
+
+    def test_dev_cmd_typescript(self):
+        from vcsx.generators._shared import get_dev_cmd
+        ctx = ProjectContext(language="typescript")
+        assert "npm run dev" in get_dev_cmd(ctx)
+
+
 class TestNewProjectScaffold:
     """Test vcsx new scaffolding via generators directly."""
 
