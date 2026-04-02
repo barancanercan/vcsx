@@ -23,6 +23,7 @@ from vcsx.utils.prompts import (
     get_prompt_placeholder,
     get_prompt_value,
 )
+from vcsx.generators.registry import ALL_TOOLS
 
 
 def run_discovery(console: Console, lang: str = "tr") -> ProjectContext:
@@ -39,11 +40,35 @@ def run_discovery(console: Console, lang: str = "tr") -> ProjectContext:
 
     detected_tool = detect_ai_tool()
     default_tool = detected_tool if detected_tool else "claude-code"
-    ctx.ai_tool = Prompt.ask(
+
+    console.print(f"\n[dim]Available tools:[/] {', '.join(ALL_TOOLS)}")
+    console.print("[dim]Tip: Use 'all' to configure every tool at once[/]")
+
+    ai_tool_input = Prompt.ask(
         get_prompt_question(prompts, "ai_tool"),
         default=default_tool,
-        choices=AI_TOOLS,
     )
+
+    # Support "all" shortcut or comma-separated list
+    if ai_tool_input.strip().lower() == "all":
+        ctx.ai_tool = "all"
+        ctx.ai_tools_list = list(ALL_TOOLS)
+        console.print(f"[green]All {len(ALL_TOOLS)} tools will be configured.[/]")
+    elif "," in ai_tool_input:
+        tools = [t.strip() for t in ai_tool_input.split(",") if t.strip() in ALL_TOOLS]
+        if tools:
+            ctx.ai_tool = tools[0]
+            ctx.ai_tools_list = tools
+            console.print(f"[green]Configuring: {', '.join(tools)}[/]")
+        else:
+            ctx.ai_tool = default_tool
+            ctx.ai_tools_list = [ctx.ai_tool]
+    elif ai_tool_input in ALL_TOOLS:
+        ctx.ai_tool = ai_tool_input
+        ctx.ai_tools_list = [ctx.ai_tool]
+    else:
+        ctx.ai_tool = default_tool
+        ctx.ai_tools_list = [ctx.ai_tool]
 
     detected_platform = detect_platform()
     ctx.platform = Prompt.ask(

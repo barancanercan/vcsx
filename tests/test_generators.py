@@ -439,6 +439,75 @@ class TestMultiToolInit:
             all_primary_files.add(files)
 
 
+class TestNewProjectScaffold:
+    """Test vcsx new scaffolding via generators directly."""
+
+    def test_scaffold_python_api(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.core.inference import infer_formatter, infer_linter, infer_test_framework
+        ctx = ProjectContext(
+            project_name="my-api",
+            project_type="api",
+            language="python",
+            tech_stack="python",
+            test_framework=infer_test_framework("python"),
+            formatter=infer_formatter("python"),
+            linter=infer_linter("python"),
+        )
+        project_dir = Path(tmp_dir) / "my-api"
+        project_dir.mkdir()
+        gen = ClaudeCodeGenerator()
+        gen.generate_all(ctx, str(project_dir))
+        assert (project_dir / "CLAUDE.md").exists()
+
+    def test_scaffold_typescript_web(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(
+            project_name="my-app",
+            project_type="web",
+            language="typescript",
+            tech_stack="typescript, react",
+        )
+        project_dir = Path(tmp_dir) / "my-app"
+        project_dir.mkdir()
+        gen = CursorGenerator()
+        gen.generate_all(ctx, str(project_dir))
+        assert (project_dir / ".cursorrules").exists()
+
+    def test_multi_tool_scaffold(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.gemini import GeminiGenerator
+        ctx = ProjectContext(
+            project_name="my-project",
+            project_type="api",
+            language="python",
+        )
+        project_dir = Path(tmp_dir) / "my-project"
+        project_dir.mkdir()
+        for GenClass in [ClaudeCodeGenerator, GeminiGenerator]:
+            GenClass().generate_all(ctx, str(project_dir))
+        assert (project_dir / "CLAUDE.md").exists()
+        assert (project_dir / "GEMINI.md").exists()
+
+
+class TestProjectContextMultiTool:
+    """Test ProjectContext with multi-tool fields."""
+
+    def test_default_ai_tools_list_is_empty(self):
+        ctx = ProjectContext()
+        assert ctx.ai_tools_list == []
+
+    def test_set_ai_tools_list(self):
+        ctx = ProjectContext(ai_tools_list=["claude-code", "cursor", "gemini"])
+        assert len(ctx.ai_tools_list) == 3
+        assert "cursor" in ctx.ai_tools_list
+
+    def test_ai_tool_and_list_independent(self):
+        ctx = ProjectContext(ai_tool="claude-code", ai_tools_list=["claude-code", "gemini"])
+        assert ctx.ai_tool == "claude-code"
+        assert "gemini" in ctx.ai_tools_list
+
+
 class TestDoctorDetection:
     """Test detection logic used by vcsx doctor."""
 

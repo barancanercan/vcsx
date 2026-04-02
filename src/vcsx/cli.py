@@ -96,13 +96,18 @@ def init(cli, all_tools, lang, output_dir):
     console.print("\nPHASE 1: DISCOVERY")
     context = run_discovery(console, lang=lang)
 
-    # Determine which tools to use
+    # Determine which tools to use (CLI flags override discovery)
     if all_tools:
         selected_tools = list(ALL_TOOLS)
         console.print(f"\n[cyan]All tools selected:[/] {', '.join(selected_tools)}")
     elif cli:
         selected_tools = list(cli)
         console.print(f"\n[cyan]Tools selected:[/] {', '.join(selected_tools)}")
+    elif context.ai_tools_list:
+        # Use multi-tool selection from discovery
+        selected_tools = context.ai_tools_list
+        if len(selected_tools) > 1:
+            console.print(f"\n[cyan]Tools selected in discovery:[/] {', '.join(selected_tools)}")
     else:
         selected_tools = [context.ai_tool]
 
@@ -456,6 +461,98 @@ def doctor(dir):
     # Platform info
     console.print(f"\n[dim]Platform:[/] {platform.system()} {platform.machine()}")
     console.print(f"[dim]Python:[/] {platform.python_version()}")
+
+
+@main.command("new")
+@click.argument("project_name")
+@click.option(
+    "--type",
+    "-t",
+    "project_type",
+    type=click.Choice(["web", "api", "cli", "library", "data-pipeline", "ml-model"]),
+    default="web",
+    help="Project type",
+)
+@click.option(
+    "--lang",
+    "-l",
+    type=click.Choice(["python", "typescript", "javascript", "go", "rust"]),
+    default="typescript",
+    help="Primary language",
+)
+@click.option(
+    "--tool",
+    "-c",
+    multiple=True,
+    type=click.Choice(ALL_TOOLS),
+    default=("claude-code",),
+    help="AI tools to configure (default: claude-code)",
+)
+@click.option(
+    "--output-dir",
+    "-o",
+    type=click.Path(),
+    default=".",
+    help="Parent directory where project folder will be created",
+)
+def new_project(project_name, project_type, lang, tool, output_dir):
+    """Scaffold a new project with AI tool configs — no wizard needed.
+
+    Examples:
+        vcsx new my-api --type api --lang python
+        vcsx new my-app --type web --lang typescript --tool cursor
+        vcsx new my-lib --type library --lang python --tool claude-code --tool gemini
+    """
+    from vcsx.core.context import ProjectContext
+    from vcsx.core.inference import infer_formatter, infer_linter, infer_test_framework
+
+    project_dir = (Path(output_dir) / project_name).resolve()
+
+    if project_dir.exists():
+        console.print(f"[red]Error:[/] Directory already exists: {project_dir}")
+        console.print("Use a different name or remove the directory first.")
+        return
+
+    project_dir.mkdir(parents=True)
+    console.print(f"\n[bold]Creating {project_name}[/] ({project_type}, {lang})")
+    console.print(f"Location: {project_dir}\n")
+
+    ctx = ProjectContext(
+        project_name=project_name,
+        project_type=project_type,
+        language=lang,
+        tech_stack=lang,
+        test_framework=infer_test_framework(lang),
+        formatter=infer_formatter(lang),
+        linter=infer_linter(lang),
+        lang="en",
+    )
+
+    tools = list(tool)
+    generators = [get_generator(t) for t in tools]
+
+    with console.status(f"Scaffolding {project_name}..."):
+        for gen in generators:
+            gen.generate_all(ctx, str(project_dir))
+
+    # Show summary
+    table = Table(title=f"{project_name} — Created", border_style="green")
+    table.add_column("Tool", style="cyan")
+    table.add_column("Files Generated")
+
+    for gen in generators:
+        table.add_row(gen.name, ", ".join(gen.output_files[:3]))
+
+    console.print(table)
+    console.print(f"\n[green]✓ Done![/] Project ready at: {project_dir}")
+    console.print("\nNext steps:")
+    console.print(f"  cd {project_name}")
+    console.print(f"  git init && git add . && git commit -m 'chore: initial vcsx setup'")
+    if lang == "python":
+        console.print(f"  python -m venv .venv && source .venv/bin/activate")
+        console.print(f"  pip install -e '.[dev]'  # if pyproject.toml exists")
+    elif lang in ("typescript", "javascript"):
+        console.print(f"  npm install")
 
 
 @main.command("plugins")

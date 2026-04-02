@@ -8,7 +8,8 @@ class ProjectContext:
     """Holds all discovered project information."""
 
     # AI Tool Selection
-    ai_tool: str = ""  # claude-code/cursor/windsurf/zed/aider/bolt/codex/copilot
+    ai_tool: str = ""  # claude-code/cursor/windsurf/zed/aider/bolt/codex/copilot/gemini/agents-md
+    ai_tools_list: list = field(default_factory=list)  # multi-tool list (v4.1)
     platform: str = ""  # windows-powershell/macos/linux/wsl
 
     # Project basics
