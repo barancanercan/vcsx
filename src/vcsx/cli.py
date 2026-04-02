@@ -233,6 +233,7 @@ def update(output_dir, dry_run, tool):
 
     # Run generators for requested tools
     from vcsx.core.context import ProjectContext
+
     ctx = ProjectContext(project_name=target.name, lang="en")
 
     for t in tools_to_add:
@@ -293,13 +294,15 @@ def info_tool(tool):
     gen = get_generator(tool)
     files = gen.output_files
 
-    console.print(Panel(
-        f"[bold]{tool}[/bold]\n\n{desc}\n\n"
-        f"[dim]Category:[/dim] {category}\n\n"
-        f"[dim]Generated files:[/dim]\n" + "\n".join(f"  • {f}" for f in files),
-        title="Tool Info",
-        border_style="cyan"
-    ))
+    console.print(
+        Panel(
+            f"[bold]{tool}[/bold]\n\n{desc}\n\n"
+            f"[dim]Category:[/dim] {category}\n\n"
+            f"[dim]Generated files:[/dim]\n" + "\n".join(f"  • {f}" for f in files),
+            title="Tool Info",
+            border_style="cyan",
+        )
+    )
 
 
 @main.command("install")
@@ -443,10 +446,14 @@ def doctor(dir):
         if configured:
             console.print(f"\n[green]✓ Configured:[/] {', '.join(configured)}")
         if missing_tools:
-            console.print(f"\n[dim]Not configured:[/] {', '.join(missing_tools[:4])}{'...' if len(missing_tools) > 4 else ''}")
+            console.print(
+                f"\n[dim]Not configured:[/] {', '.join(missing_tools[:4])}{'...' if len(missing_tools) > 4 else ''}"
+            )
             console.print(
                 "\nTo add a tool: [cyan]vcsx update --tool <name>[/]\n"
-                "To add all:    [cyan]vcsx update --tool " + " --tool ".join(["gemini", "agents-md"]) + "[/]"
+                "To add all:    [cyan]vcsx update --tool "
+                + " --tool ".join(["gemini", "agents-md"])
+                + "[/]"
             )
 
         # Check .claudeignore
@@ -475,7 +482,6 @@ def check_project(path, output_json):
         vcsx check ~/my-project --json  # JSON output for CI
     """
     import json as json_mod
-
 
     target = Path(path).resolve()
 
@@ -582,7 +588,9 @@ def check_project(path, output_json):
         console.print("Run [cyan]vcsx init[/] to get started.")
         return
 
-    table = Table(title=f"AI Config Quality — {len(configured_tools)}/{len(checks)} tools configured")
+    table = Table(
+        title=f"AI Config Quality — {len(configured_tools)}/{len(checks)} tools configured"
+    )
     table.add_column("Tool", style="cyan")
     table.add_column("Status")
     table.add_column("Core Files")
@@ -786,6 +794,7 @@ def migrate(tool, target_dir, dry_run):
             return
 
         from vcsx.generators.windsurf import WindsurfGenerator
+
         WindsurfGenerator()._generate_windsurf_rules(ctx, str(target))
         console.print("\n[green]✓ Migrated![/] .windsurf/rules/ created.")
         console.print("[dim]Old .windsurfrules retained for backward compatibility.[/]")
@@ -813,6 +822,7 @@ def migrate(tool, target_dir, dry_run):
             return
 
         from vcsx.generators.cursor import CursorGenerator
+
         CursorGenerator().generate_skills(ctx, str(target))
         console.print("\n[green]✓ Migrated![/] .cursor/rules/ created.")
         console.print("[dim]Old .cursorrules retained for backward compatibility.[/]")
@@ -841,6 +851,7 @@ def migrate(tool, target_dir, dry_run):
             return
 
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         gen = ClaudeCodeGenerator()
         if ".claudeignore" in missing:
             gen.generate_scaffold(ctx, str(target))
@@ -853,7 +864,9 @@ def migrate(tool, target_dir, dry_run):
         instructions_dir = target / ".github" / "instructions"
 
         if not main_file.exists():
-            console.print("[yellow]No .github/copilot-instructions.md found — nothing to migrate.[/]")
+            console.print(
+                "[yellow]No .github/copilot-instructions.md found — nothing to migrate.[/]"
+            )
             return
 
         if instructions_dir.exists():
@@ -870,6 +883,7 @@ def migrate(tool, target_dir, dry_run):
             return
 
         from vcsx.generators.copilot import CopilotGenerator
+
         CopilotGenerator()._generate_scoped_instructions(ctx, str(target))
         console.print("\n[green]✓ Copilot scoped instructions created![/]")
 
@@ -901,8 +915,8 @@ def completion(shell):
     }
 
     setup_instructions = {
-        "bash": "# Add to ~/.bashrc:\neval \"$(vcsx completion bash)\"",
-        "zsh": "# Add to ~/.zshrc:\neval \"$(vcsx completion zsh)\"",
+        "bash": '# Add to ~/.bashrc:\neval "$(vcsx completion bash)"',
+        "zsh": '# Add to ~/.zshrc:\neval "$(vcsx completion zsh)"',
         "fish": "# Add to ~/.config/fish/completions/vcsx.fish:\nvcsx completion fish | source",
         "powershell": "# Add to $PROFILE:\nInvoke-Expression (& vcsx completion powershell)",
     }

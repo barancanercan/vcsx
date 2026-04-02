@@ -92,7 +92,9 @@ applyTo: "{glob_pattern}"
 - Prefer explicit over implicit.
 - Use descriptive variable names.
 {"- Use type hints on all public functions." if lang == "python" else "- Use explicit TypeScript types; avoid `any`."}
-""", encoding="utf-8")
+""",
+            encoding="utf-8",
+        )
 
         # Testing instructions
         test_glob = "tests/**,**/*.test.*,**/*.spec.*,test_*.py,*_test.py"
@@ -110,7 +112,9 @@ applyTo: "{test_glob}"
 - Mock external services — never hit real APIs in tests.
 - Tests must be isolated — no shared mutable state.
 - Aim for coverage on critical paths.
-""", encoding="utf-8")
+""",
+            encoding="utf-8",
+        )
 
         # Security instructions (all files)
         (instructions_dir / "security.instructions.md").write_text(
@@ -126,7 +130,9 @@ applyTo: "**"
 - Validate and sanitize all user input.
 - Avoid `eval()` and dynamic code execution with user data.
 - Keep dependencies updated — watch for security advisories.
-""", encoding="utf-8")
+""",
+            encoding="utf-8",
+        )
 
     def generate_skills(self, ctx: ProjectContext, output_dir: str) -> list[str]:
         return []

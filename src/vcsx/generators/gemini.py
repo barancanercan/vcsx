@@ -56,10 +56,18 @@ class GeminiGenerator(BaseGenerator):
         test_line = f"- **Test Framework:** {ctx.test_framework}" if ctx.test_framework else ""
         hosting_line = f"- **Hosting:** {ctx.hosting}" if ctx.hosting else ""
 
-        tech_block = "\n".join(filter(None, [lang_line, framework_line, stack_line, test_line, hosting_line]))
+        tech_block = "\n".join(
+            filter(None, [lang_line, framework_line, stack_line, test_line, hosting_line])
+        )
 
-        formatter_note = f"- Format code with `{ctx.formatter}` before committing." if ctx.formatter else ""
-        linter_note = f"- Run `{ctx.linter}` and fix all warnings before completing a task." if ctx.linter else ""
+        formatter_note = (
+            f"- Format code with `{ctx.formatter}` before committing." if ctx.formatter else ""
+        )
+        linter_note = (
+            f"- Run `{ctx.linter}` and fix all warnings before completing a task."
+            if ctx.linter
+            else ""
+        )
         standards_block = "\n".join(filter(None, [formatter_note, linter_note]))
 
         project_type_guidance = self._get_project_type_guidance(ctx)
@@ -81,7 +89,7 @@ class GeminiGenerator(BaseGenerator):
 > Your 1M token context window is an advantage — use it for large codebase exploration.
 
 ## Project Overview
-{purpose_block if purpose_block else f"- **Name:** {ctx.project_name or 'Project'}" }
+{purpose_block if purpose_block else f"- **Name:** {ctx.project_name or 'Project'}"}
 - **Type:** {ctx.project_type or "general"}
 - **Description:** {ctx.description or "No description provided."}
 
@@ -156,7 +164,14 @@ This project uses Gemini CLI's large context window effectively:
     def _get_ignore_patterns(self, ctx: ProjectContext) -> str:
         base = ["node_modules/", "dist/", "build/", ".git/", ".env", "*.log"]
         lang_extras = {
-            "python": ["__pycache__/", "*.pyc", ".venv/", "*.egg-info/", ".pytest_cache/", "coverage/"],
+            "python": [
+                "__pycache__/",
+                "*.pyc",
+                ".venv/",
+                "*.egg-info/",
+                ".pytest_cache/",
+                "coverage/",
+            ],
             "typescript": ["*.d.ts", ".next/", "coverage/", "*.tsbuildinfo"],
             "javascript": [".next/", "coverage/"],
             "java": ["target/", "*.class", "*.jar"],

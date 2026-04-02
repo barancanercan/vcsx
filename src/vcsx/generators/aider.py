@@ -168,11 +168,14 @@ The project is organized as a `{ctx.project_type}` application.
 
 # ─── Private helpers ──────────────────────────────────────────────────────────
 
+
 def _get_setup_cmd(ctx: ProjectContext) -> str:
     return {
         "typescript": "npm install",
         "javascript": "npm install",
-        "python": "pip install -e '.[dev]'" if "pyproject" in (ctx.tech_stack or "").lower() else "pip install -r requirements.txt",
+        "python": "pip install -e '.[dev]'"
+        if "pyproject" in (ctx.tech_stack or "").lower()
+        else "pip install -r requirements.txt",
         "go": "go mod tidy",
         "rust": "cargo build",
     }.get((ctx.language or "").lower(), "npm install")

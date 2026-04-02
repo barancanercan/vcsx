@@ -77,7 +77,8 @@ class WindsurfGenerator(BaseGenerator):
         rules_dir.mkdir(parents=True, exist_ok=True)
 
         # Core conventions rule (always apply)
-        (rules_dir / "core-conventions.md").write_text(f"""---
+        (rules_dir / "core-conventions.md").write_text(
+            f"""---
 alwaysApply: true
 description: Core project conventions always applied
 ---
@@ -94,11 +95,14 @@ description: Core project conventions always applied
 - Run `{ctx.linter or "linter"}` and fix all warnings.
 - Write tests for new functionality.
 - Keep PRs small and focused.
-""", encoding="utf-8")
+""",
+            encoding="utf-8",
+        )
 
         # Testing conventions (auto-attached to test files)
         test_glob = "tests/**,**/*.test.*,**/*.spec.*"
-        (rules_dir / "testing.md").write_text(f"""---
+        (rules_dir / "testing.md").write_text(
+            f"""---
 alwaysApply: false
 globs: {test_glob}
 description: Testing conventions — applied when working on test files
@@ -111,10 +115,13 @@ description: Testing conventions — applied when working on test files
 - Tests should be independent — no shared mutable state.
 - Use descriptive test names: `test_<function>_<scenario>_<expected>`.
 - Mock external services; never hit real APIs in unit tests.
-""", encoding="utf-8")
+""",
+            encoding="utf-8",
+        )
 
         # Security rules (always apply)
-        (rules_dir / "security.md").write_text("""---
+        (rules_dir / "security.md").write_text(
+            """---
 alwaysApply: true
 description: Security guardrails — always enforced
 ---
@@ -127,11 +134,14 @@ description: Security guardrails — always enforced
 - NEVER log sensitive data (tokens, passwords, PII).
 - Use environment variables for all secrets.
 - Dependencies: check for known vulnerabilities before adding.
-""", encoding="utf-8")
+""",
+            encoding="utf-8",
+        )
 
         # API conventions if applicable
         if ctx.project_type == "api":
-            (rules_dir / "api-conventions.md").write_text("""---
+            (rules_dir / "api-conventions.md").write_text(
+                """---
 alwaysApply: false
 globs: src/routes/**,src/api/**,src/controllers/**
 description: REST API design conventions
@@ -145,7 +155,9 @@ description: REST API design conventions
 - Validate all request body fields — return 422 with field-level errors.
 - Paginate list endpoints: `{data, page, limit, total}`.
 - Version the API: `/api/v1/`.
-""", encoding="utf-8")
+""",
+                encoding="utf-8",
+            )
 
     def generate_skills(self, ctx: ProjectContext, output_dir: str) -> list[str]:
         """Generate Windsurf-specific skill files."""

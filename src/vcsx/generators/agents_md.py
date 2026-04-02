@@ -79,7 +79,9 @@ class AgentsMdGenerator(BaseGenerator):
             stack_parts.append(f"**Stack:** {ctx.tech_stack}")
         if ctx.hosting:
             stack_parts.append(f"**Hosting:** {ctx.hosting}")
-        stack_block = "\n".join(stack_parts) if stack_parts else "Not specified — infer from codebase."
+        stack_block = (
+            "\n".join(stack_parts) if stack_parts else "Not specified — infer from codebase."
+        )
 
         return f"""# AGENTS.md — AI Coding Configuration
 
@@ -131,7 +133,11 @@ Use conventional commits:
         test_fw = ctx.test_framework or ""
 
         if lang == "python":
-            install = "pip install -e '.[dev]'" if "pyproject" in framework or not framework else "pip install -r requirements.txt"
+            install = (
+                "pip install -e '.[dev]'"
+                if "pyproject" in framework or not framework
+                else "pip install -r requirements.txt"
+            )
             test_cmd = "pytest" if not test_fw or test_fw == "pytest" else test_fw
             fmt = f"{ctx.formatter}" if ctx.formatter else "ruff format ."
             lint = f"{ctx.linter}" if ctx.linter else "ruff check ."
