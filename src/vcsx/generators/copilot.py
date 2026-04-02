@@ -57,7 +57,76 @@ class CopilotGenerator(BaseGenerator):
         d = Path(output_dir) / ".github"
         d.mkdir(parents=True, exist_ok=True)
         (d / "copilot-instructions.md").write_text(content, encoding="utf-8")
+
+        # New: scoped instructions (.github/instructions/*.instructions.md)
+        self._generate_scoped_instructions(ctx, output_dir)
+
         return content
+
+    def _generate_scoped_instructions(self, ctx: ProjectContext, output_dir: str) -> None:
+        """Generate .github/instructions/ scoped instruction files.
+
+        GitHub Copilot (2025+) supports scoped instructions with frontmatter:
+        - applyTo: glob pattern for files this applies to
+        - description: what this instruction set covers
+        """
+        instructions_dir = Path(output_dir) / ".github" / "instructions"
+        instructions_dir.mkdir(parents=True, exist_ok=True)
+
+        lang = (ctx.language or "").lower()
+
+        # Code style instructions
+        glob_pattern = "**/*.py" if lang == "python" else "**/*.ts,**/*.tsx,**/*.js,**/*.jsx"
+        fmt = ctx.formatter or infer_formatter(ctx.language)
+        lint = ctx.linter or infer_linter(ctx.language)
+        (instructions_dir / "code-style.instructions.md").write_text(
+            f"""---
+applyTo: "{glob_pattern}"
+---
+
+# Code Style
+
+- Format with `{fmt}` before committing.
+- Run `{lint}` and fix all warnings.
+- Keep functions small and focused — single responsibility.
+- Prefer explicit over implicit.
+- Use descriptive variable names.
+{"- Use type hints on all public functions." if lang == "python" else "- Use explicit TypeScript types; avoid `any`."}
+""", encoding="utf-8")
+
+        # Testing instructions
+        test_glob = "tests/**,**/*.test.*,**/*.spec.*,test_*.py,*_test.py"
+        test_fw = ctx.test_framework or infer_test_framework(ctx.language)
+        (instructions_dir / "testing.instructions.md").write_text(
+            f"""---
+applyTo: "{test_glob}"
+---
+
+# Testing Guidelines
+
+- Test framework: `{test_fw}`
+- Every public function needs at least one test.
+- Test names: `test_<function>_<scenario>_<expected>`.
+- Mock external services — never hit real APIs in tests.
+- Tests must be isolated — no shared mutable state.
+- Aim for coverage on critical paths.
+""", encoding="utf-8")
+
+        # Security instructions (all files)
+        (instructions_dir / "security.instructions.md").write_text(
+            """---
+applyTo: "**"
+---
+
+# Security Guidelines
+
+- Never hardcode API keys, tokens, or passwords.
+- Store all secrets in environment variables.
+- Never log sensitive data (tokens, passwords, PII).
+- Validate and sanitize all user input.
+- Avoid `eval()` and dynamic code execution with user data.
+- Keep dependencies updated — watch for security advisories.
+""", encoding="utf-8")
 
     def generate_skills(self, ctx: ProjectContext, output_dir: str) -> list[str]:
         return []
