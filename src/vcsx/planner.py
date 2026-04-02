@@ -356,6 +356,38 @@ def _generate_tree(ctx: ProjectContext) -> str:
                 "├── docs/",
             ]
         )
+    elif ctx.project_type == "data-pipeline":
+        lines.extend(
+            [
+                "├── scrapers/",
+                "│   └── (data collectors)",
+                "├── intel/",
+                "│   └── (analysis & intelligence)",
+                "├── data/",
+                "│   ├── raw/",
+                "│   └── processed/",
+                "├── reports/",
+                "│   └── (output reports)",
+                "├── tests/",
+                "│   └── (test files)",
+                "├── .env.example",
+            ]
+        )
+    elif ctx.project_type == "ml-model":
+        lines.extend(
+            [
+                "├── src/",
+                "│   ├── data/",
+                "│   ├── models/",
+                "│   └── utils/",
+                "├── notebooks/",
+                "├── experiments/",
+                "├── tests/",
+                "├── data/",
+                "│   ├── raw/",
+                "│   └── processed/",
+            ]
+        )
 
     lines.append("└── (config files)")
 

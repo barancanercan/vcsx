@@ -16,6 +16,8 @@ AI_TOOLS = [
     "bolt",
     "codex",
     "copilot",
+    "gemini",
+    "agents-md",
 ]
 
 
@@ -391,6 +393,8 @@ _TR_PROMPTS = {
             "mobile": "Mobil uygulama",
             "desktop": "Masaüstü uygulaması",
             "library": "Kütüphane/paket",
+            "data-pipeline": "Veri pipeline / scraping / ETL",
+            "ml-model": "Makine öğrenmesi modeli",
             "other": "Diğer",
         },
     },
@@ -598,6 +602,8 @@ _EN_PROMPTS = {
             "mobile": "Mobile application",
             "desktop": "Desktop application",
             "library": "Library/package",
+            "data-pipeline": "Data pipeline / scraping / ETL",
+            "ml-model": "Machine learning model",
             "other": "Other",
         },
     },
