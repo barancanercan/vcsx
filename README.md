@@ -2,9 +2,9 @@
 
 <pre>
 ╔══════════════════╗
-║       ⚙️         ║
+║       *          ║
 ║      vcsx        ║
-║     v2.0.0       ║
+║     v3.3.0       ║
 ╚══════════════════╝
 </pre>
 
@@ -15,9 +15,8 @@
 [![CI](https://github.com/vibe-coding-setup-expert/vcsx/actions/workflows/ci.yml/badge.svg)](https://github.com/vibe-coding-setup-expert/vcsx/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-**Claude Code** · **Cursor** · **OpenAI Codex** · **GitHub Copilot**
+**Claude Code** · **Cursor** · **Windsurf** · **Zed** · **Aider** · **Bolt** · **Codex** · **Copilot**
 
 </div>
 
@@ -25,152 +24,157 @@
 
 ## ✨ What It Does
 
-`vcsx` is a CLI tool that generates **production-ready AI coding environments** in seconds. It asks you about your project, presents a plan, and then creates all the configuration files, skills, hooks, agents, and project scaffolding you need.
+`vcsx` is a CLI tool that generates **production-ready AI coding environments** in seconds. It supports 8+ AI coding tools and creates skills, hooks, agents, and project scaffolding automatically.
 
 ```bash
 $ vcsx init
-🔍 PHASE 1: DISCOVERY    → 3 rounds of smart questions
-📋 PHASE 2: PLAN         → Review & approve the setup plan
-🛠️ PHASE 3: BUILD       → All files generated automatically
+🔍 PHASE 0: AI Tool Selection   → Auto-detect + confirm
+🔍 PHASE 1: Project Foundation   → Purpose, problem, user stories
+🔍 PHASE 2: User Stories         → Detailed requirements
+🔍 PHASE 3: Technical Details    → Smart branching
+🔍 PHASE 4: Development Standards → Test, CI/CD, linting
+🔍 PHASE 5: Claude Code Config   → Skills, hooks, automations
+📋 PHASE 6: PLAN                 → Detailed review & approval
+🛠️ PHASE 7: BUILD               → All files generated automatically
 ```
 
-## 🚀 Quick Start
+## 🚀 Installation (5 Methods)
 
+### 1. PyPI (Recommended)
 ```bash
-# Install
-pip install -e .
-
-# Start interactive wizard (Claude Code by default)
-vcsx init
-
-# Generate for specific AI tools
-vcsx init --cli claude-code     # Claude Code
-vcsx init --cli cursor          # Cursor
-vcsx init --cli codex           # OpenAI Codex
-vcsx init --cli copilot         # GitHub Copilot
-
-# Turkish or English
-vcsx init --lang en
-
-# Custom output directory
-vcsx init -o ./my-project
-
-# List all supported tools
-vcsx list
+pip install vcsx
 ```
 
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                      vcsx init                          │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  ┌──────────┐    ┌──────────┐    ┌──────────────────┐  │
-│  │ DISCOVERY│───→│   PLAN   │───→│ IMPLEMENTATION   │  │
-│  │          │    │          │    │                  │  │
-│  │ Smart Q&A│    │ Review & │    │ File Generation  │  │
-│  │ 3 rounds │    │ Approve  │    │ via Generators   │  │
-│  └──────────┘    └──────────┘    └──────────────────┘  │
-│                                         │               │
-│                    ┌────────────────────┼────────────┐  │
-│                    │                    │            │  │
-│              ┌─────▼─────┐    ┌────────▼──┐  ┌──────▼─┐│
-│              │CLAUDE.md  │    │ Skills    │  │ Hooks  ││
-│              │+ Scaffold │    │ + Agents  │  │+ Scripts││
-│              └───────────┘    └───────────┘  └───────┘│
-└─────────────────────────────────────────────────────────┘
+### 2. Standalone EXE
+```bash
+curl -L https://github.com/vibe-coding-setup-expert/vcsx/releases/latest/download/vcsx.exe -o vcsx.exe
 ```
 
-## 📦 What Gets Generated
-
-### Claude Code
-| File | Purpose |
-|------|---------|
-| `CLAUDE.md` | Project conventions, build commands, code style (<200 lines) |
-| `.claude/skills/*/SKILL.md` | 8 reusable workflows with proper frontmatter |
-| `.claude/settings.json` | Hook configurations for automation |
-| `.claude/hooks/*.sh` | 4 executable hook scripts (security, format, lint, scan) |
-| `.claude/agents/*.md` | 3 specialized subagents |
-
-### Other AI Tools
-| Tool | Files Generated |
-|------|----------------|
-| **Cursor** | `.cursorrules`, `.cursor/rules/*.md` |
-| **Codex** | `.openai/instructions.md` |
-| **Copilot** | `.github/copilot-instructions.md` |
-
-## 🧩 Built-in Skills
-
-| Skill | Description | Auto-Trigger |
-|-------|-------------|:---:|
-| `/commit-message` | Generates conventional commit messages from git diff | ✅ |
-| `/pr-review` | Reviews PRs against team standards | ✅ |
-| `/deploy` | Deployment checklist with pre-flight checks | ✅ |
-| `/test-patterns` | Test writing conventions for your framework | ✅ |
-| `/api-conventions` | REST API design patterns (API projects) | ✅ |
-| `/auth-conventions` | Auth patterns and flows (auth projects) | ✅ |
-| `/security-review` | Security vulnerability checklist | ✅ |
-| `/refactor` | Code improvement suggestions | ✅ |
-
-## 🔒 Built-in Hooks
-
-| Hook | Event | What It Does |
-|------|-------|-------------|
-| Block destructive | `PreToolUse` (Bash) | Blocks `rm -rf`, `git push --force`, `DROP TABLE`, etc. |
-| Auto-format | `PostToolUse` (Write/Edit) | Runs your formatter on every file change |
-| Auto-lint | `PostToolUse` (Write/Edit) | Runs your linter after edits |
-| Secret scan | `PostToolUse` (Write/Edit) | Detects API keys, passwords, tokens in code |
-
-## 🔌 Plugin Architecture
-
-Adding a new AI tool takes **3 steps**:
-
-```python
-# 1. Create src/vcsx/generators/new_tool.py
-class NewToolGenerator(BaseGenerator):
-    @property
-    def name(self) -> str: return "new-tool"
-    # ... implement 5 methods
-
-# 2. Register in src/vcsx/generators/registry.py
-CLI_TOOLS["new-tool"] = NewToolGenerator
-
-# 3. Done!
-# $ vcsx init --cli new-tool
+### 3. Homebrew
+```bash
+brew tap vcsx/tap
+brew install vcsx
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
-
-## 📁 Project Structure
-
+### 4. npx
+```bash
+npx vcsx init
 ```
-vcsx/
-├── src/vcsx/
-│   ├── cli.py              # Click CLI entry point
-│   ├── discovery.py        # Interactive questionnaire engine
-│   ├── planner.py          # Plan generation & confirmation
-│   ├── implementation.py   # Orchestration layer
-│   ├── core/
-│   │   ├── context.py      # ProjectContext dataclass
-│   │   ├── inference.py    # Tech stack → language/framework
-│   │   └── validators.py   # Input validation
-│   ├── generators/
-│   │   ├── base.py         # Abstract BaseGenerator interface
-│   │   ├── registry.py     # CLI tool registry (extensible)
-│   │   ├── claude_code.py  # Claude Code generator (~500 lines)
-│   │   ├── cursor.py       # Cursor generator
-│   │   ├── codex.py        # OpenAI Codex generator
-│   │   └── copilot.py      # GitHub Copilot generator
-│   └── utils/
-│       └── prompts.py      # TR/EN question bank
-├── tests/
-│   ├── test_core.py        # Core module tests
-│   └── test_generators.py  # Generator tests (all 4 tools)
-├── examples/               # Sample generated files
-├── .github/workflows/      # CI/CD pipeline
-└── pyproject.toml          # Package configuration
+
+### 5. npm
+```bash
+npm install -g vcsx
 ```
+
+## 📦 Supported AI Tools (8 Tools)
+
+| Tool | Category | Files Generated |
+|------|----------|-----------------|
+| **Claude Code** | AI Editor | CLAUDE.md, skills, hooks, agents |
+| **Cursor** | AI Editor | .cursorrules, .cursor/rules/*.mdc |
+| **Windsurf** | AI Editor | .windsurfrules, workspace.json, conventions.md |
+| **Zed** | AI Editor | .zed/settings.json, context.md, hooks.toml |
+| **Aider** | Terminal AI | .aider.conf.yaml, context.md |
+| **Bolt** | Web AI | .bolt/workspace.json, setup.md, prompts.md |
+| **Codex** | Code Assist | .openai/instructions.md |
+| **Copilot** | Code Assist | .github/copilot-instructions.md |
+
+## 🎯 Discovery Process (v3.3 - Enhanced)
+
+The discovery phase now includes **purpose-driven questions** for a more intelligent setup:
+
+### Phase 0: AI Tool & Platform
+- Auto-detects existing AI tool configuration
+- Detects platform (Windows/macOS/Linux/WSL)
+
+### Phase 1: Project Foundation (Most Important)
+- **Purpose**: What do you aim to achieve?
+- **Problem**: What problem does this project solve?
+- Project name, description, tech stack
+- Project type (web/api/cli/mobile/desktop/library)
+
+### Phase 2: User Stories & Success Criteria
+- **User Stories**: Detailed "As a user, I can..." format
+- **Success Criteria**: Measurable metrics for success
+- MVP features, target users
+
+### Phase 3: Technical Details
+- Smart branching: Auth → Auth method
+- Hosting, external services, monorepo
+
+### Phase 4: Development Standards
+- Test level (none/unit/integration/full)
+- CI/CD pipeline
+- Formatter, linter
+
+### Phase 5: Claude Code Configuration
+- Recurring tasks (becomes skills)
+- Forbidden actions (blocked by hooks)
+- Automations
+
+## 🧩 Generated Skills (20+)
+
+| Skill | Category | Trigger |
+|-------|----------|:--------:|
+| `/commit-message` | Git | ✅ |
+| `/pr-review` | Git | ✅ |
+| `/squash` | Git | Manual |
+| `/revert` | Git | Manual |
+| `/deploy` | Deployment | Manual |
+| `/rollback` | Deployment | Manual |
+| `/migration` | Database | Manual |
+| `/orm-conventions` | Database | Auto |
+| `/query-optimization` | Database | Manual |
+| `/docker-conventions` | DevOps | Auto |
+| `/k8s-conventions` | DevOps | Auto |
+| `/ci-cd-builder` | DevOps | Manual |
+| `/test-patterns` | Testing | Auto |
+| `/mutation-testing` | Testing | Manual |
+| `/e2e-patterns` | Testing | Auto |
+| `/api-conventions` | API | Auto |
+| `/openapi-generator` | API | Manual |
+| `/grpc-conventions` | API | Auto |
+| `/security-review` | Security | ✅ |
+| `/auth-conventions` | Security | Auto |
+| `/refactor` | Quality | Manual |
+| `/performance` | Quality | Manual |
+| `/debt-analyzer` | Quality | Manual |
+
+## 🔌 Generated Hooks (13)
+
+### PreToolUse
+- `block_destructive` — Blocks dangerous commands
+- `validate_syntax` — Validates code syntax
+- `check_permissions` — Warns on permission changes
+
+### PostToolUse
+- `auto_format` — Auto-formats on save
+- `auto_lint` — Runs linter after edits
+- `type_check` — Type checking
+- `secret_scan` — Scans for secrets
+
+### SessionStart
+- `check_env` — Checks environment variables
+- `check_deps` — Verifies dependencies
+- `git_status` — Shows git status
+
+### Stop
+- `run_tests` — Runs test suite
+- `cleanup_temp` — Cleans temp files
+- `commit_prompt` — Prompts for commit
+
+## 📋 vcsx Commands
+
+| Command | Description |
+|---------|-------------|
+| `vcsx init` | Start interactive wizard |
+| `vcsx list` | List all AI tools |
+| `vcsx info <tool>` | Show tool details |
+| `vcsx install <method>` | Show install instructions |
+| `vcsx doctor` | Check installation |
+| `vcsx plugins` | List plugins |
+| `vcsx templates` | List templates |
+| `vcsx templates:install <name>` | Install template |
 
 ## 🧪 Development
 
@@ -181,30 +185,26 @@ pip install -e ".[dev]"
 # Run tests
 pytest
 
-# With coverage
-pytest --cov=vcsx --cov-report=term-missing
-
 # Lint
 ruff check src/
 
 # Format
 ruff format src/
 
-# Install pre-commit hooks
-pre-commit install
+# Build wheel
+python -m build
+
+# Build standalone exe
+pyinstaller src/vcsx/cli.py --name vcsx --onefile
 ```
 
 ## 🤝 Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for:
-- Development setup
-- How to add new CLI tool generators
-- Pull request guidelines
-- Testing standards
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## 📄 License
 
-MIT License — see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE).
 
 ---
 

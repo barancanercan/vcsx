@@ -154,7 +154,7 @@ class TestRegistry:
 
     def test_get_all_generators(self):
         generators = get_all_generators()
-        assert len(generators) == 4
+        assert len(generators) == 8
 
     def test_invalid_tool_name(self):
         with pytest.raises(ValueError):

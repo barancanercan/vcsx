@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vcsx"
-version = "2.0.0"
+version = "3.3.0"
 description = "Vibe Coding Setup Expert — Multi-CLI AI coding environment generator"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
-authors = [{name = "Vibe Coding Setup Expert Contributors"}]
-keywords = ["claude-code", "cursor", "codex", "copilot", "setup", "automation", "cli"]
+authors = [{name = "Vibe Coding Setup Expert Contributors", email = "vcsx@example.com"}]
+keywords = ["claude-code", "cursor", "codex", "copilot", "windsurf", "zed", "aider", "setup", "automation", "cli", "ai-coding"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -21,25 +21,51 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Code Generators",
+    "Topic :: Software Development :: Build Tools",
+    "Environment :: Console",
+    "Operating System :: OS Independent",
 ]
 
 dependencies = [
     "click>=8.1.0",
     "rich>=13.0.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.0.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.1.0", "pre-commit>=3.0.0"]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1.0",
+    "pre-commit>=3.0.0",
+    "pyinstaller>=6.0",
+    "build>=1.0.0",
+    "twine>=4.0.0",
+]
+all = ["uv>=0.1.0"]
 
 [project.scripts]
 vcsx = "vcsx.cli:main"
 
 [project.urls]
-"Homepage" = "https://github.com/vibe-coding-setup-expert/vcsx"
+Homepage = "https://github.com/vibe-coding-setup-expert/vcsx"
+Documentation = "https://vcsx.dev/docs"
 "Bug Tracker" = "https://github.com/vibe-coding-setup-expert/vcsx/issues"
+Repository = "https://github.com/vibe-coding-setup-expert/vcsx"
+"Changelog" = "https://github.com/vibe-coding-setup-expert/vcsx/releases"
+
+[project.entry-points."vcsx.plugins"]
+default = "vcsx.plugins.registry:load_default_plugins"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+]
 
 [tool.ruff]
 target-version = "py310"
@@ -52,3 +78,17 @@ ignore = ["E501"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+disallow_untyped_defs = true
+skip_libs = ["rich", "click"]
+
+[tool.pyinstaller]
+name = "vcsx"
+onefile = true
+console = true
+strip = true
+upx = true
+

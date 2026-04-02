@@ -7,7 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.0] - 2026-04-02
+## [3.3.0] - 2026-04-02
+
+### Added
+- **Purpose-driven discovery**: New questions for purpose, problem, user_stories, success_criteria
+- **Rich prompt metadata**: Each question now has description, hint, placeholder, examples, options
+- **6-phase discovery flow** (Phase 0-5): Organized discovery with clear sections
+- **Smart branching**: Auth question now triggers auth_method question
+- **Detailed plan explanations**: Each generated file now includes what it does and how to use it
+- **Cursor .mdc format**: Updated Cursor generator to use new frontmatter format (description, globs, alwaysApply)
+- **Windsurf conventions.md**: Enhanced with detailed code style rules and best practices
+- **Zed hooks.toml**: Added pre-commit and on-save hooks
+- **Aider detailed commit-prompt**: Enhanced with conventional commits examples and rules
+- **Bolt prompts.md**: Added AI prompt templates (New Feature, Bug Fix, Refactor, Run Tests)
+- **Auto-detect AI tool**: Config files are now automatically detected (.cursorrules, .claude/settings.json, etc.)
+- **AI tool as first question**: Tool selection is now the first question in discovery
+
+### Changed
+- Discovery now prioritizes purpose and problem before technical details
+- Plan output now shows what each file does in detail
+
+### Fixed
+- Tests now correctly pass with all 8 generators
+
+## [3.2.0] - 2026-04-02
 
 ### Added
 - Multi-CLI support: Claude Code, Cursor, OpenAI Codex, GitHub Copilot

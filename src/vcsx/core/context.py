@@ -7,6 +7,10 @@ from dataclasses import dataclass, field
 class ProjectContext:
     """Holds all discovered project information."""
 
+    # AI Tool Selection
+    ai_tool: str = ""  # claude-code/cursor/windsurf/zed/aider/bolt/codex/copilot
+    platform: str = ""  # windows-powershell/macos/linux/wsl
+
     # Project basics
     project_type: str = ""
     project_name: str = ""
@@ -14,6 +18,12 @@ class ProjectContext:
     tech_stack: str = ""
     language: str = ""
     framework: str = ""
+
+    # Purpose & Problem (v3.3)
+    purpose: str = ""  # What the project aims to achieve
+    problem: str = ""  # The problem being solved
+    user_stories: str = ""  # Detailed user stories
+    success_criteria: str = ""  # How success is measured
 
     # MVP & scope
     mvp_features: str = ""

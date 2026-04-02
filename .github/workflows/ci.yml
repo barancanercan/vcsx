@@ -1,10 +1,12 @@
-name: CI
+name: CI/CD
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  release:
+    types: [published]
 
 jobs:
   test:
@@ -44,3 +46,77 @@ jobs:
         with:
           file: ./coverage.xml
           fail_ci_if_error: false
+
+  build-dist:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build wheel
+        run: |
+          pip install build
+          python -m build
+
+      - name: Upload to PyPI
+        if: github.event.action == 'published'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          pip install twine
+          twine upload dist/*
+
+  build-exe:
+    needs: test
+    runs-on: windows-latest
+    if: github.event_name == 'release'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Build executable
+        run: pyinstaller src/vcsx/cli.py --name vcsx --onefile --console --clean
+
+      - name: Upload artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: dist/vcsx.exe
+          asset_name: vcsx.exe
+          asset_content_type: application/octet-stream
+
+  build-homebrew:
+    needs: build-exe
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version
+        run: echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+
+      - name: Update Homebrew tap
+        uses: dawidd6/action-homebrew-bump-formula@v3
+        with:
+          formula: vcsx
+          token: ${{ secrets.HOMEBREW_TOKEN }}

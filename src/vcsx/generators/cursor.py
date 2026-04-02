@@ -17,10 +17,10 @@ class CursorGenerator(BaseGenerator):
 
     @property
     def output_files(self) -> list[str]:
-        return [".cursorrules", ".cursor/rules/*.md"]
+        return [".cursorrules", ".cursor/rules/*.mdc"]
 
     def generate_config(self, ctx: ProjectContext, output_dir: str) -> str:
-        """Generate .cursorrules file."""
+        """Generate .cursorrules file (legacy format - fallback)."""
         lines = [
             f"# {ctx.project_name} — Cursor Rules",
             "",
@@ -60,17 +60,22 @@ class CursorGenerator(BaseGenerator):
         return content
 
     def generate_skills(self, ctx: ProjectContext, output_dir: str) -> list[str]:
-        """Generate .cursor/rules/ files."""
+        """Generate .cursor/rules/*.mdc files (modern format)."""
         rules_dir = Path(output_dir) / ".cursor" / "rules"
         rules_dir.mkdir(parents=True, exist_ok=True)
         created = []
 
-        created.append(_rule_commit_message(rules_dir))
-        created.append(_rule_pr_review(rules_dir))
-        created.append(_rule_test_patterns(rules_dir, ctx))
+        # Modern .mdc format with frontmatter
+        created.append(_rule_build_test_mdc(rules_dir, ctx))
+        created.append(_rule_commit_message_mdc(rules_dir))
+        created.append(_rule_pr_review_mdc(rules_dir))
+        created.append(_rule_test_patterns_mdc(rules_dir, ctx))
 
         if ctx.project_type == "api":
-            created.append(_rule_api_conventions(rules_dir))
+            created.append(_rule_api_conventions_mdc(rules_dir))
+
+        if ctx.auth_needed:
+            created.append(_rule_auth_mdc(rules_dir, ctx))
 
         return created
 
@@ -102,7 +107,219 @@ class CursorGenerator(BaseGenerator):
         return created
 
 
-# ─── Rule Templates ──────────────────────────────────────────────────────────
+# ─── Modern .mdc Rule Templates ─────────────────────────────────────────────
+
+
+def _rule_build_test_mdc(rules_dir: Path, ctx: ProjectContext) -> str:
+    """Build and test commands rule (modern .mdc format)."""
+    d = rules_dir / "build-test.mdc"
+    content = f"""---
+description: Build, test, and development commands for {ctx.project_name}
+globs: ["*.py", "*.ts", "*.js", "*.go", "*.rs"]
+alwaysApply: false
+---
+
+# Build & Test Commands
+
+## Setup
+```bash
+{_get_setup_cmd(ctx)}
+```
+
+## Build
+```bash
+{_get_build_cmd(ctx)}
+```
+
+## Test
+```bash
+{_get_test_cmd(ctx)}
+```
+
+## Lint
+```bash
+{ctx.linter or infer_linter(ctx.language)} src/
+```
+
+## Format
+```bash
+{ctx.formatter or infer_formatter(ctx.language)} src/
+```
+
+## Rules
+- Always run tests before committing
+- Run linter before pushing
+- Follow existing code patterns
+"""
+    d.write_text(content, encoding="utf-8")
+    return "build-test"
+
+
+def _rule_commit_message_mdc(rules_dir: Path) -> str:
+    """Commit message generation rule."""
+    d = rules_dir / "commit-message.mdc"
+    content = """---
+description: Generate conventional commit messages
+globs: ["*.py", "*.ts", "*.js"]
+alwaysApply: false
+---
+
+# Commit Message Rules
+
+Format: `<type>(<scope>): <description>`
+
+## Types
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation
+- `style`: Formatting
+- `refactor`: Code refactoring
+- `test`: Tests
+- `chore`: Maintenance
+
+## Process
+1. Run `git diff --cached` to see staged changes
+2. Analyze changes to determine type
+3. Generate concise description (max 72 chars)
+4. If multiple types, suggest separate commits
+"""
+    d.write_text(content, encoding="utf-8")
+    return "commit-message"
+
+
+def _rule_pr_review_mdc(rules_dir: Path) -> str:
+    """PR review rule."""
+    d = rules_dir / "pr-review.mdc"
+    content = """---
+description: Review pull requests against team standards
+globs: ["*.py", "*.ts", "*.js", "*.go", "*.rs"]
+alwaysApply: false
+---
+
+# PR Review Rules
+
+## Checklist
+- [ ] Code follows style guidelines
+- [ ] No secrets committed
+- [ ] Tests cover new functionality
+- [ ] Error handling is appropriate
+- [ ] No unnecessary dependencies
+- [ ] Documentation updated if needed
+
+## Process
+1. Run `git diff main...HEAD`
+2. Check each file against checklist
+3. Report findings with line references
+4. Suggest fixes for issues found
+"""
+    d.write_text(content, encoding="utf-8")
+    return "pr-review"
+
+
+def _rule_test_patterns_mdc(rules_dir: Path, ctx: ProjectContext) -> str:
+    """Test patterns rule."""
+    d = rules_dir / "test-patterns.mdc"
+    content = f"""---
+description: Test writing patterns using {ctx.test_framework or infer_test_framework(ctx.language)}
+globs: ["test_*.py", "*.test.ts", "*.spec.ts"]
+alwaysApply: true
+---
+
+# Test Patterns
+
+## Framework: {ctx.test_framework or infer_test_framework(ctx.language)}
+
+## Structure
+1. **Arrange** — Set up test data
+2. **Act** — Execute code under test
+3. **Assert** — Verify outcome
+
+## Guidelines
+- Test behavior, not implementation
+- One assertion per test when possible
+- Descriptive test names: `test_<function>_<expected_behavior>`
+- Mock external dependencies
+- Test edge cases and error conditions
+"""
+    d.write_text(content, encoding="utf-8")
+    return "test-patterns"
+
+
+def _rule_api_conventions_mdc(rules_dir: Path) -> str:
+    """API conventions rule."""
+    d = rules_dir / "api-conventions.mdc"
+    content = """---
+description: REST API design patterns and conventions
+globs: ["**/api/**/*.py", "**/routes/*.ts"]
+alwaysApply: false
+---
+
+# API Conventions
+
+## URL Design
+- kebab-case for paths: `/api/user-profiles`
+- Nouns not verbs: `/api/users` not `/api/getUsers`
+- Version in URL: `/api/v1/users`
+- Plural nouns for collections: `/api/users`
+
+## HTTP Methods
+- **GET** — Retrieve resources
+- **POST** — Create new resources
+- **PUT** — Replace entire resource
+- **PATCH** — Partial update
+- **DELETE** — Remove resource
+
+## Response Format
+```json
+{
+  "data": {...},
+  "meta": {"page": 1, "perPage": 20, "total": 100}
+}
+```
+
+## Error Format
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "...",
+    "details": []
+  }
+}
+```
+"""
+    d.write_text(content, encoding="utf-8")
+    return "api-conventions"
+
+
+def _rule_auth_mdc(rules_dir: Path, ctx: ProjectContext) -> str:
+    """Auth conventions rule."""
+    d = rules_dir / "auth-conventions.mdc"
+    auth_method = ctx.auth_method or "JWT"
+    content = f"""---
+description: Authentication and authorization patterns using {auth_method}
+globs: ["**/auth/**/*.py", "**/middleware/*.ts"]
+alwaysApply: true
+---
+
+# Auth Conventions
+
+## Method: {auth_method}
+
+## Patterns
+- All protected endpoints require valid auth token
+- Tokens stored securely (httpOnly cookies or secure storage)
+- Refresh tokens rotated on each use
+- Failed attempts logged but don't expose user existence
+
+## Security Rules
+- Never log tokens or passwords
+- Use bcrypt or equivalent for password hashing
+- Implement CSRF protection for web apps
+- Validate tokens on every protected request
+"""
+    d.write_text(content, encoding="utf-8")
+    return "auth-conventions"
 
 
 def _rule_commit_message(rules_dir: Path) -> str:
