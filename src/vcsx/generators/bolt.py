@@ -4,6 +4,12 @@ from pathlib import Path
 
 from vcsx.core.context import ProjectContext
 from vcsx.generators.base import BaseGenerator
+from vcsx.generators._shared import (
+    get_setup_cmd as _shared_setup,
+    get_build_cmd as _shared_build,
+    get_test_cmd as _shared_test,
+    get_style_rules as _shared_style,
+)
 
 
 class BoltGenerator(BaseGenerator):

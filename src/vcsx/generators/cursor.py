@@ -6,6 +6,12 @@ from pathlib import Path
 from vcsx.core.context import ProjectContext
 from vcsx.core.inference import infer_formatter, infer_linter, infer_test_framework
 from vcsx.generators.base import BaseGenerator
+from vcsx.generators._shared import (
+    get_setup_cmd as _shared_setup,
+    get_build_cmd as _shared_build,
+    get_test_cmd as _shared_test,
+    get_style_rules as _shared_style,
+)
 
 
 class CursorGenerator(BaseGenerator):
@@ -416,58 +422,19 @@ description: REST API design patterns
 
 
 def _get_setup_cmd(ctx: ProjectContext) -> str:
-    return {
-        "typescript": "npm install",
-        "javascript": "npm install",
-        "python": "pip install -r requirements.txt",
-        "go": "go mod tidy",
-    }.get(ctx.language, "npm install")
+    return _shared_setup(ctx)
 
 
 def _get_build_cmd(ctx: ProjectContext) -> str:
-    return {
-        "typescript": "npm run build",
-        "javascript": "npm run build",
-        "python": "python -m compileall src/",
-        "go": "go build ./...",
-    }.get(ctx.language, "npm run build")
+    return _shared_build(ctx)
 
 
 def _get_test_cmd(ctx: ProjectContext) -> str:
-    if ctx.test_level == "none":
-        return "# No tests configured"
-    return {
-        "vitest": "npx vitest run",
-        "jest": "npx jest",
-        "pytest": "pytest",
-        "go test": "go test ./...",
-    }.get(ctx.test_framework or infer_test_framework(ctx.language), "npm test")
+    return _shared_test(ctx)
 
 
 def _get_style_rules(ctx: ProjectContext) -> list[str]:
-    rules = {
-        "typescript": [
-            "- Use TypeScript strict mode",
-            "- Prefer `const` over `let`",
-            "- Named exports over default exports",
-            "- Type all function parameters",
-            "- camelCase for variables, PascalCase for types",
-        ],
-        "python": [
-            "- Follow PEP 8",
-            "- Type hints for all public functions",
-            "- `snake_case` for variables, `PascalCase` for classes",
-            "- Prefer f-strings",
-            "- Docstrings for all public functions",
-        ],
-        "go": [
-            "- Follow `gofmt`",
-            "- `camelCase` for local, `PascalCase` for exported",
-            "- Check errors immediately",
-            "- Package names: lowercase, single word",
-        ],
-    }
-    return rules.get(ctx.language, ["- Follow language idioms"])
+    return _shared_style(ctx)
 
 
 def _scaffold_gitignore(output_dir: str, ctx: ProjectContext) -> str:
