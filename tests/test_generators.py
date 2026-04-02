@@ -154,8 +154,132 @@ class TestRegistry:
 
     def test_get_all_generators(self):
         generators = get_all_generators()
-        assert len(generators) == 8
+        assert len(generators) >= 10  # 8 original + gemini + agents-md
 
     def test_invalid_tool_name(self):
         with pytest.raises(ValueError):
             get_generator("invalid-tool")
+
+
+class TestGeminiGenerator:
+    def test_generate_config(self, ctx, tmp_dir):
+        from vcsx.generators.gemini import GeminiGenerator
+        gen = GeminiGenerator()
+        assert gen.name == "gemini"
+        path = gen.generate_config(ctx, tmp_dir)
+        assert (Path(tmp_dir) / "GEMINI.md").exists()
+        content = (Path(tmp_dir) / "GEMINI.md").read_text()
+        assert "test-project" in content
+        assert "Gemini CLI" in content
+
+    def test_data_pipeline_guidance(self, tmp_dir):
+        from vcsx.generators.gemini import GeminiGenerator
+        ctx = ProjectContext(
+            project_name="scraper",
+            project_type="data-pipeline",
+            language="python",
+        )
+        gen = GeminiGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "GEMINI.md").read_text()
+        assert "Data Pipeline" in content
+        assert "SQLite" in content
+
+
+class TestAgentsMdGenerator:
+    def test_generate_config(self, ctx, tmp_dir):
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        gen = AgentsMdGenerator()
+        assert gen.name == "agents-md"
+        path = gen.generate_config(ctx, tmp_dir)
+        assert (Path(tmp_dir) / "AGENTS.md").exists()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        assert "test-project" in content
+        assert "pytest" in content
+        assert "agents.md" in content.lower()
+
+    def test_forbidden_actions(self, tmp_dir):
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        ctx = ProjectContext(
+            project_name="proj",
+            language="python",
+            forbidden_actions="kubectl delete, helm uninstall",
+        )
+        gen = AgentsMdGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        assert "kubectl delete" in content
+
+
+class TestClaudeIgnore:
+    def test_claudeignore_generated(self, ctx, tmp_dir):
+        gen = ClaudeCodeGenerator()
+        gen.generate_scaffold(ctx, tmp_dir)
+        assert (Path(tmp_dir) / ".claudeignore").exists()
+        content = (Path(tmp_dir) / ".claudeignore").read_text()
+        assert "node_modules/" in content
+        assert "__pycache__/" in content
+        assert ".env" in content
+
+    def test_data_pipeline_extra_patterns(self, tmp_dir):
+        ctx = ProjectContext(
+            project_name="pipeline",
+            project_type="data-pipeline",
+            language="python",
+        )
+        gen = ClaudeCodeGenerator()
+        gen.generate_scaffold(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".claudeignore").read_text()
+        assert "data/raw/" in content
+
+
+class TestRegistryUpdated:
+    def test_gemini_in_registry(self):
+        gen = get_generator("gemini")
+        assert gen is not None
+        assert gen.name == "gemini"
+
+    def test_agents_md_in_registry(self):
+        gen = get_generator("agents-md")
+        assert gen is not None
+        assert gen.name == "agents-md"
+
+    def test_all_tools_count(self):
+        # Should have at least 10 tools now
+        assert len(ALL_TOOLS) >= 10
+
+
+class TestWindsurfNewFormat:
+    def test_windsurf_rules_dir_created(self, ctx, tmp_dir):
+        from vcsx.generators.windsurf import WindsurfGenerator
+        gen = WindsurfGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        rules_dir = Path(tmp_dir) / ".windsurf" / "rules"
+        assert rules_dir.exists()
+        assert (rules_dir / "core-conventions.md").exists()
+        assert (rules_dir / "security.md").exists()
+        assert (rules_dir / "testing.md").exists()
+
+    def test_api_rules_generated(self, ctx, tmp_dir):
+        from vcsx.generators.windsurf import WindsurfGenerator
+        gen = WindsurfGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        api_rules = Path(tmp_dir) / ".windsurf" / "rules" / "api-conventions.md"
+        assert api_rules.exists()
+
+
+class TestCopilotScopedInstructions:
+    def test_scoped_instructions_created(self, ctx, tmp_dir):
+        gen = CopilotGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        instructions_dir = Path(tmp_dir) / ".github" / "instructions"
+        assert instructions_dir.exists()
+        assert (instructions_dir / "code-style.instructions.md").exists()
+        assert (instructions_dir / "testing.instructions.md").exists()
+        assert (instructions_dir / "security.instructions.md").exists()
+
+    def test_applyto_frontmatter(self, ctx, tmp_dir):
+        gen = CopilotGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".github" / "instructions" / "security.instructions.md").read_text()
+        assert "applyTo" in content
