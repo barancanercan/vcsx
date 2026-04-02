@@ -300,6 +300,7 @@ class ClaudeCodeGenerator(BaseGenerator):
         """Generate project scaffold files."""
         created = []
         created.append(_scaffold_gitignore(output_dir, ctx))
+        created.append(_scaffold_claudeignore(output_dir, ctx))
         created.append(_scaffold_readme(output_dir, ctx))
         created.append(_scaffold_env_example(output_dir, ctx))
 
@@ -986,17 +987,73 @@ exit 0
 """
     else:
         content = """#!/bin/bash
+# block_destructive.sh — Blocks dangerous commands before execution
+# Triggered by Claude Code PreToolUse hook on Bash tool
+
 INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | grep -o '"command"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"\(.*\)"/\1/')
+COMMAND=$(echo "$INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('command',''))" 2>/dev/null || \
+          echo "$INPUT" | grep -o '"command"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"\\(.*\\)"/\\1/')
 
-PATTERNS=("rm -rf" "rm -r /" "git push --force" "git push -f" "DROP TABLE" "DROP DATABASE" "DELETE FROM" "TRUNCATE" "mkfs" "dd if=" "sudo rm")
+# Destructive filesystem operations
+DESTRUCTIVE_PATTERNS=(
+    "rm -rf"
+    "rm -r /"
+    "rm -fr"
+    "sudo rm"
+    "find . -delete"
+    "find / -delete"
+)
 
-for pattern in "${PATTERNS[@]}"; do
-    if echo "$COMMAND" | grep -qi "$pattern"; then
-        echo "BLOCKED: Destructive command: $pattern" >&2
-        exit 2
-    fi
-done
+# Dangerous git operations
+GIT_PATTERNS=(
+    "git push --force"
+    "git push -f"
+    "git push origin main --force"
+    "git push origin master --force"
+)
+
+# Dangerous database operations
+DB_PATTERNS=(
+    "DROP TABLE"
+    "DROP DATABASE"
+    "DROP SCHEMA"
+    "DELETE FROM"
+    "TRUNCATE TABLE"
+    "TRUNCATE "
+)
+
+# Dangerous system operations
+SYSTEM_PATTERNS=(
+    "mkfs"
+    "dd if="
+    ":(){ :|:& };:"
+    "curl.*|.*sh"
+    "curl.*|.*bash"
+    "wget.*|.*sh"
+    "wget.*|.*bash"
+    "chmod -R 777 /"
+    "chmod 777 /"
+)
+
+check_patterns() {
+    local cmd="$1"
+    shift
+    local patterns=("$@")
+    for pattern in "${patterns[@]}"; do
+        if echo "$cmd" | grep -qi "$pattern"; then
+            echo "BLOCKED: Destructive command detected: '$pattern'" >&2
+            echo "Command was: $cmd" >&2
+            echo "If you intended this, run the command manually." >&2
+            exit 2
+        fi
+    done
+}
+
+check_patterns "$COMMAND" "${DESTRUCTIVE_PATTERNS[@]}"
+check_patterns "$COMMAND" "${GIT_PATTERNS[@]}"
+check_patterns "$COMMAND" "${DB_PATTERNS[@]}"
+check_patterns "$COMMAND" "${SYSTEM_PATTERNS[@]}"
+
 exit 0
 """
 
@@ -1370,13 +1427,52 @@ INPUT=$(cat)
 FILE=$(echo "$INPUT" | grep -o '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"\\(.*\\)"/\1/')
 [ -z "$FILE" ] || [ ! -f "$FILE" ] && exit 0
 
-PATTERNS=("api[_-]?key" "secret[_-]?key" "access[_-]?token" "private[_-]?key" "password" "aws_access_key" "ghp_[a-zA-Z0-9]" "sk-[a-zA-Z0-9]" "BEGIN.*PRIVATE KEY")
+# Real-world secret patterns used by major providers
+PATTERNS=(
+    # OpenAI
+    "sk-[a-zA-Z0-9]{20,}"
+    # Anthropic
+    "sk-ant-[a-zA-Z0-9]"
+    # AWS
+    "AKIA[0-9A-Z]{16}"
+    "aws_access_key_id"
+    "aws_secret_access_key"
+    # GitHub
+    "ghp_[a-zA-Z0-9]{36}"
+    "github_pat_[a-zA-Z0-9]"
+    "gho_[a-zA-Z0-9]{36}"
+    # Google
+    "AIza[0-9A-Za-z_-]{35}"
+    "ya29\.[0-9A-Za-z_-]"
+    # Stripe
+    "sk_live_[a-zA-Z0-9]{24}"
+    "pk_live_[a-zA-Z0-9]{24}"
+    # Twilio
+    "SK[a-f0-9]{32}"
+    "AC[a-f0-9]{32}"
+    # Generic patterns
+    "BEGIN.*PRIVATE KEY"
+    "BEGIN RSA PRIVATE KEY"
+    "BEGIN EC PRIVATE KEY"
+    # Hardcoded assignment patterns
+    "api_key[[:space:]]*=[[:space:]]*['\"][a-zA-Z0-9_-]{16,}"
+    "secret[[:space:]]*=[[:space:]]*['\"][a-zA-Z0-9_-]{16,}"
+    "password[[:space:]]*=[[:space:]]*['\"][^'\"]{8,}"
+    "token[[:space:]]*=[[:space:]]*['\"][a-zA-Z0-9_-]{16,}"
+)
 
+BLOCKED=0
 for pattern in "${PATTERNS[@]}"; do
-    if grep -qi "$pattern" "$FILE" 2>/dev/null; then
-        echo "WARNING: Potential secret in $FILE: $pattern" >&2
+    if grep -qE "$pattern" "$FILE" 2>/dev/null; then
+        echo "SECRET DETECTED in $FILE — pattern: $pattern" >&2
+        echo "Remove or move to .env before committing." >&2
+        BLOCKED=1
     fi
 done
+
+# Block commit if secret found
+[ "$BLOCKED" -eq 1 ] && exit 2
+
 exit 0
 """
 
@@ -1524,6 +1620,128 @@ def _scaffold_gitignore(output_dir: str, ctx: ProjectContext) -> str:
     p = Path(output_dir) / ".gitignore"
     p.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return ".gitignore"
+
+
+def _scaffold_claudeignore(output_dir: str, ctx: ProjectContext) -> str:
+    """Generate .claudeignore — keeps Claude Code's context window clean.
+
+    Same format as .gitignore. Prevents build artifacts, dependencies,
+    and generated files from polluting the LLM context.
+    Best practice: keep context token-efficient.
+    """
+    base = [
+        "# .claudeignore — Keeps Claude Code context clean",
+        "# Same format as .gitignore",
+        "# Reference: https://code.claude.com/docs/en/best-practices",
+        "",
+        "# Dependencies",
+        "node_modules/",
+        ".venv/",
+        "venv/",
+        "__pycache__/",
+        "*.pyc",
+        "*.pyo",
+        "",
+        "# Build output",
+        "dist/",
+        "build/",
+        "out/",
+        ".next/",
+        ".nuxt/",
+        "target/",
+        "",
+        "# Test & coverage",
+        "coverage/",
+        ".pytest_cache/",
+        ".nyc_output/",
+        "htmlcov/",
+        "",
+        "# Logs & temp",
+        "*.log",
+        "logs/",
+        "tmp/",
+        ".tmp/",
+        "",
+        "# Secrets & env",
+        ".env",
+        ".env.local",
+        ".env.*.local",
+        "",
+        "# OS & editor",
+        ".DS_Store",
+        "Thumbs.db",
+        ".idea/",
+        ".vscode/",
+        "",
+        "# Lock files (rarely useful for context)",
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "poetry.lock",
+        "Pipfile.lock",
+        "",
+        "# Generated / compiled",
+        "*.d.ts",
+        "*.js.map",
+        "*.tsbuildinfo",
+        "*.egg-info/",
+        "*.egg",
+        "",
+        "# Data & large files",
+        "*.csv",
+        "*.parquet",
+        "*.xlsx",
+        "*.sqlite",
+        "*.db",
+        "",
+    ]
+
+    # Language-specific extras
+    lang = (ctx.language or "").lower()
+    if lang == "python":
+        base += [
+            "# Python specific",
+            "*.so",
+            "*.pyd",
+            "site-packages/",
+            "",
+        ]
+    elif lang in ("typescript", "javascript"):
+        base += [
+            "# JS/TS specific",
+            ".cache/",
+            "storybook-static/",
+            "",
+        ]
+    elif lang == "java":
+        base += [
+            "# Java specific",
+            "*.class",
+            "*.jar",
+            "*.war",
+            "",
+        ]
+    elif lang == "rust":
+        base += [
+            "# Rust specific",
+            "Cargo.lock",
+            "",
+        ]
+
+    # Project type extras
+    if ctx.project_type == "data-pipeline":
+        base += [
+            "# Data pipeline",
+            "data/raw/",
+            "data/processed/",
+            "reports/",
+            "*.json.gz",
+            "",
+        ]
+
+    p = Path(output_dir) / ".claudeignore"
+    p.write_text("\n".join(base) + "\n", encoding="utf-8")
+    return ".claudeignore"
 
 
 def _scaffold_readme(output_dir: str, ctx: ProjectContext) -> str:
