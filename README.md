@@ -1,6 +1,14 @@
 <div align="center">
 
-# 🧠 Vibe Coding Setup Expert (vcsx)
+```
+  ╔══════════════════╗
+  ║       ⚙️         ║
+  ║      vcsx        ║
+  ║     v2.0.0       ║
+  ╚══════════════════╝
+```
+
+**Vibe Coding Setup Expert**
 
 **One command. Production-ready AI coding environment.**
 
@@ -8,7 +16,6 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![PyPI Downloads](https://static.pepy.tech/badge/vcsx)](https://pepy.tech/projects/vcsx)
 
 **Claude Code** · **Cursor** · **OpenAI Codex** · **GitHub Copilot**
 

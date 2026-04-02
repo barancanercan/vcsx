@@ -12,6 +12,14 @@ from vcsx.planner import confirm_plan, generate_plan
 
 console = Console()
 
+BANNER = """
+  ╔══════════════════╗
+  ║       ⚙️         ║
+  ║      vcsx        ║
+  ║     v{version:<6} ║
+  ╚══════════════════╝
+"""
+
 
 @click.group(invoke_without_command=True)
 @click.pass_context
@@ -52,9 +60,10 @@ def init(cli, lang, output_dir):
     """Start interactive setup wizard."""
     tools = list(cli) if cli else ["claude-code"]
 
+    console.print(f"[bold cyan]{BANNER.format(version=__version__)}[/bold cyan]")
     console.print(
         Panel.fit(
-            "[bold cyan]Vibe Coding Setup Expert[/bold cyan] v" + __version__,
+            "[bold]Vibe Coding Setup Expert[/bold]",
             subtitle=f"CLI tools: {', '.join(tools)}",
         )
     )
