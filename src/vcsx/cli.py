@@ -740,6 +740,87 @@ def list_plugins():
     console.print(table)
 
 
+@main.command("generate")
+@click.argument("tool", type=click.Choice(ALL_TOOLS))
+@click.argument("file_type", required=False)
+@click.option(
+    "--project-name",
+    "-n",
+    default="my-project",
+    help="Project name for the generated file",
+)
+@click.option(
+    "--lang",
+    "-l",
+    type=click.Choice(["python", "typescript", "javascript", "go", "rust"]),
+    default="python",
+    help="Primary language",
+)
+@click.option(
+    "--type",
+    "-t",
+    "project_type",
+    type=click.Choice(["web", "api", "cli", "library", "data-pipeline", "ml-model"]),
+    default="api",
+    help="Project type",
+)
+@click.option(
+    "--output-dir",
+    "-o",
+    type=click.Path(),
+    default=".",
+    help="Output directory",
+)
+def generate_file(tool, file_type, project_name, lang, project_type, output_dir):
+    """Generate a single AI config file without the full wizard.
+
+    Useful for quickly adding a specific config to an existing project
+    or previewing what vcsx would generate.
+
+    \b
+    Examples:
+        vcsx generate claude-code           # Generate full Claude Code setup
+        vcsx generate gemini -n my-api      # GEMINI.md for my-api
+        vcsx generate agents-md --lang go   # AGENTS.md for a Go project
+        vcsx generate cursor --type web     # Cursor rules for a web project
+    """
+    from vcsx.core.context import ProjectContext
+    from vcsx.core.inference import infer_formatter, infer_linter, infer_test_framework
+
+    ctx = ProjectContext(
+        project_name=project_name,
+        project_type=project_type,
+        language=lang,
+        tech_stack=lang,
+        test_framework=infer_test_framework(lang),
+        formatter=infer_formatter(lang),
+        linter=infer_linter(lang),
+        lang="en",
+    )
+
+    target = Path(output_dir).resolve()
+    gen = get_generator(tool)
+
+    console.print(f"\n[bold]vcsx generate {tool}[/] → {target}\n")
+
+    with console.status(f"Generating {tool} config..."):
+        gen.generate_all(ctx, str(target))
+
+    # Show what was created
+    table = Table(title=f"{tool} — Generated", border_style="green")
+    table.add_column("File")
+    table.add_column("Status")
+
+    for f in gen.output_files:
+        # Check if a file matching this pattern was created
+        f_path = target / f.split("*")[0].rstrip("/")
+        status = "[green]✓ Created[/]" if f_path.exists() else "[dim]Skipped[/]"
+        table.add_row(f, status)
+
+    console.print(table)
+    console.print(f"\n[green]Done![/] Config files written to: {target}")
+
+
 @main.command("validate")
 @click.argument("path", default=".", type=click.Path(exists=True))
 def validate_config(path):

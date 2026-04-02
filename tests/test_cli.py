@@ -236,6 +236,40 @@ class TestValidateCommand:
         assert result.exit_code == 0
 
 
+class TestGenerateCommand:
+    def test_generate_gemini(self, runner, tmp_dir):
+        result = runner.invoke(
+            main,
+            ["generate", "gemini", "--project-name", "test-api", "--output-dir", tmp_dir],
+        )
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / "GEMINI.md").exists()
+
+    def test_generate_agents_md(self, runner, tmp_dir):
+        result = runner.invoke(
+            main,
+            ["generate", "agents-md", "--project-name", "my-lib", "--lang", "python", "--output-dir", tmp_dir],
+        )
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / "AGENTS.md").exists()
+
+    def test_generate_claude_code(self, runner, tmp_dir):
+        result = runner.invoke(
+            main,
+            ["generate", "claude-code", "--project-name", "my-app", "--lang", "typescript", "--output-dir", tmp_dir],
+        )
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / "CLAUDE.md").exists()
+
+    def test_generate_shows_table(self, runner, tmp_dir):
+        result = runner.invoke(
+            main,
+            ["generate", "gemini", "--output-dir", tmp_dir],
+        )
+        assert result.exit_code == 0
+        assert "Generated" in result.output or "gemini" in result.output
+
+
 class TestMigrateCommand:
     def test_migrate_windsurf_dry_run(self, runner, tmp_dir):
         (Path(tmp_dir) / ".windsurfrules").write_text("# Old rules")

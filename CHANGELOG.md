@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.4.0] - 2026-04-03
+
+### Added
+- **`vcsx generate <tool>`**: Generate a single tool's config files directly without the wizard. Flags: `--project-name`, `--lang`, `--type`, `--output-dir`. Fast one-liner for adding a specific config.
+- **127 tests total** (previously 123): Added TestGenerateCommand (4 tests).
+
 ## [4.3.0] - 2026-04-03
 
 ### Added
