@@ -642,7 +642,21 @@ def check_project(path, output_json):
 @click.option(
     "--lang",
     "-l",
-    type=click.Choice(["python", "typescript", "javascript", "go", "rust"]),
+    type=click.Choice(
+        [
+            "python",
+            "typescript",
+            "javascript",
+            "go",
+            "rust",
+            "kotlin",
+            "swift",
+            "dart",
+            "csharp",
+            "php",
+            "ruby",
+        ]
+    ),
     default="typescript",
     help="Primary language",
 )
@@ -655,13 +669,19 @@ def check_project(path, output_json):
     help="AI tools to configure (default: claude-code)",
 )
 @click.option(
+    "--preset",
+    "-p",
+    default=None,
+    help="Use a template preset (e.g. fastapi-postgres, react-typescript, go-api)",
+)
+@click.option(
     "--output-dir",
     "-o",
     type=click.Path(),
     default=".",
     help="Parent directory where project folder will be created",
 )
-def new_project(project_name, project_type, lang, tool, output_dir):
+def new_project(project_name, project_type, lang, tool, preset, output_dir):
     """Scaffold a new project with AI tool configs — no wizard needed.
 
     Examples:
@@ -671,6 +691,23 @@ def new_project(project_name, project_type, lang, tool, output_dir):
     """
     from vcsx.core.context import ProjectContext
     from vcsx.core.inference import infer_formatter, infer_linter, infer_test_framework
+
+    # Apply preset if given
+    if preset:
+        from vcsx.templates import get_template_registry
+
+        registry = get_template_registry()
+        tmpl = registry.get(preset)
+        if tmpl:
+            meta = tmpl.metadata
+            lang = meta.tech_stack.get("language", lang)
+            project_type = meta.tech_stack.get("type", project_type)
+            console.print(f"[cyan]Using preset:[/] {preset} — {meta.description}")
+        else:
+            available = [t.metadata.name for t in get_template_registry().list_all()]
+            console.print(
+                f"[yellow]Unknown preset '{preset}'.[/] Available: {', '.join(available)}"
+            )
 
     project_dir = (Path(output_dir) / project_name).resolve()
 

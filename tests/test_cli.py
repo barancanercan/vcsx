@@ -184,6 +184,24 @@ class TestNewCommand:
         # Should report error
         assert "already exists" in result.output or result.exit_code != 0
 
+    def test_new_with_preset(self, runner, tmp_dir):
+        result = runner.invoke(
+            main,
+            ["new", "my-fastapi", "--preset", "fastapi-postgres", "--output-dir", tmp_dir],
+        )
+        assert result.exit_code == 0
+        project_dir = Path(tmp_dir) / "my-fastapi"
+        assert project_dir.exists()
+        assert "fastapi-postgres" in result.output or "FastAPI" in result.output
+
+    def test_new_with_unknown_preset(self, runner, tmp_dir):
+        result = runner.invoke(
+            main,
+            ["new", "my-proj", "--preset", "nonexistent-preset", "--output-dir", tmp_dir],
+        )
+        assert result.exit_code == 0
+        assert "Unknown preset" in result.output or "Available" in result.output
+
     def test_new_typescript_web(self, runner, tmp_dir):
         result = runner.invoke(
             main,
@@ -234,6 +252,33 @@ class TestValidateCommand:
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["validate", tmp_dir])
         assert result.exit_code == 0
+
+
+class TestExportCommand:
+    def test_export_creates_zip(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        zip_path = Path(tmp_dir) / "test-export.zip"
+        result = runner.invoke(main, ["export", tmp_dir, "--output", str(zip_path)])
+        assert result.exit_code == 0
+        assert zip_path.exists()
+
+    def test_export_empty_dir(self, runner, tmp_dir):
+        result = runner.invoke(main, ["export", tmp_dir])
+        assert result.exit_code == 0
+        assert "No AI config" in result.output or "vcsx init" in result.output
+
+    def test_export_shows_file_count(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.gemini import GeminiGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        GeminiGenerator().generate_all(ctx, tmp_dir)
+        zip_path = Path(tmp_dir) / "out.zip"
+        result = runner.invoke(main, ["export", tmp_dir, "--output", str(zip_path)])
+        assert result.exit_code == 0
+        assert "Exported" in result.output
 
 
 class TestGenerateCommand:
