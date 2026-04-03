@@ -1,17 +1,17 @@
 # Contributing to vcsx
 
-Thank you for your interest in contributing! This guide will help you get started.
+Thank you for your interest in contributing! This guide covers everything you need.
 
 ## Development Setup
 
 ```bash
 # Fork and clone the repo
-git clone https://github.com/YOUR_USERNAME/vibe-coding-setup-expert.git
-cd vibe-coding-setup-expert
+git clone https://github.com/barancanercan/vcsx.git
+cd vcsx
 
 # Create virtual environment
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
 # Install with dev dependencies
 pip install -e ".[dev]"
@@ -23,141 +23,218 @@ pre-commit install
 ## Running Tests
 
 ```bash
-# Run all tests
+# Run all tests (currently 343 tests)
 pytest
 
-# Run with coverage
+# Run with coverage report
 pytest --cov=vcsx --cov-report=term-missing
 
 # Run specific test file
-pytest tests/test_core.py -v
+pytest tests/test_cli.py -v
+
+# Run specific test class
+pytest tests/test_generators.py::TestClaudeCodeGenerator -v
 ```
+
+**Coverage target: 85%+**
 
 ## Linting & Formatting
 
 ```bash
-# Check for lint errors
+# Check for lint errors (must be clean)
 ruff check src/
 
 # Auto-fix lint errors
 ruff check src/ --fix
 
-# Check formatting
-ruff format src/ --check
-
-# Auto-format
+# Format code
 ruff format src/
+
+# Check format without writing
+ruff format src/ --check
 ```
 
-## Adding a New CLI Tool Generator
+## Project Structure
 
-vcsx uses a plugin architecture. Adding a new CLI tool takes just 3 steps:
+```
+vcsx/
+├── src/vcsx/
+│   ├── cli.py              # All CLI commands (21 commands)
+│   ├── discovery.py        # Interactive wizard phases
+│   ├── implementation.py   # File generation orchestration
+│   ├── planner.py          # Plan display
+│   ├── core/
+│   │   ├── context.py      # ProjectContext dataclass
+│   │   ├── inference.py    # Language/framework inference (11 languages)
+│   │   └── validators.py   # Input validation
+│   ├── generators/
+│   │   ├── _shared.py      # Shared command/style helpers
+│   │   ├── base.py         # BaseGenerator abstract class
+│   │   ├── claude_code.py  # Claude Code (CLAUDE.md, 22 skills, 13 hooks, 6 agents)
+│   │   ├── cursor.py       # Cursor (.cursorrules + .cursor/rules/*.mdc)
+│   │   ├── windsurf.py     # Windsurf (.windsurfrules + .windsurf/rules/*.md)
+│   │   ├── copilot.py      # GitHub Copilot
+│   │   ├── gemini.py       # Gemini CLI (GEMINI.md)
+│   │   ├── agents_md.py    # AGENTS.md universal standard
+│   │   ├── aider.py        # Aider (.aider.conf.yaml)
+│   │   ├── bolt.py         # Bolt.new
+│   │   ├── codex.py        # OpenAI Codex
+│   │   ├── zed.py          # Zed editor
+│   │   └── registry.py     # Tool registry
+│   ├── templates/          # Project template system (10 presets)
+│   └── plugins/            # Plugin system
+├── tests/
+│   ├── test_cli.py         # CLI integration tests (Click runner)
+│   ├── test_generators.py  # Generator unit tests
+│   └── test_core.py        # Core module tests
+└── docs/                   # Documentation
+```
 
-### Step 1: Create the Generator
+## Adding a New AI Tool Generator
 
-Create `src/vcsx/generators/new_tool.py`:
-
+1. Create `src/vcsx/generators/my_tool.py`:
 ```python
-from pathlib import Path
-from vcsx.core.context import ProjectContext
 from vcsx.generators.base import BaseGenerator
+from vcsx.generators._shared import get_setup_cmd, get_test_cmd
+from vcsx.core.context import ProjectContext
 
-
-class NewToolGenerator(BaseGenerator):
+class MyToolGenerator(BaseGenerator):
     @property
     def name(self) -> str:
-        return "new-tool"
+        return "my-tool"
 
     @property
     def output_files(self) -> list[str]:
-        return [".newtool/config.md"]
+        return ["MY_TOOL.md"]
 
     def generate_config(self, ctx: ProjectContext, output_dir: str) -> str:
-        content = f"# {ctx.project_name} — New Tool Config\n..."
-        (Path(output_dir) / ".newtool" / "config.md").write_text(content)
+        # Write your config file
+        content = f"# {ctx.project_name} — My Tool Config\n"
+        (Path(output_dir) / "MY_TOOL.md").write_text(content)
         return content
 
-    def generate_skills(self, ctx: ProjectContext, output_dir: str) -> list[str]:
-        return []
-
-    def generate_hooks(self, ctx: ProjectContext, output_dir: str) -> dict:
-        return {}
-
-    def generate_agents(self, ctx: ProjectContext, output_dir: str) -> list[str]:
-        return []
-
-    def generate_scaffold(self, ctx: ProjectContext, output_dir: str) -> list[str]:
-        return []
+    def generate_skills(self, ctx, output_dir): return []
+    def generate_hooks(self, ctx, output_dir): return {}
+    def generate_agents(self, ctx, output_dir): return []
+    def generate_scaffold(self, ctx, output_dir): return []
 ```
 
-### Step 2: Register It
-
-Add to `src/vcsx/generators/registry.py`:
-
+2. Register in `src/vcsx/generators/registry.py`:
 ```python
-from vcsx.generators.new_tool import NewToolGenerator
+from vcsx.generators.my_tool import MyToolGenerator
 
-CLI_TOOLS = {
+CLI_TOOLS: dict[str, type[BaseGenerator]] = {
     ...
-    "new-tool": NewToolGenerator,
+    "my-tool": MyToolGenerator,
 }
 ```
 
-### Step 3: Write Tests
+3. Add tests in `tests/test_generators.py`:
+```python
+class TestMyToolGenerator:
+    def test_generate_config(self, ctx, tmp_dir):
+        gen = MyToolGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        assert (Path(tmp_dir) / "MY_TOOL.md").exists()
+```
 
-Add tests in `tests/test_generators.py`:
+## Adding a New Skill (Claude Code)
+
+Skills are defined in `src/vcsx/generators/claude_code.py`.
 
 ```python
-def test_new_tool_generator(ctx, tmp_dir):
-    gen = NewToolGenerator()
-    content = gen.generate_config(ctx, tmp_dir)
-    assert "config" in content
+def _skill_my_skill(skills_dir: Path, ctx: ProjectContext) -> str:
+    d = skills_dir / "my-skill"
+    d.mkdir(parents=True, exist_ok=True)
+    content = f"""---
+name: my-skill
+description: What this skill does. Use when X.
+---
+
+# My Skill
+
+## Process
+1. Step one
+2. Step two
+
+## Rules
+- Rule one
+- Rule two
+"""
+    (d / "SKILL.md").write_text(content, encoding="utf-8")
+    return "my-skill"
 ```
 
-That's it! Your new CLI tool is now available:
-
-```bash
-vcsx init --cli new-tool
+Then call it in `generate_skills()`:
+```python
+created.append(_skill_my_skill(skills_dir, ctx))
 ```
 
-## Pull Request Guidelines
+## Adding a New CLI Command
 
-1. **Branch naming**: `feature/add-new-tool`, `fix/discovery-parsing`, `docs/update-readme`
-2. **Commit messages**: Use conventional commits (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`)
-3. **Tests**: All new code must have tests
-4. **Linting**: `ruff check` and `ruff format` must pass
-5. **Documentation**: Update README if adding new features
+Commands are defined in `src/vcsx/cli.py` using Click:
 
-## Architecture Overview
-
-```
-src/vcsx/
-├── cli.py              # Click CLI entry point
-├── __main__.py         # Module execution
-├── discovery.py        # Interactive questionnaire
-├── planner.py          # Plan generation
-├── implementation.py   # Orchestration
-├── core/
-│   ├── context.py      # ProjectContext dataclass
-│   ├── inference.py    # Tech stack → language/framework
-│   └── validators.py   # Input validation
-├── generators/
-│   ├── base.py         # Abstract BaseGenerator
-│   ├── registry.py     # CLI tool registry
-│   ├── claude_code.py  # Claude Code generator
-│   ├── cursor.py       # Cursor generator
-│   ├── codex.py        # OpenAI Codex generator
-│   └── copilot.py      # GitHub Copilot generator
-└── utils/
-    └── prompts.py      # TR/EN question bank
+```python
+@main.command("my-command")
+@click.argument("path", default=".", type=click.Path(exists=True))
+@click.option("--flag", is_flag=True, help="Enable something")
+def my_command(path, flag):
+    """Brief description for help text."""
+    target = Path(path).resolve()
+    console.print(f"[bold]vcsx my-command[/] — {target}")
+    # ... implementation
 ```
 
-## Reporting Issues
+Add tests in `tests/test_cli.py`:
+```python
+class TestMyCommand:
+    def test_basic(self, runner, tmp_dir):
+        result = runner.invoke(main, ["my-command", tmp_dir])
+        assert result.exit_code == 0
+```
 
-- Use the issue template
-- Include Python version, OS, and vcsx version
-- Provide reproduction steps
+## Adding a Project Template
 
-## License
+Templates are in `src/vcsx/templates/__init__.py`:
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
+```python
+def _create_my_template() -> Template:
+    metadata = TemplateMetadata(
+        name="my-template",
+        description="My project template",
+        tags=["python", "api"],
+        tech_stack={"language": "python", "framework": "FastAPI", "type": "api"},
+    )
+    template = Template(metadata)
+    template.add_file("README.md", "# My Project\n")
+    template.add_file("requirements.txt", "fastapi\n")
+    return template
+```
+
+Register it in `_load_default_templates()`:
+```python
+registry.register(_create_my_template())
+```
+
+## Pull Request Process
+
+1. Branch from `main`: `git checkout -b feat/my-feature`
+2. Write code + tests (coverage must stay ≥ 85%)
+3. Run: `pytest && ruff check src/ && ruff format src/ --check`
+4. Commit with conventional commits: `feat: add my feature`
+5. Push and open PR against `main`
+
+## Commit Convention
+
+```
+feat: new feature
+fix: bug fix
+refactor: code restructure
+docs: documentation only
+test: adding tests
+chore: tooling, dependencies
+```
+
+## Questions?
+
+Open an issue at https://github.com/barancanercan/vcsx/issues

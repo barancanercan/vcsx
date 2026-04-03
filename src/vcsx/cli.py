@@ -103,7 +103,14 @@ def main(ctx):
     default=False,
     help="Fast mode: skip full discovery, just ask project name and stack",
 )
-def init(cli, all_tools, lang, output_dir, fast):
+@click.option(
+    "--scan",
+    "-s",
+    is_flag=True,
+    default=False,
+    help="Scan mode: auto-detect tech stack from existing project files",
+)
+def init(cli, all_tools, lang, output_dir, fast, scan):
     """Start interactive setup wizard.
 
     \b
@@ -121,8 +128,40 @@ def init(cli, all_tools, lang, output_dir, fast):
         )
     )
 
+    # Scan mode: auto-detect from project files
+    if scan:
+        from vcsx.core.context import ProjectContext
+        from vcsx.core.inference import infer_formatter, infer_linter, infer_test_framework
+        from vcsx.core.scanner import format_scan_summary, scan_project
+
+        scan_dir = output_dir if output_dir != "." else "."
+        detected = scan_project(scan_dir)
+
+        console.print(
+            f"\n[bold cyan]Scan Mode[/] — Auto-detecting from: {Path(scan_dir).resolve()}"
+        )
+        console.print(f"[green]✓ Detected:[/] {format_scan_summary(detected)}\n")
+
+        context = ProjectContext(
+            project_name=detected.get("project_name", "my-project"),
+            description=detected.get("description", ""),
+            language=detected.get("language", "typescript"),
+            framework=detected.get("framework", ""),
+            tech_stack=detected.get("tech_stack", ""),
+            project_type=detected.get("project_type", "web"),
+            test_framework=detected.get("test_framework", ""),
+            lang="en",
+        )
+        # Fill in inferred values if not detected
+        if not context.test_framework:
+            context.test_framework = infer_test_framework(context.language)
+        if not context.formatter:
+            context.formatter = infer_formatter(context.language)
+        if not context.linter:
+            context.linter = infer_linter(context.language)
+
     # Fast mode: skip full discovery
-    if fast:
+    elif fast:
         from rich.prompt import Prompt
 
         from vcsx.core.context import ProjectContext
@@ -172,7 +211,7 @@ def init(cli, all_tools, lang, output_dir, fast):
     else:
         selected_tools = [context.ai_tool]
 
-    if not fast:
+    if not fast and not scan:
         console.print("\nPHASE 2: PLAN")
         generate_plan(context, console, selected_tools)
         if not confirm_plan(console):
