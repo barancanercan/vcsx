@@ -1,14 +1,27 @@
-"""GitHub Copilot generator — produces .github/copilot-instructions.md."""
+"""GitHub Copilot generator — produces .github/copilot-instructions.md.
+
+GitHub Copilot reads:
+- .github/copilot-instructions.md — main project instructions
+- .github/instructions/*.instructions.md — scoped instructions (2025+)
+Reference: https://docs.github.com/en/copilot/customizing-copilot
+"""
 
 from pathlib import Path
 
 from vcsx.core.context import ProjectContext
-from vcsx.core.inference import infer_formatter, infer_linter, infer_test_framework
+from vcsx.generators._shared import (
+    get_build_cmd,
+    get_format_cmd,
+    get_lint_cmd,
+    get_setup_cmd,
+    get_style_rules,
+    get_test_cmd,
+)
 from vcsx.generators.base import BaseGenerator
 
 
 class CopilotGenerator(BaseGenerator):
-    """Generates a GitHub Copilot setup."""
+    """Generates a GitHub Copilot setup with scoped instructions."""
 
     @property
     def name(self) -> str:
@@ -16,49 +29,86 @@ class CopilotGenerator(BaseGenerator):
 
     @property
     def output_files(self) -> list[str]:
-        return [".github/copilot-instructions.md"]
+        return [
+            ".github/copilot-instructions.md",
+            ".github/instructions/*.instructions.md",
+        ]
 
     def generate_config(self, ctx: ProjectContext, output_dir: str) -> str:
-        """Generate .github/copilot-instructions.md."""
-        lines = [
-            f"# {ctx.project_name} — Copilot Instructions",
-            "",
-            "## Project Overview",
-            ctx.description or f"A {ctx.project_type} project.",
-            "",
-            "## Commands",
-            "```bash",
-            f"# Setup: {_get_setup_cmd(ctx)}",
-            f"# Build: {_get_build_cmd(ctx)}",
-            f"# Test: {_get_test_cmd(ctx)}",
-            f"# Lint: {ctx.linter or infer_linter(ctx.language)} src/",
-            f"# Format: {ctx.formatter or infer_formatter(ctx.language)} src/",
-            "```",
-            "",
-            "## Code Style",
-        ]
-        lines.extend(_get_style_rules(ctx))
-        lines.extend(
-            [
-                "",
-                "## Architecture",
-                f"- **Type**: {ctx.project_type}",
-                f"- **Language**: {ctx.language}",
-                f"- **Framework**: {ctx.framework or 'None'}",
-                "",
-                "## Rules",
-                "- NEVER commit secrets",
-                "- ALWAYS run tests before committing",
-                "- ALWAYS follow existing patterns",
-            ]
-        )
+        """Generate .github/copilot-instructions.md — main Copilot context."""
+        setup = get_setup_cmd(ctx)
+        build = get_build_cmd(ctx)
+        test = get_test_cmd(ctx)
+        lint = get_lint_cmd(ctx)
+        fmt = get_format_cmd(ctx)
+        style_rules = get_style_rules(ctx)
 
-        content = "\n".join(lines)
+        style_section = "\n".join(style_rules) if style_rules else "- Follow language idioms"
+
+        purpose_block = ""
+        if ctx.purpose or ctx.problem:
+            lines = []
+            if ctx.purpose:
+                lines.append(f"**Purpose:** {ctx.purpose}")
+            if ctx.problem:
+                lines.append(f"**Problem:** {ctx.problem}")
+            purpose_block = "\n".join(lines) + "\n\n"
+
+        content = f"""# {ctx.project_name} — GitHub Copilot Instructions
+
+> This file configures GitHub Copilot for this repository.
+> Copilot reads this file automatically when suggesting code.
+
+## Project Overview
+{purpose_block}- **Name:** {ctx.project_name}
+- **Type:** {ctx.project_type}
+- **Language:** {ctx.language}
+- **Framework:** {ctx.framework or "None"}
+- **Description:** {ctx.description or "No description provided."}
+
+## Quick Commands
+```bash
+# Setup
+{setup}
+
+# Build
+{build}
+
+# Test
+{test}
+
+# Lint
+{lint}
+
+# Format
+{fmt}
+```
+
+## Code Style & Conventions
+{style_section}
+
+## Rules (always follow)
+- NEVER suggest hardcoded API keys, tokens, or passwords.
+- ALWAYS include error handling in suggested code.
+- ALWAYS write tests for new functions when asked.
+- Follow conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`
+- Keep functions small (< 30 lines) and single-purpose.
+- Prefer explicit over implicit.
+- No magic numbers — use named constants.
+
+## What NOT to suggest
+- `os.system()` with user input (command injection risk)
+- `eval()` or `exec()` with user data
+- Raw SQL with string formatting (use parameterized queries)
+- `SELECT *` (always specify columns)
+- Ignoring exceptions with bare `except: pass`
+"""
+
         d = Path(output_dir) / ".github"
         d.mkdir(parents=True, exist_ok=True)
         (d / "copilot-instructions.md").write_text(content, encoding="utf-8")
 
-        # New: scoped instructions (.github/instructions/*.instructions.md)
+        # Scoped instructions (.github/instructions/)
         self._generate_scoped_instructions(ctx, output_dir)
 
         return content
@@ -67,18 +117,31 @@ class CopilotGenerator(BaseGenerator):
         """Generate .github/instructions/ scoped instruction files.
 
         GitHub Copilot (2025+) supports scoped instructions with frontmatter:
-        - applyTo: glob pattern for files this applies to
-        - description: what this instruction set covers
+        - applyTo: glob pattern for files this instruction applies to
         """
         instructions_dir = Path(output_dir) / ".github" / "instructions"
         instructions_dir.mkdir(parents=True, exist_ok=True)
 
         lang = (ctx.language or "").lower()
+        fmt = get_format_cmd(ctx)
+        lint = get_lint_cmd(ctx)
 
-        # Code style instructions
-        glob_pattern = "**/*.py" if lang == "python" else "**/*.ts,**/*.tsx,**/*.js,**/*.jsx"
-        fmt = ctx.formatter or infer_formatter(ctx.language)
-        lint = ctx.linter or infer_linter(ctx.language)
+        # Code style instructions (scoped to source files)
+        glob_pattern = (
+            "**/*.py"
+            if lang == "python"
+            else "**/*.ts,**/*.tsx,**/*.js,**/*.jsx"
+            if lang in ("typescript", "javascript")
+            else "**/*"
+        )
+        type_hint_rule = (
+            "- Use type hints on all public functions."
+            if lang == "python"
+            else "- Use explicit TypeScript types; avoid `any`."
+            if lang == "typescript"
+            else ""
+        )
+
         (instructions_dir / "code-style.instructions.md").write_text(
             f"""---
 applyTo: "{glob_pattern}"
@@ -91,14 +154,23 @@ applyTo: "{glob_pattern}"
 - Keep functions small and focused — single responsibility.
 - Prefer explicit over implicit.
 - Use descriptive variable names.
-{"- Use type hints on all public functions." if lang == "python" else "- Use explicit TypeScript types; avoid `any`."}
+{type_hint_rule}
+- No magic numbers — use named constants.
+- Handle all error cases explicitly.
 """,
             encoding="utf-8",
         )
 
         # Testing instructions
-        test_glob = "tests/**,**/*.test.*,**/*.spec.*,test_*.py,*_test.py"
-        test_fw = ctx.test_framework or infer_test_framework(ctx.language)
+        if lang == "python":
+            test_glob = "tests/**,test_*.py,*_test.py"
+            test_fw = ctx.test_framework or "pytest"
+            test_example = "def test_<function>_<scenario>_<expected>():"
+        else:
+            test_glob = "**/*.test.*,**/*.spec.*,tests/**"
+            test_fw = ctx.test_framework or "vitest"
+            test_example = "it('<function> should <expected behavior>', () => {"
+
         (instructions_dir / "testing.instructions.md").write_text(
             f"""---
 applyTo: "{test_glob}"
@@ -106,12 +178,23 @@ applyTo: "{test_glob}"
 
 # Testing Guidelines
 
-- Test framework: `{test_fw}`
-- Every public function needs at least one test.
-- Test names: `test_<function>_<scenario>_<expected>`.
-- Mock external services — never hit real APIs in tests.
-- Tests must be isolated — no shared mutable state.
-- Aim for coverage on critical paths.
+## Framework: {test_fw}
+
+## Structure: AAA
+1. **Arrange** — set up test data
+2. **Act** — execute the function
+3. **Assert** — verify the result
+
+## Naming: `{test_example}`
+Examples:
+- `test_create_user_valid_email_returns_id`
+- `test_login_wrong_password_returns_401`
+
+## Rules
+- Mock ALL external dependencies (DB, HTTP, filesystem).
+- Test both happy path AND error cases.
+- Tests must be independent — no shared mutable state.
+- One logical assertion focus per test.
 """,
             encoding="utf-8",
         )
@@ -124,21 +207,65 @@ applyTo: "**"
 
 # Security Guidelines
 
-- Never hardcode API keys, tokens, or passwords.
-- Store all secrets in environment variables.
-- Never log sensitive data (tokens, passwords, PII).
-- Validate and sanitize all user input.
-- Avoid `eval()` and dynamic code execution with user data.
-- Keep dependencies updated — watch for security advisories.
+## Absolute Prohibitions
+- NEVER hardcode API keys, passwords, tokens, or secrets.
+- NEVER use `eval()`, `exec()`, or dynamic code with user input.
+- NEVER trust user input — validate and sanitize at boundaries.
+- NEVER log sensitive data (tokens, passwords, session IDs, PII).
+- NEVER return internal error details or stack traces to API clients.
+
+## Required Practices
+- All secrets → environment variables.
+- SQL queries → parameterized (never f-strings in queries).
+- File paths → sanitized against path traversal (`../`).
+- Auth → verified on every protected endpoint.
+- Dependencies → check for known vulnerabilities before adding.
 """,
             encoding="utf-8",
         )
+
+        # API instructions if applicable
+        if ctx.project_type == "api":
+            (instructions_dir / "api.instructions.md").write_text(
+                """---
+applyTo: "**/routes/**,**/api/**,**/controllers/**,**/endpoints/**"
+---
+
+# API Design Guidelines
+
+## URL Conventions
+- Plural nouns: `/v1/users`, `/v1/orders`
+- Kebab-case: `/v1/user-profiles`
+- Always versioned: `/v1/...`
+- No verbs in URLs: `/v1/users` not `/v1/getUsers`
+
+## HTTP Methods
+- GET → read, POST → create (201), PATCH → update, DELETE → remove (204)
+
+## Response Shapes
+```json
+{ "data": {...}, "meta": { "requestId": "..." } }
+```
+
+## Error Shape
+```json
+{ "error": { "code": "VALIDATION_ERROR", "message": "...", "details": [] } }
+```
+
+## Rules
+- Paginate ALL list endpoints.
+- Validate ALL input at the boundary.
+- Return consistent error shapes.
+- Rate limit auth endpoints.
+""",
+                encoding="utf-8",
+            )
 
     def generate_skills(self, ctx: ProjectContext, output_dir: str) -> list[str]:
         return []
 
     def generate_hooks(self, ctx: ProjectContext, output_dir: str) -> dict:
-        return {"note": "Copilot hooks not supported — use pre-commit hooks"}
+        return {"note": "Copilot hooks not supported — use pre-commit hooks or GitHub Actions"}
 
     def generate_agents(self, ctx: ProjectContext, output_dir: str) -> list[str]:
         return []
@@ -147,63 +274,18 @@ applyTo: "**"
         created = []
         created.append(_scaffold_gitignore(output_dir, ctx))
         created.append(_scaffold_readme(output_dir, ctx))
-        if ctx.language in ("typescript", "javascript"):
+        lang = (ctx.language or "").lower()
+        if lang in ("typescript", "javascript"):
             created.append(_scaffold_package_json(output_dir, ctx))
-        elif ctx.language == "python":
+        elif lang == "python":
             created.append(_scaffold_requirements(output_dir, ctx))
-        elif ctx.language == "go":
+        elif lang == "go":
             created.append(_scaffold_go_mod(output_dir, ctx))
         created.append(_scaffold_source_dirs(output_dir, ctx))
         return created
 
 
-def _get_setup_cmd(ctx: ProjectContext) -> str:
-    return {
-        "typescript": "npm install",
-        "python": "pip install -r requirements.txt",
-        "go": "go mod tidy",
-    }.get(ctx.language, "npm install")
-
-
-def _get_build_cmd(ctx: ProjectContext) -> str:
-    return {
-        "typescript": "npm run build",
-        "python": "python -m compileall src/",
-        "go": "go build ./...",
-    }.get(ctx.language, "npm run build")
-
-
-def _get_test_cmd(ctx: ProjectContext) -> str:
-    if ctx.test_level == "none":
-        return "# No tests configured"
-    return {
-        "vitest": "npx vitest run",
-        "pytest": "pytest",
-        "go test": "go test ./...",
-    }.get(ctx.test_framework or infer_test_framework(ctx.language), "npm test")
-
-
-def _get_style_rules(ctx: ProjectContext) -> list[str]:
-    rules = {
-        "typescript": [
-            "- Use TypeScript strict mode",
-            "- Prefer `const` over `let`",
-            "- Named exports",
-            "- Type all parameters",
-        ],
-        "python": [
-            "- Follow PEP 8",
-            "- Type hints for public functions",
-            "- `snake_case` for variables",
-            "- Docstrings for public functions",
-        ],
-        "go": [
-            "- Follow `gofmt`",
-            "- Check errors immediately",
-            "- Package names: lowercase",
-        ],
-    }
-    return rules.get(ctx.language, ["- Follow language idioms"])
+# ─── Scaffold helpers ────────────────────────────────────────────────────────
 
 
 def _scaffold_gitignore(output_dir: str, ctx: ProjectContext) -> str:
@@ -228,7 +310,9 @@ def _scaffold_gitignore(output_dir: str, ctx: ProjectContext) -> str:
 
 
 def _scaffold_readme(output_dir: str, ctx: ProjectContext) -> str:
-    content = f"# {ctx.project_name}\n\n{ctx.description or 'A project.'}\n\n## Setup\n```bash\n{_get_setup_cmd(ctx)}\n```\n\n## Test\n```bash\n{_get_test_cmd(ctx)}\n```\n"
+    setup = get_setup_cmd(ctx)
+    test = get_test_cmd(ctx)
+    content = f"# {ctx.project_name}\n\n{ctx.description or 'A project.'}\n\n## Setup\n```bash\n{setup}\n```\n\n## Test\n```bash\n{test}\n```\n"
     p = Path(output_dir) / "README.md"
     p.write_text(content, encoding="utf-8")
     return "README.md"
@@ -241,11 +325,7 @@ def _scaffold_package_json(output_dir: str, ctx: ProjectContext) -> str:
         "name": ctx.project_name,
         "version": "0.1.0",
         "type": "module",
-        "scripts": {
-            "dev": "echo 'Add dev'",
-            "build": "echo 'Add build'",
-            "test": "npx vitest run",
-        },
+        "scripts": {"dev": "echo 'Add dev'", "build": "echo 'Add build'", "test": "npx vitest run"},
         "devDependencies": {"typescript": "^5.0.0", "vitest": "^2.0.0"},
     }
     p = Path(output_dir) / "package.json"
@@ -254,7 +334,7 @@ def _scaffold_package_json(output_dir: str, ctx: ProjectContext) -> str:
 
 
 def _scaffold_requirements(output_dir: str, ctx: ProjectContext) -> str:
-    lines = ["# Core", "# Add dependencies", "", "# Dev", "pytest>=7.0", "ruff>=0.1.0"]
+    lines = ["# Core\n# Add dependencies\n\n# Dev\npytest>=7.0\nruff>=0.1.0"]
     p = Path(output_dir) / "requirements.txt"
     p.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return "requirements.txt"
@@ -271,14 +351,11 @@ def _scaffold_source_dirs(output_dir: str, ctx: ProjectContext) -> str:
     base = Path(output_dir)
     dirs = ["src", "tests"]
     if ctx.project_type == "api":
-        dirs.extend(["src/api", "src/models", "tests/unit"])
-    elif ctx.project_type == "web":
-        dirs.extend(["src/components", "src/pages", "tests/unit"])
-    elif ctx.project_type == "cli":
-        dirs.extend(["src/commands", "tests/unit"])
+        dirs.extend(["src/api", "src/models"])
     for d in dirs:
         (base / d).mkdir(parents=True, exist_ok=True)
-    if ctx.language == "python":
+    lang = (ctx.language or "").lower()
+    if lang == "python":
         for d in dirs:
             init_file = base / d / "__init__.py"
             if not init_file.exists():
