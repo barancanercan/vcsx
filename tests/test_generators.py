@@ -42,6 +42,83 @@ def tmp_dir():
         yield d
 
 
+class TestClaudeCodeGeneratorExtended:
+    """Extended coverage for claude_code generator."""
+
+    def test_api_agent_for_api_project(self, tmp_dir):
+        ctx = ProjectContext(
+            project_name="api-proj", language="python", project_type="api",
+            test_level="unit", test_framework="pytest",
+        )
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        gen = ClaudeCodeGenerator()
+        agents = gen.generate_agents(ctx, tmp_dir)
+        assert "api-designer" in agents
+
+    def test_data_analyst_for_data_pipeline(self, tmp_dir):
+        ctx = ProjectContext(
+            project_name="pipeline", language="python", project_type="data-pipeline",
+        )
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        gen = ClaudeCodeGenerator()
+        agents = gen.generate_agents(ctx, tmp_dir)
+        assert "data-analyst" in agents
+
+    def test_scaffold_typescript(self, tmp_dir):
+        ctx = ProjectContext(
+            project_name="ts-app", language="typescript", project_type="web",
+        )
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        gen = ClaudeCodeGenerator()
+        result = gen.generate_scaffold(ctx, tmp_dir)
+        assert "package.json" in result
+        assert (Path(tmp_dir) / "package.json").exists()
+
+    def test_scaffold_go(self, tmp_dir):
+        ctx = ProjectContext(project_name="go-app", language="go")
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        gen = ClaudeCodeGenerator()
+        result = gen.generate_scaffold(ctx, tmp_dir)
+        assert "go.mod" in result
+
+    def test_no_test_writer_for_none_level(self, tmp_dir):
+        ctx = ProjectContext(project_name="app", language="python", test_level="none")
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        gen = ClaudeCodeGenerator()
+        agents = gen.generate_agents(ctx, tmp_dir)
+        assert "test-writer" not in agents
+
+    def test_hooks_windows_ps1(self, tmp_dir):
+        ctx = ProjectContext(
+            project_name="win-app", language="typescript", platform="windows-powershell",
+            formatter="prettier", linter="eslint", test_framework="vitest",
+        )
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        gen = ClaudeCodeGenerator()
+        settings = gen.generate_hooks(ctx, tmp_dir)
+        hooks_dir = Path(tmp_dir) / ".claude" / "hooks"
+        ps1_files = list(hooks_dir.glob("*.ps1"))
+        assert len(ps1_files) > 0
+
+    def test_claudeignore_data_pipeline(self, tmp_dir):
+        ctx = ProjectContext(
+            project_name="pipeline", language="python", project_type="data-pipeline"
+        )
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        gen = ClaudeCodeGenerator()
+        gen.generate_scaffold(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".claudeignore").read_text()
+        assert "data/raw" in content or "data" in content
+
+    def test_script_header_ps1(self):
+        from vcsx.generators.claude_code import _get_script_header
+        assert "pwsh" in _get_script_header(".ps1")
+
+    def test_script_header_sh(self):
+        from vcsx.generators.claude_code import _get_script_header
+        assert "bash" in _get_script_header(".sh")
+
+
 class TestClaudeCodeGenerator:
     def test_generate_config(self, ctx, tmp_dir):
         gen = ClaudeCodeGenerator()
@@ -104,6 +181,43 @@ class TestClaudeCodeGenerator:
         assert "hooks" in result
         assert "agents" in result
         assert "scaffold" in result
+
+
+class TestCursorGeneratorFullCoverage:
+    """Push cursor.py toward 95%."""
+
+    def test_scaffold_cli_project(self, tmp_dir):
+        ctx = ProjectContext(project_name="my-cli", language="python", project_type="cli")
+        gen = CursorGenerator()
+        result = gen.generate_scaffold(ctx, tmp_dir)
+        assert "source directories" in result
+
+    def test_scaffold_library_project(self, tmp_dir):
+        ctx = ProjectContext(project_name="my-lib", language="python", project_type="library")
+        gen = CursorGenerator()
+        result = gen.generate_scaffold(ctx, tmp_dir)
+        assert "source directories" in result
+
+    def test_cursor_skills_generates_commit_message_mdc(self, tmp_dir):
+        ctx = ProjectContext(project_name="app", language="python", project_type="web")
+        gen = CursorGenerator()
+        skills = gen.generate_skills(ctx, tmp_dir)
+        assert "build-test" in skills
+        assert "commit-message" in skills
+
+    def test_cursor_hooks_returns_dict(self, ctx, tmp_dir):
+        gen = CursorGenerator()
+        result = gen.generate_hooks(ctx, tmp_dir)
+        assert isinstance(result, dict)
+
+    def test_cursor_config_web_project(self, tmp_dir):
+        ctx = ProjectContext(
+            project_name="web-app", language="typescript", project_type="web",
+            description="A web application",
+        )
+        gen = CursorGenerator()
+        content = gen.generate_config(ctx, tmp_dir)
+        assert "web-app" in content
 
 
 class TestCursorGeneratorExtended:
