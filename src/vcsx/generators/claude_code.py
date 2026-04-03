@@ -338,20 +338,49 @@ description: Generates conventional commit messages from git diff. Use when comm
 Generate conventional commit messages: `<type>(<scope>): <description>`
 
 ## Types
-- `feat`: New feature
+- `feat`: New feature that adds functionality
 - `fix`: Bug fix
-- `docs`: Documentation only
-- `style`: Code style changes (formatting)
-- `refactor`: Code refactoring
-- `test`: Adding or updating tests
-- `chore`: Maintenance tasks, dependencies
+- `docs`: Documentation only changes
+- `style`: Formatting, missing semicolons — no logic change
+- `refactor`: Code change that is neither a fix nor a feature
+- `test`: Adding or correcting tests
+- `chore`: Build process, dependencies, tooling
+- `perf`: Performance improvement
+- `ci`: CI/CD configuration changes
+- `revert`: Reverts a previous commit
+
+## Format Rules
+- Subject line: max 72 characters, imperative mood ("add" not "added")
+- No period at end of subject
+- Scope is optional but useful: `feat(auth): add OAuth2 login`
+- Breaking changes: add `!` after type: `feat!: redesign API`
+- Multi-line body for complex changes: blank line after subject
 
 ## Process
 1. Run `git diff --cached` to see staged changes
-2. Analyze changes to determine type
-3. Generate concise description (max 72 chars)
-4. If multiple types, suggest separate commits
-5. Run `git commit -m "<message>"`
+2. Identify the primary change type
+3. Determine scope from affected files/modules
+4. Write subject: `<type>(<scope>): <imperative description>`
+5. Add body if the change needs explanation
+6. Reference issues if applicable: `Closes #123`
+7. Run `git commit -m "<message>"`
+
+## Examples
+```
+feat(auth): add JWT token refresh endpoint
+fix(api): handle null response from payment gateway
+refactor(db): extract query builder into separate module
+docs(readme): update installation steps for Windows
+test(auth): add edge cases for token expiration
+chore(deps): upgrade pytest to 8.0
+perf(query): add index on users.email column
+feat!: redesign authentication API (breaking change)
+```
+
+## Multi-commit Strategy
+If diff spans multiple concerns, suggest splitting:
+- `git add -p` to stage selectively
+- Separate commits per logical unit
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "commit-message"
@@ -367,19 +396,74 @@ description: Reviews pull requests against team standards before submission. Use
 
 # PR Review Skill
 
-## Checklist
-- [ ] Code follows project style guidelines
-- [ ] No secrets or API keys committed
-- [ ] Tests cover new functionality
-- [ ] Error handling is appropriate
-- [ ] No unnecessary dependencies
-- [ ] Documentation updated if needed
+Review the current branch changes before submitting a PR.
 
 ## Process
-1. Run `git diff main...HEAD`
-2. Check each file against checklist
-3. Report findings with line references
-4. Suggest fixes for issues found
+1. Run `git diff main...HEAD --stat` for overview
+2. Run `git diff main...HEAD` for full diff
+3. Check each changed file against the checklist below
+4. Report findings grouped by severity
+
+## Review Checklist
+
+### 🔴 Blocking (must fix before merge)
+- [ ] No hardcoded secrets, API keys, or credentials
+- [ ] No broken tests (`run test suite`)
+- [ ] No obvious security vulnerabilities (SQL injection, XSS, path traversal)
+- [ ] No `print()` / `console.log()` debug statements left in
+- [ ] No `TODO: fix before merge` or `HACK:` comments
+
+### 🟡 Important (should fix)
+- [ ] New functionality has tests
+- [ ] Error cases are handled (not just happy path)
+- [ ] No unnecessary dependencies added
+- [ ] Breaking changes are documented
+- [ ] Public API changes are backward compatible or versioned
+
+### 🟢 Nice to have (suggestions)
+- [ ] Code follows existing style and patterns
+- [ ] Variable/function names are descriptive
+- [ ] Complex logic has comments
+- [ ] README / docs updated if behavior changed
+
+## Output Format
+```
+## PR Review Summary
+
+### 🔴 Blocking Issues
+- [file:line] Description → Suggested fix
+
+### 🟡 Important
+- [file:line] Description
+
+### 🟢 Suggestions
+- [file:line] Suggestion
+
+### Verdict
+[APPROVE / REQUEST_CHANGES]
+Reason: ...
+```
+
+## PR Description Template
+After review, generate PR description:
+```
+## What
+[Brief description of changes]
+
+## Why
+[Context and motivation]
+
+## How
+[Implementation approach]
+
+## Testing
+[How this was tested]
+
+## Checklist
+- [ ] Tests pass
+- [ ] No secrets committed
+- [ ] Docs updated
+```
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "pr-review"
@@ -505,27 +589,82 @@ description: Test writing patterns using {ctx.test_framework or infer_test_frame
 def _skill_security_review(skills_dir: Path) -> str:
     d = skills_dir / "security-review"
     d.mkdir(parents=True, exist_ok=True)
-    content = """---
+    content = r"""---
 name: security-review
 description: Reviews code for security vulnerabilities. Use when reviewing code or before merging.
 ---
 
 # Security Review Skill
 
-## Checklist
-- Injection vulnerabilities (SQL, XSS, command)
-- Authentication and authorization flaws
-- Secrets or credentials in code
-- Insecure data handling
-- Missing input validation
-- Unsafe deserialization
-- Path traversal vulnerabilities
+Perform a thorough security audit of the specified code.
+
+## OWASP Top 10 Checklist
+
+### A01 — Broken Access Control
+- [ ] Authorization checked on every endpoint
+- [ ] No direct object references without permission check
+- [ ] Admin functions protected from regular users
+
+### A02 — Cryptographic Failures
+- [ ] No plaintext passwords stored
+- [ ] Sensitive data encrypted at rest and in transit
+- [ ] No weak algorithms (MD5, SHA1 for passwords)
+- [ ] TLS enforced, no HTTP fallback
+
+### A03 — Injection
+- [ ] SQL: parameterized queries / ORM used (no f-strings in queries)
+- [ ] Command injection: no `os.system(user_input)` or `exec()`
+- [ ] XSS: output properly escaped in templates
+- [ ] Path traversal: `../` in file paths sanitized
+
+### A04 — Insecure Design
+- [ ] Rate limiting on auth endpoints
+- [ ] Brute force protection
+- [ ] CSRF protection on state-changing endpoints
+
+### A05 — Security Misconfiguration
+- [ ] Debug mode disabled in production
+- [ ] Error messages don't expose stack traces to users
+- [ ] Default credentials changed
+- [ ] Unused endpoints disabled
+
+### A07 — Authentication Failures
+- [ ] Passwords hashed with bcrypt/argon2 (not MD5/SHA1)
+- [ ] Session tokens: long, random, invalidated on logout
+- [ ] "Forgot password" flow doesn't leak user existence
+
+### A09 — Logging Failures
+- [ ] Security events logged (login failures, permission denials)
+- [ ] No sensitive data in logs (passwords, tokens, PII)
+
+### Secrets Scan
+- [ ] No API keys in source code
+- [ ] `.env` files in `.gitignore`
+- [ ] No credentials in git history
 
 ## Process
-1. Read the files in question
-2. Check each item on checklist
-3. Provide specific line references
-4. Suggest concrete fixes
+1. Read all changed/specified files
+2. Check each OWASP category
+3. For each finding: file:line, severity (CRITICAL/HIGH/MEDIUM/LOW), description, fix
+4. Run `git log --all -S "SECRET\|password\|api_key" --oneline` for history scan
+
+## Output Format
+```
+## Security Review
+
+### CRITICAL
+- [file:line] SQL injection via f-string in query → Use parameterized query
+
+### HIGH
+- [file:line] Password stored as MD5 → Use bcrypt
+
+### MEDIUM / LOW
+- [file:line] Debug mode enabled → Set DEBUG=False in production
+
+### Clean
+- No secrets found in code
+- Authorization checks present on all endpoints
+```
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "security-review"
@@ -541,19 +680,50 @@ description: Suggests code improvements while maintaining behavior. Use when ask
 
 # Refactor Skill
 
-## Principles
-- Maintain existing behavior
-- Improve readability
-- Reduce complexity
-- Follow DRY and SOLID
-- Keep functions small
+Improve code quality while preserving behavior.
+
+## Golden Rules
+1. **Never change behavior** — if it does X, it must still do X after refactor
+2. **Tests must pass** before and after every change
+3. **One thing at a time** — don't mix refactoring with new features
+4. **Smallest possible diff** — don't rewrite when extract suffices
+
+## Code Smells to Target
+
+### Complexity
+- Functions > 20 lines → extract helper functions
+- Nesting > 3 levels → extract or invert conditions
+- `if/elif` chains > 5 branches → use dict dispatch or strategy pattern
+
+### Duplication (DRY)
+- Identical code blocks → extract shared function
+- Repeated magic numbers → named constants
+- Copy-paste with slight variation → parameterize
+
+### Naming
+- Single-letter variables (except loop counters) → descriptive names
+- Misleading names → rename to match actual behavior
+- Abbreviations → spell out unless universal (e.g., `url`, `id`)
+
+### Structure
+- God class (> 200 lines) → split responsibilities
+- Long parameter lists (> 4 params) → introduce data class/dict
+- Feature envy (class using another class's data too much) → move method
 
 ## Process
-1. Read the code to understand intent
-2. Identify code smells
-3. Suggest specific improvements
-4. Apply changes incrementally
-5. Run tests to verify behavior unchanged
+1. Read the target code and understand its intent
+2. Run existing tests to establish baseline: `{test_cmd}`
+3. Identify the most impactful smell to fix
+4. Make the smallest change that improves it
+5. Run tests: must still pass
+6. Repeat for next smell
+7. Commit with message: `refactor(<scope>): <what changed>`
+
+## What NOT to Do
+- Don't change variable names just because you prefer them
+- Don't introduce abstractions "for future flexibility"
+- Don't reformat code in the same commit as logic changes
+- Don't refactor untested code — add tests first
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "refactor"
