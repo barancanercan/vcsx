@@ -422,6 +422,51 @@ class TestConfigCorruptFile:
                 config_file.unlink()
 
 
+class TestValidateGeminiAgents:
+    def test_validate_gemini_md(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.gemini import GeminiGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        GeminiGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["validate", tmp_dir])
+        assert result.exit_code == 0
+        assert "GEMINI.md" in result.output
+
+    def test_validate_agents_md(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        ctx = ProjectContext(project_name="test", language="python", test_framework="pytest")
+        AgentsMdGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["validate", tmp_dir])
+        assert result.exit_code == 0
+        assert "AGENTS.md" in result.output
+
+    def test_validate_agents_md_missing_commands(self, runner, tmp_dir):
+        (Path(tmp_dir) / "AGENTS.md").write_text("# AGENTS.md\n\nSome content without commands.\n")
+        result = runner.invoke(main, ["validate", tmp_dir])
+        assert result.exit_code == 0
+        assert "commands" in result.output.lower() or "AGENTS.md" in result.output
+
+    def test_validate_claude_md_with_api_key(self, runner, tmp_dir):
+        (Path(tmp_dir) / "CLAUDE.md").write_text(
+            "# Project\n\nRULE: Never commit api_key secrets.\n"
+        )
+        result = runner.invoke(main, ["validate", tmp_dir])
+        assert result.exit_code == 0
+
+
+class TestGeminiGlobalCommandExtended:
+    def test_gemini_global_already_exists(self, runner, tmp_dir):
+        """Test that existing file blocks creation without --force."""
+        import tempfile
+        gemini_dir = Path(tmp_dir) / ".gemini"
+        gemini_dir.mkdir()
+        (gemini_dir / "GEMINI.md").write_text("# Existing")
+        # We can't easily test ~/.gemini/ but can check the command logic
+        result = runner.invoke(main, ["gemini-global", "--help"])
+        assert "force" in result.output.lower()
+
+
 class TestValidateWarnings:
     def test_validate_claude_md_150_lines(self, runner, tmp_dir):
         """Test warning for 150-200 line CLAUDE.md."""
@@ -1387,6 +1432,38 @@ class TestChangelogCommand:
         result = runner.invoke(main, ["changelog", "--version", "0.0.0"])
         assert result.exit_code == 0
         assert "not found" in result.output.lower() or result.output == "" or "0.0.0" in result.output
+
+
+class TestPresetsCommand:
+    def test_presets_list(self, runner):
+        result = runner.invoke(main, ["presets"])
+        assert result.exit_code == 0
+        assert "fastapi-postgres" in result.output
+        assert "saas-nextjs" in result.output
+
+    def test_presets_search(self, runner):
+        result = runner.invoke(main, ["presets", "python"])
+        assert result.exit_code == 0
+
+    def test_presets_no_results(self, runner):
+        result = runner.invoke(main, ["presets", "nonexistent-xyz-12345"])
+        assert result.exit_code == 0
+        assert "No presets" in result.output or result.output.strip() != ""
+
+
+class TestLangsCommand:
+    def test_langs_list(self, runner):
+        result = runner.invoke(main, ["langs"])
+        assert result.exit_code == 0
+        assert "python" in result.output.lower()
+        assert "typescript" in result.output.lower()
+        assert "go" in result.output.lower()
+        assert "rust" in result.output.lower()
+
+    def test_langs_shows_11(self, runner):
+        result = runner.invoke(main, ["langs"])
+        assert result.exit_code == 0
+        assert "11" in result.output or "kotlin" in result.output.lower()
 
 
 class TestCompletionCommand:

@@ -362,6 +362,54 @@ class TestCopilotGenerator:
         assert "test-project" in content
 
 
+class TestRegistryExtended:
+    def test_get_tools_by_category_ai_editors(self):
+        from vcsx.generators.registry import get_tools_by_category
+        tools = get_tools_by_category("ai_editors")
+        assert "claude-code" in tools
+        assert "cursor" in tools
+
+    def test_get_tools_by_category_unknown(self):
+        from vcsx.generators.registry import get_tools_by_category
+        assert get_tools_by_category("nonexistent") == []
+
+    def test_codex_scaffold_web_project(self, tmp_dir):
+        from vcsx.generators.codex import CodexGenerator
+        ctx = ProjectContext(project_name="my-web", language="typescript", project_type="web")
+        gen = CodexGenerator()
+        result = gen.generate_scaffold(ctx, tmp_dir)
+        assert "source directories" in result
+
+    def test_codex_scaffold_cli_project(self, tmp_dir):
+        from vcsx.generators.codex import CodexGenerator
+        ctx = ProjectContext(project_name="my-cli", language="python", project_type="cli")
+        gen = CodexGenerator()
+        result = gen.generate_scaffold(ctx, tmp_dir)
+        assert "source directories" in result
+
+    def test_aider_test_cmd_vitest(self):
+        from vcsx.generators.aider import _get_test_cmd
+        ctx = ProjectContext(test_framework="vitest")
+        assert "vitest" in _get_test_cmd(ctx)
+
+    def test_aider_test_cmd_rust(self):
+        from vcsx.generators.aider import _get_test_cmd
+        ctx = ProjectContext(language="rust")
+        assert "cargo test" in _get_test_cmd(ctx)
+
+    def test_aider_test_cmd_fallback(self):
+        from vcsx.generators.aider import _get_test_cmd
+        ctx = ProjectContext(language="javascript", test_framework="mocha")
+        assert "npm test" in _get_test_cmd(ctx)
+
+    def test_bolt_django_port(self, tmp_dir):
+        from vcsx.generators.bolt import _get_default_port
+        ctx = ProjectContext(language="python", framework="Django")
+        # Django is python, so python check runs first → 8000
+        port = _get_default_port(ctx)
+        assert port == 8000
+
+
 class TestRegistry:
     def test_all_tools_registered(self):
         assert "claude-code" in ALL_TOOLS

@@ -1682,6 +1682,67 @@ def list_plugins():
     console.print(table)
 
 
+@main.command("presets")
+@click.argument("query", required=False)
+def list_presets(query):
+    """List available project presets (alias for vcsx templates).
+
+    Examples:
+        vcsx presets             # List all 10 presets
+        vcsx presets python      # Search python presets
+    """
+    results = search_templates(query) if query else list_official_templates()
+
+    if not results:
+        console.print("No presets found")
+        return
+
+    table = Table(
+        title=f"{'Search: ' + query if query else 'Available Presets (10)'}", border_style="cyan"
+    )
+    table.add_column("Preset", style="cyan")
+    table.add_column("Description")
+    table.add_column("Language", style="dim")
+    table.add_column("Type", style="dim")
+
+    for t in results:
+        lang = t.tech_stack.get("language", "—")
+        ptype = t.tech_stack.get("type", "—")
+        table.add_row(t.name, t.description, lang, ptype)
+
+    console.print(table)
+    console.print("\n[dim]Use:[/] vcsx new my-project --preset <name>")
+
+
+@main.command("langs")
+def list_languages():
+    """List all supported languages and their detected properties.
+
+    Shows language detection keywords, test framework, formatter, linter.
+    """
+    from vcsx.core.inference import STACK_MAP
+
+    table = Table(title="Supported Languages (11)", border_style="cyan")
+    table.add_column("Language", style="cyan")
+    table.add_column("Test Framework")
+    table.add_column("Formatter")
+    table.add_column("Linter")
+    table.add_column("Detect Keywords", style="dim")
+
+    for lang, cfg in STACK_MAP.items():
+        keywords = ", ".join(cfg["keywords"][:3]) + ("..." if len(cfg["keywords"]) > 3 else "")
+        table.add_row(
+            lang,
+            cfg.get("test_framework", "—"),
+            cfg.get("formatter", "—"),
+            cfg.get("linter", "—"),
+            keywords,
+        )
+
+    console.print(table)
+    console.print("\n[dim]Detection: vcsx init --scan auto-detects from project files[/]")
+
+
 @main.command("quality")
 @click.argument("path", default=".", type=click.Path(exists=True))
 def quality_report(path):
