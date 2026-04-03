@@ -920,7 +920,15 @@ def new_project(project_name, project_type, lang, tool, preset, output_dir):
     default=False,
     help="Include all files including .gitignore, README, etc.",
 )
-def export_configs(path, output, include_all):
+@click.option(
+    "--format",
+    "-f",
+    "fmt",
+    type=click.Choice(["zip", "json"], case_sensitive=False),
+    default="zip",
+    help="Output format: zip (default) or json manifest",
+)
+def export_configs(path, output, include_all, fmt):
     """Export all AI config files to a ZIP archive.
 
     Useful for sharing configs across projects or backing up setups.
@@ -994,6 +1002,38 @@ def export_configs(path, output, include_all):
     if not collected:
         console.print("[yellow]No AI config files found to export.[/]")
         console.print("Run [cyan]vcsx init[/] to set up AI configs first.")
+        return
+
+    # JSON format
+    if fmt == "json":
+        import json
+
+        manifest = {
+            "project": project_name,
+            "path": str(target),
+            "vcsx_version": __version__,
+            "file_count": len(collected),
+            "files": [],
+        }
+        for file_path, rel in collected:
+            try:
+                content = file_path.read_text(encoding="utf-8")
+            except Exception:
+                content = None
+            manifest["files"].append(
+                {
+                    "path": rel,
+                    "size_bytes": file_path.stat().st_size,
+                    "content": content,
+                }
+            )
+
+        if output:
+            out_path = Path(output)
+            out_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+            console.print(f"\n[green]✓ Exported {len(collected)} files → {out_path}[/]")
+        else:
+            console.print(json.dumps(manifest, indent=2, ensure_ascii=False))
         return
 
     # Write ZIP
@@ -1598,6 +1638,52 @@ def search_configs(query, path, type):
             )
             console.print(f"    [dim]{lineno}:[/] {highlighted}")
         console.print()
+
+
+@main.command("version")
+def show_version():
+    """Show vcsx version with recent changelog entries.
+
+    Examples:
+        vcsx version  # Show version + last 3 changelog entries
+    """
+    import re
+
+    console.print(f"\n[bold cyan]vcsx[/] [bold]{__version__}[/]\n")
+
+    # Find CHANGELOG.md
+    import vcsx as _vcsx_mod
+
+    changelog_path = Path(_vcsx_mod.__file__).parent.parent.parent / "CHANGELOG.md"
+    if not changelog_path.exists():
+        for candidate in [Path("CHANGELOG.md"), Path(__file__).parent.parent.parent / "CHANGELOG.md"]:
+            if candidate.exists():
+                changelog_path = candidate
+                break
+
+    if not changelog_path.exists():
+        console.print("[dim]Changelog not found. See: https://github.com/barancanercan/vcsx/releases[/]")
+        return
+
+    content = changelog_path.read_text(encoding="utf-8")
+    sections = re.split(r"\n## \[", content)
+
+    console.print("[bold]Recent Changes:[/]")
+    shown = 0
+    for section in sections[1:]:
+        if shown >= 3:
+            break
+        if section.strip() and not section.startswith("Unreleased"):
+            # Header line only + first 3 bullet points
+            lines = section.strip().splitlines()
+            version_line = f"[cyan]## [{lines[0]}[/]"
+            console.print(f"\n{version_line}")
+            bullets = [ln for ln in lines[1:] if ln.strip().startswith("-")][:3]
+            for b in bullets:  # noqa: E741 — `b` is fine here
+                console.print(f"  {b.strip()}")
+            shown += 1
+
+    console.print("\n[dim]Full changelog: vcsx changelog[/]")
 
 
 @main.command("changelog")

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0] - 2026-04-03
+
+### New Features
+- **`vcsx version`**: Show current version with last 3 changelog entries inline
+- **`vcsx export --format json`**: Export AI config manifest as structured JSON (with file contents)
+- **94% test coverage**: Added tests for `planner.py`, `templates/engine.py`, `utils/prompts.py` (608 tests total)
+
+### Improvements
+- `export` command now supports `--format [zip|json]` flag
+
 ## [5.0.0] - 2026-04-03
 
 ### Major Release — Production Quality
