@@ -171,8 +171,8 @@ def _rule_commit_message_mdc(rules_dir: Path) -> str:
     """Commit message generation rule."""
     d = rules_dir / "commit-message.mdc"
     content = """---
-description: Generate conventional commit messages
-globs: ["*.py", "*.ts", "*.js"]
+description: Generate conventional commit messages from git diff
+globs: ["*.py", "*.ts", "*.js", "*.go", "*.rs", "*.java"]
 alwaysApply: false
 ---
 
@@ -203,26 +203,51 @@ def _rule_pr_review_mdc(rules_dir: Path) -> str:
     """PR review rule."""
     d = rules_dir / "pr-review.mdc"
     content = """---
-description: Review pull requests against team standards
+description: Review pull requests — severity-rated checklist
 globs: ["*.py", "*.ts", "*.js", "*.go", "*.rs"]
 alwaysApply: false
 ---
 
 # PR Review Rules
 
-## Checklist
-- [ ] Code follows style guidelines
-- [ ] No secrets committed
-- [ ] Tests cover new functionality
-- [ ] Error handling is appropriate
-- [ ] No unnecessary dependencies
-- [ ] Documentation updated if needed
-
 ## Process
-1. Run `git diff main...HEAD`
-2. Check each file against checklist
-3. Report findings with line references
-4. Suggest fixes for issues found
+1. Run `git diff main...HEAD --stat` for overview
+2. Run `git diff main...HEAD` for full diff
+3. Rate each issue: 🔴 BLOCKING / 🟡 IMPORTANT / 🟢 SUGGESTION
+
+## 🔴 Blocking (must fix)
+- [ ] No secrets or API keys committed
+- [ ] Tests pass (`run test suite`)
+- [ ] No obvious security vulnerabilities
+- [ ] No debug `print()` / `console.log()` left in
+- [ ] No broken imports or syntax errors
+
+## 🟡 Important (should fix)
+- [ ] New code has tests
+- [ ] Error cases handled (not just happy path)
+- [ ] No unnecessary dependencies added
+- [ ] Breaking changes documented
+
+## 🟢 Suggestions
+- [ ] Code follows existing style patterns
+- [ ] Descriptive variable/function names
+- [ ] Complex logic has comments
+
+## Output Format
+```
+## PR Review
+
+### 🔴 BLOCKING
+- [file:line] Issue → Fix
+
+### 🟡 IMPORTANT
+- [file:line] Issue
+
+### 🟢 SUGGESTIONS
+- [file:line] Suggestion
+
+### Verdict: APPROVE / REQUEST_CHANGES
+```
 """
     d.write_text(content, encoding="utf-8")
     return "pr-review"
@@ -231,27 +256,46 @@ alwaysApply: false
 def _rule_test_patterns_mdc(rules_dir: Path, ctx: ProjectContext) -> str:
     """Test patterns rule."""
     d = rules_dir / "test-patterns.mdc"
+    fw = ctx.test_framework or infer_test_framework(ctx.language)
+    lang = (ctx.language or "").lower()
+    test_glob = (
+        "test_*.py,*_test.py,tests/**"
+        if lang == "python"
+        else "**/*.test.ts,**/*.spec.ts,**/*.test.js"
+    )
     content = f"""---
-description: Test writing patterns using {ctx.test_framework or infer_test_framework(ctx.language)}
-globs: ["test_*.py", "*.test.ts", "*.spec.ts"]
+description: Test writing patterns — AAA structure, naming, mocking
+globs: ["{test_glob}"]
 alwaysApply: true
 ---
 
-# Test Patterns
+# Test Patterns — {fw}
 
-## Framework: {ctx.test_framework or infer_test_framework(ctx.language)}
+## AAA Structure (mandatory)
+```
+Arrange → Act → Assert
+```
 
-## Structure
-1. **Arrange** — Set up test data
-2. **Act** — Execute code under test
-3. **Assert** — Verify outcome
+## Naming Convention
+`test_<function>_<scenario>_<expected>`
+- `test_create_user_valid_email_returns_id`
+- `test_login_wrong_password_returns_401`
+- `test_send_email_smtp_down_raises_error`
 
-## Guidelines
-- Test behavior, not implementation
-- One assertion per test when possible
-- Descriptive test names: `test_<function>_<expected_behavior>`
-- Mock external dependencies
-- Test edge cases and error conditions
+## Rules
+- Tests must be **independent** — no shared mutable state
+- Mock ALL external dependencies (DB, HTTP, filesystem)
+- Test both happy path AND error paths
+- Use fixtures/factories, not hardcoded test data
+
+## Framework: {fw}
+```bash
+# Run all tests
+{fw if fw != "vitest" else "npx vitest run"}
+
+# Run with coverage
+{"pytest --cov=src" if lang == "python" else "npx vitest run --coverage"}
+```
 """
     d.write_text(content, encoding="utf-8")
     return "test-patterns"
@@ -261,44 +305,49 @@ def _rule_api_conventions_mdc(rules_dir: Path) -> str:
     """API conventions rule."""
     d = rules_dir / "api-conventions.mdc"
     content = """---
-description: REST API design patterns and conventions
-globs: ["**/api/**/*.py", "**/routes/*.ts"]
+description: REST API design — URL naming, HTTP codes, response shapes
+globs: ["**/api/**", "**/routes/**", "**/controllers/**", "**/endpoints/**"]
 alwaysApply: false
 ---
 
 # API Conventions
 
-## URL Design
-- kebab-case for paths: `/api/user-profiles`
-- Nouns not verbs: `/api/users` not `/api/getUsers`
-- Version in URL: `/api/v1/users`
-- Plural nouns for collections: `/api/users`
+## URL Rules
+| ✅ Good | ❌ Bad |
+|---------|--------|
+| `/v1/users` | `/users` (no version) |
+| `/v1/user-profiles` | `/v1/userProfiles` |
+| `/v1/orders` | `/v1/getOrders` (verb) |
 
-## HTTP Methods
-- **GET** — Retrieve resources
-- **POST** — Create new resources
-- **PUT** — Replace entire resource
-- **PATCH** — Partial update
-- **DELETE** — Remove resource
+## HTTP Methods & Status Codes
+| Method | Use | Success | Error |
+|--------|-----|---------|-------|
+| GET | Read | 200 | 404 |
+| POST | Create | 201 | 400/422 |
+| PATCH | Update | 200 | 404/400 |
+| DELETE | Remove | 204 | 404 |
 
-## Response Format
+## Response Envelope
 ```json
-{
-  "data": {...},
-  "meta": {"page": 1, "perPage": 20, "total": 100}
-}
+{ "data": {...}, "meta": { "requestId": "req_abc123" } }
 ```
 
-## Error Format
+## Error Shape
 ```json
 {
   "error": {
     "code": "VALIDATION_ERROR",
-    "message": "...",
-    "details": []
+    "message": "Email is invalid",
+    "details": [{ "field": "email", "message": "Must be valid email" }]
   }
 }
 ```
+
+## Must Do
+- Paginate ALL list endpoints
+- Validate ALL input at boundary
+- Return consistent error shapes
+- Never expose internal errors to clients
 """
     d.write_text(content, encoding="utf-8")
     return "api-conventions"
@@ -309,26 +358,34 @@ def _rule_auth_mdc(rules_dir: Path, ctx: ProjectContext) -> str:
     d = rules_dir / "auth-conventions.mdc"
     auth_method = ctx.auth_method or "JWT"
     content = f"""---
-description: Authentication and authorization patterns using {auth_method}
-globs: ["**/auth/**/*.py", "**/middleware/*.ts"]
+description: Authentication patterns — {auth_method} security rules
+globs: ["**/auth/**", "**/middleware/**", "**/guards/**"]
 alwaysApply: true
 ---
 
-# Auth Conventions
+# Auth Conventions — {auth_method}
 
-## Method: {auth_method}
+## Security Rules (Non-Negotiable)
+- NEVER log tokens, passwords, or session IDs
+- NEVER expose whether an email exists on login failure
+- Rate limit: login (5/min), register (3/min), reset-password (3/hour)
+- Passwords: bcrypt/argon2 only (not MD5/SHA1)
+- All protected endpoints: verify auth on EVERY request
 
-## Patterns
-- All protected endpoints require valid auth token
-- Tokens stored securely (httpOnly cookies or secure storage)
-- Refresh tokens rotated on each use
-- Failed attempts logged but don't expose user existence
+## {auth_method} Implementation
+- Access tokens: short-lived (15 min)
+- Refresh tokens: rotate on each use, invalidate old
+- Store in httpOnly cookies (web) or secure storage (mobile)
+- Never in localStorage (XSS vulnerable)
 
-## Security Rules
-- Never log tokens or passwords
-- Use bcrypt or equivalent for password hashing
-- Implement CSRF protection for web apps
-- Validate tokens on every protected request
+## Login Response Pattern
+```
+# ✅ Same error for wrong email AND wrong password
+raise AuthError("Invalid credentials")  # Don't leak user existence
+
+# ❌ Leaks that email doesn't exist
+raise AuthError("User not found")
+```
 """
     d.write_text(content, encoding="utf-8")
     return "auth-conventions"
