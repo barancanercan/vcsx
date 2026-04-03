@@ -24,22 +24,34 @@
 
 ## ✨ What It Does
 
-`vcsx` is a CLI tool that generates **production-ready AI coding environments** in seconds. It supports 10+ AI coding tools and creates skills, hooks, agents, and project scaffolding automatically.
+`vcsx` is a CLI tool that generates **production-ready AI coding environments** in seconds.
+
+- **10 AI tools** supported: Claude Code, Cursor, Windsurf, Zed, Aider, Bolt, Codex, Copilot, Gemini CLI, AGENTS.md
+- **22 production-quality skills** with full content (commit, deploy, security, performance, migration...)
+- **10 project presets** (fastapi-postgres, saas-nextjs, flutter-app, rust-api...)
+- **11+ languages** with inference (Python, TypeScript, Go, Rust, Kotlin, Swift, Dart, C#, PHP, Ruby, Java)
+- **20 CLI commands** for every workflow stage
 
 ```bash
+# Full interactive wizard
 $ vcsx init
-🔍 PHASE 0: AI Tool Selection   → Auto-detect + confirm
-🔍 PHASE 1: Project Foundation   → Purpose, problem, user stories
-🔍 PHASE 2: User Stories         → Detailed requirements
-🔍 PHASE 3: Technical Details    → Smart branching
-🔍 PHASE 4: Development Standards → Test, CI/CD, linting
-🔍 PHASE 5: Claude Code Config   → Skills, hooks, automations
-📋 PHASE 6: PLAN                 → Detailed review & approval
-🛠️ PHASE 7: BUILD               → All files generated automatically
 
-# Multi-tool setup (v4.1+)
-$ vcsx init -c claude-code -c cursor -c gemini  # Three tools at once
-$ vcsx init --all-tools                          # All 10 tools at once
+# Fast mode (2 questions, no wizard)
+$ vcsx init --fast -c claude-code
+
+# Multi-tool at once
+$ vcsx init -c claude-code -c cursor -c gemini
+$ vcsx init --all-tools
+
+# Scaffold from template
+$ vcsx new my-api --preset fastapi-postgres
+$ vcsx new my-saas --preset saas-nextjs --tool claude-code --tool cursor
+
+# Audit & maintain
+$ vcsx audit --fix        # comprehensive check + auto-fix
+$ vcsx validate           # best-practice validation
+$ vcsx compare a/ b/      # diff configs between projects
+$ vcsx search "deploy"    # search inside skill files
 ```
 
 ## 🚀 Installation (5 Methods)
@@ -118,6 +130,28 @@ The discovery phase now includes **purpose-driven questions** for a more intelli
 - Forbidden actions (blocked by hooks)
 - Automations
 
+## 🗂️ Project Templates (10 Presets)
+
+Use `vcsx new <name> --preset <template>` or `vcsx init --fast` to scaffold from a template.
+
+| Preset | Stack | Type |
+|--------|-------|------|
+| `fastapi-postgres` | Python + FastAPI + PostgreSQL | API |
+| `django-api` | Python + Django REST Framework | API |
+| `react-typescript` | TypeScript + React + Vite | Web |
+| `nextjs` | TypeScript + Next.js (App Router) | Web |
+| `saas-nextjs` | TypeScript + Next.js + Tailwind + Prisma + Auth | SaaS |
+| `go-api` | Go + Gin | API |
+| `rust-cli` | Rust + Clap | CLI |
+| `rust-api` | Rust + Axum + Tokio | API |
+| `flutter-app` | Dart + Flutter | Mobile |
+| `python-cli` | Python + Click + Rich | CLI |
+
+```bash
+vcsx new my-api --preset fastapi-postgres
+vcsx new my-saas --preset saas-nextjs --tool claude-code --tool cursor
+```
+
 ## 🧩 Generated Skills (20+)
 
 | Skill | Category | Trigger |
@@ -179,22 +213,34 @@ The discovery phase now includes **purpose-driven questions** for a more intelli
 | `vcsx update` | Add missing AI configs to existing project |
 | `vcsx update --dry-run` | Preview what would be added |
 | `vcsx update --tool gemini` | Add a specific tool config |
+| `vcsx update --auto` | Auto-apply all detected upgrades |
 | `vcsx list` | List all AI tools |
 | `vcsx info <tool>` | Show tool details and generated files |
 | `vcsx install <method>` | Show install instructions |
 | `vcsx doctor` | Check installation + detect project AI tools |
 | `vcsx doctor --dir /path/to/project` | Check a specific project |
+| **Quality & Analysis** | |
 | `vcsx check` | Score AI config quality (0-100%) |
 | `vcsx check ~/my-project --json` | JSON output for CI integration |
+| `vcsx validate` | Validate configs for best practices |
+| `vcsx audit` | Comprehensive audit: check + validate + stats |
+| `vcsx audit --fix` | Audit and auto-fix safe issues |
+| `vcsx stats` | Count skills, hooks, agents, rules |
+| `vcsx search <query>` | Search inside AI config files |
+| `vcsx compare <a> <b>` | Compare configs between two projects |
+| **Scaffolding** | |
 | `vcsx new my-app` | Scaffold new project without wizard |
 | `vcsx new my-api --type api --lang python` | Scaffold typed project |
-| `vcsx migrate windsurf` | Migrate .windsurfrules → .windsurf/rules/ (v2 format) |
-| `vcsx migrate cursor` | Migrate .cursorrules → .cursor/rules/*.mdc |
-| `vcsx completion bash` | Print bash shell completion setup |
+| `vcsx new my-app --preset fastapi-postgres` | Use a template preset |
 | `vcsx generate <tool>` | Generate one tool's config files directly |
+| **Migration & Maintenance** | |
+| `vcsx migrate windsurf` | Migrate .windsurfrules → .windsurf/rules/ |
+| `vcsx migrate cursor` | Migrate .cursorrules → .cursor/rules/*.mdc |
+| `vcsx export` | Export all AI configs to ZIP archive |
+| `vcsx changelog` | Show release changelog |
+| `vcsx completion bash` | Print bash shell completion setup |
 | `vcsx plugins` | List plugins |
-| `vcsx templates` | List templates |
-| `vcsx templates:install <name>` | Install template |
+| `vcsx templates` | List available templates (10 presets) |
 
 ## 🧪 Development
 
