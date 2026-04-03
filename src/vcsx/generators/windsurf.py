@@ -76,6 +76,11 @@ class WindsurfGenerator(BaseGenerator):
         rules_dir = Path(output_dir) / ".windsurf" / "rules"
         rules_dir.mkdir(parents=True, exist_ok=True)
 
+        lang = (ctx.language or "").lower()
+        fmt = ctx.formatter or ("ruff format" if lang == "python" else "prettier")
+        lint = ctx.linter or ("ruff check" if lang == "python" else "eslint")
+        test_fw = ctx.test_framework or ("pytest" if lang == "python" else "vitest")
+
         # Core conventions rule (always apply)
         (rules_dir / "core-conventions.md").write_text(
             f"""---
@@ -83,24 +88,42 @@ alwaysApply: true
 description: Core project conventions always applied
 ---
 
-# Core Conventions for {ctx.project_name}
+# Core Conventions — {ctx.project_name}
 
+## Project
 - **Language:** {ctx.language or "See tech stack"}
 - **Framework:** {ctx.framework or "None"}
 - **Type:** {ctx.project_type}
+- **Test Framework:** {test_fw}
 
-## Non-negotiable Rules
-- Never commit `.env` files or secrets.
-- Run `{ctx.formatter or "formatter"}` before every commit.
-- Run `{ctx.linter or "linter"}` and fix all warnings.
-- Write tests for new functionality.
-- Keep PRs small and focused.
+## Non-Negotiable Rules
+- NEVER commit `.env` files, API keys, or tokens.
+- Run `{fmt}` before every commit.
+- Run `{lint}` and fix ALL warnings before submitting.
+- Write tests for new functionality — no test, no merge.
+- Keep PRs small and focused — one logical change per PR.
+- Use conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`
+
+## Code Quality
+- Functions: max 30 lines. If longer, extract helper.
+- Nesting: max 3 levels. If deeper, invert conditions or extract.
+- No magic numbers — use named constants.
+- No `# TODO` without a ticket/issue reference.
+
+## Git Workflow
+- Never force-push to `main` or `develop`.
+- Always rebase feature branches before merging.
+- Delete feature branches after merge.
 """,
             encoding="utf-8",
         )
 
         # Testing conventions (auto-attached to test files)
-        test_glob = "tests/**,**/*.test.*,**/*.spec.*"
+        if lang == "python":
+            test_glob = "tests/**,test_*.py,*_test.py"
+        else:
+            test_glob = "tests/**,**/*.test.*,**/*.spec.*,**/*.test.ts,**/*.spec.ts"
+
         (rules_dir / "testing.md").write_text(
             f"""---
 alwaysApply: false
@@ -110,30 +133,61 @@ description: Testing conventions — applied when working on test files
 
 # Testing Conventions
 
-- Test framework: {ctx.test_framework or "project standard"}
-- Every new function must have at least one test.
-- Tests should be independent — no shared mutable state.
-- Use descriptive test names: `test_<function>_<scenario>_<expected>`.
-- Mock external services; never hit real APIs in unit tests.
+## Framework: {test_fw}
+
+## Structure: AAA Pattern
+```
+Arrange → Act → Assert
+```
+Every test must follow this structure.
+
+## Naming
+`test_<function>_<scenario>_<expected>`
+Examples:
+- `test_create_user_valid_email_returns_id`
+- `test_login_wrong_password_returns_401`
+
+## Rules
+- Tests must be independent — no shared mutable state between tests.
+- Mock ALL external dependencies (database, HTTP, filesystem, time).
+- Test both happy path AND error cases.
+- Use fixtures/factories for test data — no hardcoded magic values.
+- One assertion focus per test (can have multiple related asserts).
+
+## Coverage
+- Critical business logic: 100%
+- API endpoints: test all success + error responses
+- Do NOT test library internals or trivial getters/setters
 """,
             encoding="utf-8",
         )
 
         # Security rules (always apply)
         (rules_dir / "security.md").write_text(
-            """---
+            r"""---
 alwaysApply: true
 description: Security guardrails — always enforced
 ---
 
 # Security Rules
 
-- NEVER hardcode API keys, passwords, or tokens.
-- NEVER use `eval()` or `exec()` with user input.
-- NEVER trust user input — validate and sanitize everything.
-- NEVER log sensitive data (tokens, passwords, PII).
-- Use environment variables for all secrets.
-- Dependencies: check for known vulnerabilities before adding.
+## Absolute Prohibitions
+- NEVER hardcode API keys, passwords, tokens, or secrets in code.
+- NEVER use `eval()`, `exec()`, or dynamic code execution with user input.
+- NEVER trust user input — validate and sanitize at API boundaries.
+- NEVER log tokens, passwords, session IDs, or PII.
+- NEVER return stack traces or internal error details to API clients.
+
+## Required Practices
+- All secrets → environment variables (never in source code).
+- All user input → validated before use (type, length, format).
+- SQL queries → parameterized (never f-strings in queries).
+- File paths → sanitized (no `../` traversal).
+- Auth → checked on every protected endpoint, not just at login.
+
+## Before Merging Any PR
+- Run secret scan: `git log --all -S "password\|api_key\|token" --oneline`
+- Check for hardcoded URLs, credentials, or environment-specific values.
 """,
             encoding="utf-8",
         )
@@ -143,18 +197,78 @@ description: Security guardrails — always enforced
             (rules_dir / "api-conventions.md").write_text(
                 """---
 alwaysApply: false
-globs: src/routes/**,src/api/**,src/controllers/**
-description: REST API design conventions
+globs: src/routes/**,src/api/**,src/controllers/**,**/router*,**/endpoint*
+description: REST API design conventions — applied to route/controller files
 ---
 
 # API Conventions
 
-- Use correct HTTP verbs: GET (read), POST (create), PUT/PATCH (update), DELETE.
-- Return consistent response shapes: `{data, error, message}`.
-- Use HTTP status codes correctly: 200, 201, 400, 401, 403, 404, 409, 422, 500.
-- Validate all request body fields — return 422 with field-level errors.
-- Paginate list endpoints: `{data, page, limit, total}`.
-- Version the API: `/api/v1/`.
+## URL Design
+- Plural nouns: `/v1/users`, `/v1/orders`
+- Kebab-case: `/v1/user-profiles`
+- Never verbs: `/v1/users` not `/v1/getUsers`
+- Always versioned: `/v1/...`
+
+## HTTP Methods & Codes
+| Action | Method | Success |
+|--------|--------|---------|
+| Read | GET | 200 |
+| Create | POST | 201 |
+| Update | PATCH/PUT | 200 |
+| Delete | DELETE | 204 |
+| Not found | — | 404 |
+| Validation error | — | 422 |
+| Auth required | — | 401 |
+| Forbidden | — | 403 |
+
+## Response Shape
+```json
+{ "data": {...}, "meta": { "requestId": "..." } }
+```
+
+## Error Shape
+```json
+{ "error": { "code": "VALIDATION_ERROR", "message": "...", "details": [] } }
+```
+
+## Rules
+- Paginate ALL list endpoints.
+- Validate ALL input at the boundary — don't let invalid data reach business logic.
+- Return consistent error shapes across all endpoints.
+""",
+                encoding="utf-8",
+            )
+
+        # Data pipeline conventions
+        if ctx.project_type in ("data-pipeline", "ml-model"):
+            (rules_dir / "data-conventions.md").write_text(
+                """---
+alwaysApply: false
+globs: src/**,scrapers/**,pipelines/**,processors/**
+description: Data pipeline conventions
+---
+
+# Data Pipeline Conventions
+
+## Memory Management
+- Process data in chunks — NEVER load full datasets into memory.
+- Use generators/iterators for large datasets.
+- SQLite: always `PRAGMA journal_mode=WAL; PRAGMA synchronous=OFF;`
+
+## Idempotency
+- Every pipeline step must be safe to run twice.
+- Use upsert, not insert, when possible.
+- Record processing state to allow resume on failure.
+
+## Data Quality
+- Validate data at ingestion (schema, types, required fields).
+- Log invalid records — don't silently drop them.
+- Track record counts at each pipeline stage.
+
+## Performance
+- Add indexes before running large queries.
+- Use `EXPLAIN QUERY PLAN` to verify SQLite uses indexes.
+- Commit in batches (every 1000-10000 rows, not every row).
 """,
                 encoding="utf-8",
             )
