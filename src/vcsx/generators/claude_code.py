@@ -1126,22 +1126,68 @@ def _skill_squash(skills_dir: Path) -> str:
     d.mkdir(parents=True, exist_ok=True)
     content = """---
 name: squash
-description: Squashes multiple commits into one using git rebase. Use when cleaning up commit history before merging.
+description: Squashes multiple commits into one clean commit before merging. Use when cleaning up commit history.
 ---
 
 # Squash Skill
 
-## When to Use
-- Before merging a feature branch
-- After code review feedback
-- When commits are too granular
+## When to Squash
+✅ Before merging a feature branch (cleanup "wip", "fix typo" commits)
+✅ After code review feedback cycles
+✅ When you have > 3 commits for one logical change
+❌ Don't squash: shared commits others have branched from
+❌ Don't squash: commits that are genuinely separate changes
 
 ## Process
-1. List commits: git log
-2. Determine number to squash: git rebase -i HEAD~n
-3. Change 'pick' to 'squash' for commits to combine
-4. Write new commit message
-5. Force push if needed
+
+### Option 1: Interactive Rebase (most control)
+```bash
+# Squash last N commits
+git log --oneline -10  # count how many to squash
+git rebase -i HEAD~4   # to squash last 4
+
+# In editor: change 'pick' → 'squash' (or 's') for commits to fold in
+# Keep 'pick' on the FIRST commit
+# pick abc1234 feat: add user model
+# squash def5678 wip: auth logic
+# squash ghi9012 fix: typo
+# squash jkl3456 review: apply feedback
+```
+
+### Option 2: Soft reset (simpler)
+```bash
+# Reset to point before your commits, keep changes staged
+git reset --soft origin/main
+
+# Now all changes are staged — make one clean commit
+git commit -m "feat(auth): add user authentication"
+```
+
+### Option 3: Merge with squash (no rebase)
+```bash
+# From main branch
+git merge --squash feature/my-branch
+git commit -m "feat: add my feature"
+```
+
+## After Squash
+```bash
+# Force push (only OK on your own feature branch!)
+git push --force-with-lease origin feature/my-branch
+# --force-with-lease is safer than --force (fails if remote changed)
+```
+
+## Writing the Squash Commit Message
+Use conventional commit format for the final message:
+```
+feat(scope): brief description
+
+- Bullet summary of what changed
+- Why it was needed
+- Any breaking changes
+
+Closes #123
+```
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "squash"
@@ -1152,21 +1198,64 @@ def _skill_revert(skills_dir: Path) -> str:
     d.mkdir(parents=True, exist_ok=True)
     content = """---
 name: revert
-description: Reverts changes using git revert with proper commit messages. Use when undoing specific changes without losing history.
+description: Safely reverts specific commits or changes using git revert. Use when undoing changes that are already in main/shared branches.
 ---
 
 # Revert Skill
 
-## When to Use
-- Undo a committed change
-- Reverse a deployment
-- Rollback a merge
+## Revert vs Reset: Choose Correctly
+| | `git revert` | `git reset` |
+|---|---|---|
+| Creates new commit | ✅ Yes | ❌ No |
+| Safe for shared branches | ✅ Yes | ❌ No (rewrites history) |
+| Preserves history | ✅ Yes | ❌ No |
+| Use when | commit is in main/shared | commit is only in your branch |
+
+**Rule: On `main` or shared branches, ALWAYS use `git revert`.**
 
 ## Process
-1. Identify commit to revert: git log
-2. Revert with: git revert <commit>
-3. Write revert commit message
-4. Push changes
+
+### Revert a single commit
+```bash
+# Find the commit to revert
+git log --oneline -20
+
+# Revert it (creates a new "revert" commit)
+git revert abc1234
+
+# Or revert without immediately committing (to edit message)
+git revert --no-commit abc1234
+git commit -m "revert: undo broken feature X (fixes #456)"
+```
+
+### Revert a merge commit
+```bash
+# Merge commits need -m to specify which parent to revert to
+git revert -m 1 abc1234  # -m 1 = revert to first parent (main)
+```
+
+### Revert a range of commits
+```bash
+# Revert commits from abc1234 to def5678 (exclusive..inclusive)
+git revert abc1234..def5678
+```
+
+### Revert a file to previous state (without new commit)
+```bash
+# Get file content from specific commit
+git checkout abc1234 -- src/broken-file.py
+git commit -m "fix: restore broken-file.py from before abc1234"
+```
+
+## Revert Commit Message Template
+```
+revert: <original commit message>
+
+This reverts commit <hash>.
+
+Reason: <why it's being reverted>
+Impact: <what this fixes>
+```
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "revert"
@@ -1175,25 +1264,87 @@ description: Reverts changes using git revert with proper commit messages. Use w
 def _skill_rollback(skills_dir: Path, ctx: ProjectContext) -> str:
     d = skills_dir / "rollback"
     d.mkdir(parents=True, exist_ok=True)
-    hosting = ctx.hosting or "deployment platform"
+    hosting = ctx.hosting or "your hosting platform"
+
+    rollback_cmds = {
+        "railway": "railway rollback",
+        "fly.io": "fly releases list\nfly deploy --image <prev-image>",
+        "vercel": "vercel rollback",
+        "heroku": "heroku releases\nheroku rollback v<N>",
+        "netlify": "netlify deploy --prod --dir=<prev-build>",
+        "aws": "aws ecs update-service --task-definition <prev-arn> ...",
+        "kubernetes": "kubectl rollout undo deployment/<name>\nkubectl rollout status deployment/<name>",
+    }
+
+    rollback_cmd = next(
+        (v for k, v in rollback_cmds.items() if k.lower() in hosting.lower()),
+        f"# Check {hosting} docs for rollback command",
+    )
+
     content = f"""---
 name: rollback
-description: Rolls back deployment to previous version on {hosting}. Use when deployment fails or issues are detected.
+description: Emergency rollback procedure for {hosting}. Use when deployment causes critical issues.
 ---
 
-# Rollback Skill
+# Rollback Skill — {hosting}
 
-## Pre-Flight Checks
-- [ ] Current deployment is broken
-- [ ] Previous version was stable
-- [ ] Database migration not required
+## ⚠️ When to Roll Back
+- Error rate spiked after deploy
+- Critical feature is broken
+- Performance severely degraded
+- Security vulnerability deployed
 
-## Process
-1. Check deployment history
-2. Verify previous stable version
-3. Execute rollback command
-4. Verify health check passes
-5. Document incident
+## Pre-Rollback Checklist
+- [ ] Confirm the issue is deployment-related (not data/external)
+- [ ] Check error logs to confirm timing matches deploy
+- [ ] Notify team before rolling back
+- [ ] Check if a database migration was applied (see below)
+
+## Rollback Command
+```bash
+{rollback_cmd}
+```
+
+## Post-Rollback
+```bash
+# 1. Verify the rollback worked
+curl https://your-app.com/health
+
+# 2. Check error rate dropped
+# (check your monitoring dashboard)
+
+# 3. Confirm the bad version is no longer running
+```
+
+## Database Migration Warning ⚠️
+If the deploy included database migrations:
+- Rolling back the code WITHOUT rolling back the migration will likely break things
+- Options:
+  1. Write a DOWN migration and apply it first
+  2. Deploy a hotfix instead of rolling back
+  3. Accept the migration and fix the code instead
+
+## Incident Template
+After rollback, document:
+```
+## Incident Report
+
+**Date:** <date>
+**Duration:** <how long the issue lasted>
+**Impact:** <users affected, features broken>
+
+**Root Cause:**
+<what caused the deployment issue>
+
+**Timeline:**
+- HH:MM — Deploy started
+- HH:MM — Issue detected
+- HH:MM — Rollback initiated
+- HH:MM — Service restored
+
+**Prevention:**
+<what will prevent this next time>
+```
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "rollback"
