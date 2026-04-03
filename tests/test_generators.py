@@ -183,6 +183,35 @@ class TestClaudeCodeGenerator:
         assert "scaffold" in result
 
 
+class TestCursorLegacyFunctions:
+    """Test legacy .md rule functions (dead code coverage)."""
+
+    def test_legacy_commit_message(self, tmp_dir):
+        from vcsx.generators.cursor import _rule_commit_message
+        rules_dir = Path(tmp_dir)
+        result = _rule_commit_message(rules_dir)
+        assert result == "commit-message"
+        assert (Path(tmp_dir) / "commit-message.md").exists()
+
+    def test_legacy_pr_review(self, tmp_dir):
+        from vcsx.generators.cursor import _rule_pr_review
+        rules_dir = Path(tmp_dir)
+        result = _rule_pr_review(rules_dir)
+        assert result == "pr-review"
+
+    def test_legacy_test_patterns(self, ctx, tmp_dir):
+        from vcsx.generators.cursor import _rule_test_patterns
+        rules_dir = Path(tmp_dir)
+        result = _rule_test_patterns(rules_dir, ctx)
+        assert result == "test-patterns"
+
+    def test_legacy_api_conventions(self, tmp_dir):
+        from vcsx.generators.cursor import _rule_api_conventions
+        rules_dir = Path(tmp_dir)
+        result = _rule_api_conventions(rules_dir)
+        assert result == "api-conventions"
+
+
 class TestCursorGeneratorFullCoverage:
     """Push cursor.py toward 95%."""
 
@@ -979,6 +1008,65 @@ class TestZedGenerator:
     def test_output_files_property(self):
         gen = ZedGenerator()
         assert ".zed/settings.json" in gen.output_files
+
+
+class TestCodexLegacyHelpers:
+    """Test legacy helpers in codex.py (still used by scaffold)."""
+
+    def test_get_build_cmd_typescript(self):
+        from vcsx.generators.codex import _get_build_cmd
+        ctx = ProjectContext(language="typescript")
+        assert "npm run build" in _get_build_cmd(ctx)
+
+    def test_get_build_cmd_go(self):
+        from vcsx.generators.codex import _get_build_cmd
+        ctx = ProjectContext(language="go")
+        assert "go build" in _get_build_cmd(ctx)
+
+    def test_get_test_cmd_none_level(self):
+        from vcsx.generators.codex import _get_test_cmd
+        ctx = ProjectContext(language="python", test_level="none")
+        assert "No tests" in _get_test_cmd(ctx)
+
+    def test_get_style_rules_typescript(self):
+        from vcsx.generators.codex import _get_style_rules
+        ctx = ProjectContext(language="typescript")
+        rules = _get_style_rules(ctx)
+        assert any("TypeScript" in r or "const" in r for r in rules)
+
+    def test_get_style_rules_go(self):
+        from vcsx.generators.codex import _get_style_rules
+        ctx = ProjectContext(language="go")
+        rules = _get_style_rules(ctx)
+        assert any("gofmt" in r for r in rules)
+
+    def test_scaffold_gitignore(self, tmp_dir):
+        from vcsx.generators.codex import _scaffold_gitignore
+        ctx = ProjectContext(project_name="test", language="python")
+        result = _scaffold_gitignore(tmp_dir, ctx)
+        assert result == ".gitignore"
+        assert (Path(tmp_dir) / ".gitignore").exists()
+
+    def test_scaffold_readme(self, tmp_dir):
+        from vcsx.generators.codex import _scaffold_readme
+        ctx = ProjectContext(project_name="my-proj", language="python")
+        result = _scaffold_readme(tmp_dir, ctx)
+        assert result == "README.md"
+        assert "my-proj" in (Path(tmp_dir) / "README.md").read_text()
+
+
+class TestCopilotPurposeProblem:
+    def test_copilot_with_purpose(self, tmp_dir):
+        ctx = ProjectContext(
+            project_name="test",
+            language="python",
+            purpose="Build analytics platform",
+            problem="No data visibility",
+        )
+        gen = CopilotGenerator()
+        content = gen.generate_config(ctx, tmp_dir)
+        assert "Build analytics platform" in content
+        assert "No data visibility" in content
 
 
 class TestCodexGeneratorFullCoverage:
