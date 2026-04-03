@@ -824,6 +824,81 @@ class TestInfoCommandExtended:
         assert "Usage" in result.output or "tool" in result.output.lower()
 
 
+class TestMigrateClaudeCodeExtended:
+    def test_migrate_claude_code_already_complete(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["migrate", "claude-code", "--dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "complete" in result.output.lower() or "already" in result.output.lower()
+
+    def test_migrate_claude_code_dry_run(self, runner, tmp_dir):
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        result = runner.invoke(main, ["migrate", "claude-code", "--dir", tmp_dir, "--dry-run"])
+        assert result.exit_code == 0
+        assert "Dry run" in result.output or "dry run" in result.output
+
+    def test_migrate_copilot_already_exists(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".github").mkdir()
+        (Path(tmp_dir) / ".github" / "copilot-instructions.md").write_text("# Copilot")
+        instructions = Path(tmp_dir) / ".github" / "instructions"
+        instructions.mkdir()
+        result = runner.invoke(main, ["migrate", "copilot", "--dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "already" in result.output.lower()
+
+    def test_migrate_copilot_dry_run(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".github").mkdir()
+        (Path(tmp_dir) / ".github" / "copilot-instructions.md").write_text("# Copilot")
+        result = runner.invoke(main, ["migrate", "copilot", "--dir", tmp_dir, "--dry-run"])
+        assert result.exit_code == 0
+        assert "Dry run" in result.output or "dry run" in result.output
+
+    def test_migrate_cursor_already_migrated(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".cursorrules").write_text("# rules")
+        rules = Path(tmp_dir) / ".cursor" / "rules"
+        rules.mkdir(parents=True)
+        result = runner.invoke(main, ["migrate", "cursor", "--dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "already" in result.output.lower()
+
+    def test_migrate_cursor_dry_run(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".cursorrules").write_text("# rules")
+        result = runner.invoke(main, ["migrate", "cursor", "--dir", tmp_dir, "--dry-run"])
+        assert result.exit_code == 0
+        assert "Dry run" in result.output or "dry run" in result.output
+
+
+class TestCheckRecommendations:
+    def test_check_shows_recommendations(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        # Claude code without AGENTS.md
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        # Remove AGENTS.md if it was generated
+        agents_md = Path(tmp_dir) / "AGENTS.md"
+        if agents_md.exists():
+            agents_md.unlink()
+        result = runner.invoke(main, ["check", tmp_dir])
+        assert result.exit_code == 0
+
+    def test_check_json_all_tools(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        from vcsx.generators.cursor import CursorGenerator
+        from vcsx.generators.gemini import GeminiGenerator
+        ctx = ProjectContext(project_name="test", language="python", project_type="api")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        CursorGenerator().generate_all(ctx, tmp_dir)
+        GeminiGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["check", tmp_dir, "--json"])
+        data = __import__("json").loads(result.output)
+        assert data["tools_configured"] >= 3
+
+
 class TestUpdateAutoWindsurf:
     def test_update_auto_windsurf_rules(self, runner, tmp_dir):
         (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
@@ -927,6 +1002,89 @@ class TestChangelogCommand:
 
     def test_changelog_specific_version(self, runner):
         result = runner.invoke(main, ["changelog", "--version", "4.4.0"])
+        assert result.exit_code == 0
+
+
+class TestCompletionCommand:
+    def test_completion_bash(self, runner):
+        result = runner.invoke(main, ["completion", "bash"])
+        assert result.exit_code == 0
+        assert "bash" in result.output.lower()
+
+    def test_completion_zsh(self, runner):
+        result = runner.invoke(main, ["completion", "zsh"])
+        assert result.exit_code == 0
+        assert "zsh" in result.output.lower()
+
+    def test_completion_fish(self, runner):
+        result = runner.invoke(main, ["completion", "fish"])
+        assert result.exit_code == 0
+        assert "fish" in result.output.lower()
+
+    def test_completion_powershell(self, runner):
+        result = runner.invoke(main, ["completion", "powershell"])
+        assert result.exit_code == 0
+
+
+class TestTemplatesCommand:
+    def test_templates_list(self, runner):
+        result = runner.invoke(main, ["templates"])
+        assert result.exit_code == 0
+        assert "fastapi-postgres" in result.output
+        assert "react-typescript" in result.output
+
+    def test_templates_search(self, runner):
+        result = runner.invoke(main, ["templates", "python"])
+        assert result.exit_code == 0
+
+    def test_templates_install_valid(self, runner):
+        result = runner.invoke(main, ["templates:install", "fastapi-postgres"])
+        assert result.exit_code == 0
+        assert "fastapi-postgres" in result.output
+
+    def test_templates_install_invalid(self, runner):
+        result = runner.invoke(main, ["templates:install", "nonexistent-template"])
+        assert result.exit_code == 0
+        assert "not found" in result.output.lower() or "Available" in result.output
+
+
+class TestNewProjectExtended:
+    def test_new_go_project(self, runner, tmp_dir):
+        result = runner.invoke(
+            main,
+            ["new", "my-go-api", "--lang", "go", "--type", "api", "--tool", "agents-md", "--output-dir", tmp_dir],
+        )
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / "my-go-api").exists()
+
+    def test_new_rust_project(self, runner, tmp_dir):
+        result = runner.invoke(
+            main,
+            ["new", "my-rust-cli", "--lang", "rust", "--type", "cli", "--tool", "gemini", "--output-dir", tmp_dir],
+        )
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / "my-rust-cli").exists()
+
+    def test_new_preset_nextjs(self, runner, tmp_dir):
+        result = runner.invoke(
+            main,
+            ["new", "my-nextjs", "--preset", "nextjs", "--output-dir", tmp_dir],
+        )
+        assert result.exit_code == 0
+
+    def test_new_preset_go_api(self, runner, tmp_dir):
+        result = runner.invoke(
+            main,
+            ["new", "my-go", "--preset", "go-api", "--tool", "agents-md", "--output-dir", tmp_dir],
+        )
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / "my-go").exists()
+
+    def test_new_preset_rust_cli(self, runner, tmp_dir):
+        result = runner.invoke(
+            main,
+            ["new", "my-rust", "--preset", "rust-cli", "--output-dir", tmp_dir],
+        )
         assert result.exit_code == 0
 
 
