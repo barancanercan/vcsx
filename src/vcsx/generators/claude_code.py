@@ -472,27 +472,90 @@ After review, generate PR description:
 def _skill_deploy(skills_dir: Path, ctx: ProjectContext) -> str:
     d = skills_dir / "deploy"
     d.mkdir(parents=True, exist_ok=True)
-    hosting = ctx.hosting or "your hosting provider"
+    hosting = ctx.hosting or "production"
+    build_cmd = _get_build_cmd(ctx)
+    test_cmd = _get_test_cmd(ctx)
+    (ctx.language or "").lower()
+
+    # Hosting-specific deploy commands
+    deploy_cmd_map = {
+        "railway": "railway up",
+        "fly.io": "fly deploy",
+        "vercel": "vercel --prod",
+        "netlify": "netlify deploy --prod",
+        "heroku": "git push heroku main",
+        "aws": "aws ecs update-service --force-new-deployment ...",
+        "gcp": "gcloud run deploy ...",
+        "docker": "docker build -t app . && docker push registry/app",
+    }
+    deploy_cmd = next(
+        (v for k, v in deploy_cmd_map.items() if k.lower() in hosting.lower()),
+        f"# deploy to {hosting}",
+    )
+
     content = f"""---
 name: deploy
 description: Deploys the application to {hosting}. Use when deploying or when the user asks to deploy.
 disable-model-invocation: true
 ---
 
-# Deployment Skill
+# Deployment Skill — {hosting}
 
-## Pre-Deployment Checklist
-- [ ] All tests pass
-- [ ] Linting passes with no errors
-- [ ] Build succeeds
-- [ ] No secrets in code
-- [ ] Environment variables configured
+## ⚠️ Pre-Deployment Checklist (ALL must pass)
+- [ ] `{test_cmd}` — all tests green
+- [ ] `{build_cmd}` — build succeeds
+- [ ] No hardcoded secrets or API keys
+- [ ] Environment variables set in {hosting} dashboard
+- [ ] Database migrations run (if applicable)
+- [ ] Feature flags configured correctly
+- [ ] Rollback plan ready
 
-## Steps
-1. Verify build: {_get_build_cmd(ctx)}
-2. Run tests: {_get_test_cmd(ctx)}
-3. Deploy to {hosting}
-4. Verify deployment (health check, logs)
+## Deploy Steps
+
+### 1. Final verification
+```bash
+{test_cmd}
+{build_cmd}
+```
+
+### 2. Deploy
+```bash
+{deploy_cmd}
+```
+
+### 3. Post-deploy verification
+```bash
+# Check health endpoint
+curl https://your-app.com/health
+
+# Check logs for errors
+# Railway: railway logs
+# Fly.io: fly logs
+# Heroku: heroku logs --tail
+# Vercel: vercel logs
+
+# Smoke test critical paths
+# - Homepage loads
+# - Auth works
+# - API responds
+```
+
+### 4. If something breaks — ROLLBACK
+```bash
+# Railway: railway rollback
+# Fly.io: fly releases list && fly deploy --image <prev>
+# Heroku: heroku rollback
+# Vercel: vercel rollback
+# Docker: docker service update --rollback <service>
+```
+
+## Environment Variables Required
+Check `.env.example` for required vars. Verify all are set in {hosting} before deploying.
+
+## Monitoring After Deploy
+- Watch error rate for 5 minutes
+- Check response times
+- Verify no spike in 5xx errors
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "deploy"
@@ -867,27 +930,90 @@ def _skill_docker_conventions(skills_dir: Path) -> str:
     d.mkdir(parents=True, exist_ok=True)
     content = """---
 name: docker-conventions
-description: Docker container best practices and Dockerfile conventions. Use when containerizing applications.
+description: Docker container best practices and Dockerfile conventions. Use when containerizing applications or reviewing Dockerfiles.
 ---
 
 # Docker Conventions
 
-## Dockerfile Guidelines
-- Use official base images
-- Pin versions in FROM
-- Use multi-stage builds
-- Minimize layers
-- Use .dockerignore
+## Dockerfile Checklist
 
-## Security
-- Never run as root
-- Use read-only filesystem
-- Scan for vulnerabilities
+### Base Image
+- [ ] Use official images from Docker Hub
+- [ ] Pin exact version: `FROM python:3.12-slim` not `FROM python:latest`
+- [ ] Use `-slim` or `-alpine` variants to reduce image size
 
-## Best Practices
-- Health checks required
-- Use specific tags, not latest
-- Clean up in same layer
+### Layer Optimization
+- [ ] Copy dependency files FIRST, then source code (cache layers)
+- [ ] Combine RUN commands with `&&` to reduce layers
+- [ ] Clean package cache in same RUN command
+
+```dockerfile
+# ✅ Good — dependency layer cached separately
+COPY requirements.txt .
+RUN pip install -r requirements.txt && rm -rf /root/.cache/pip
+
+COPY src/ ./src/
+
+# ❌ Bad — cache invalidated on any source change
+COPY . .
+RUN pip install -r requirements.txt
+```
+
+### Security
+- [ ] Never run as root: add `USER appuser`
+- [ ] Create non-root user explicitly:
+  ```dockerfile
+  RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+  USER appuser
+  ```
+- [ ] No secrets in ENV or ARG (use runtime secrets)
+- [ ] `.dockerignore` excludes: `.env`, `.git`, `node_modules`, `__pycache__`
+
+### Multi-Stage Build (for compiled languages)
+```dockerfile
+FROM node:20 AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:20-slim AS runtime
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+USER node
+EXPOSE 3000
+CMD ["node", "dist/index.js"]
+```
+
+### Health Check (required for production)
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \\
+    CMD curl -f http://localhost:8080/health || exit 1
+```
+
+### docker-compose Best Practices
+```yaml
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=${DATABASE_URL}  # from .env, not hardcoded
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+```
+
+## Common Issues to Fix
+- `COPY . .` before dependency install → reorder
+- Running as root → add USER
+- No .dockerignore → create one
+- `latest` tag → pin version
+- Missing health check → add HEALTHCHECK
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "docker-conventions"
