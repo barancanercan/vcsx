@@ -1234,7 +1234,8 @@ def config_cmd(set_key, get_key, list_all, reset):
 @main.command("audit")
 @click.argument("path", default=".", type=click.Path(exists=True))
 @click.option("--fix", "auto_fix", is_flag=True, help="Auto-fix issues where possible")
-def audit_project(path, auto_fix):
+@click.option("--json", "output_json", is_flag=True, help="Output results as JSON")
+def audit_project(path, auto_fix, output_json):
     """Run a comprehensive audit of all AI configs in a project.
 
     Combines check + validate + stats into one actionable report.
@@ -1246,7 +1247,8 @@ def audit_project(path, auto_fix):
         vcsx audit --fix            # Audit and auto-fix safe issues
     """
     target = Path(path).resolve()
-    console.print(f"\n[bold]vcsx audit[/] — {target}\n")
+    if not output_json:
+        console.print(f"\n[bold]vcsx audit[/] — {target}\n")
 
     issues = []
     warnings = []
@@ -1268,10 +1270,28 @@ def audit_project(path, auto_fix):
     configured = [t for t, f in tool_files.items() if (target / f).exists()]
 
     if not configured:
-        console.print("[yellow]No AI configs found. Run vcsx init to get started.[/]")
+        if output_json:
+            import json as json_mod
+
+            console.print(
+                json_mod.dumps(
+                    {
+                        "status": "pass",
+                        "issues": [],
+                        "warnings": [],
+                        "passed": [],
+                        "total_issues": 0,
+                        "total_warnings": 0,
+                        "path": str(target),
+                    }
+                )
+            )
+        else:
+            console.print("[yellow]No AI configs found. Run vcsx init to get started.[/]")
         return
 
-    console.print(f"[bold]Configured tools ({len(configured)}):[/] {', '.join(configured)}\n")
+    if not output_json:
+        console.print(f"[bold]Configured tools ({len(configured)}):[/] {', '.join(configured)}\n")
 
     # 2. Claude Code specific checks
     if "claude-code" in configured:
@@ -1370,6 +1390,22 @@ def audit_project(path, auto_fix):
             console.print(f"  ✓ {f}")
 
     total = len(issues) + len(warnings)
+
+    if output_json:
+        import json as json_mod
+
+        result = {
+            "path": str(target),
+            "issues": issues,
+            "warnings": warnings,
+            "passed": [],
+            "total_issues": len(issues),
+            "total_warnings": len(warnings),
+            "status": "pass" if total == 0 else ("fail" if issues else "warn"),
+        }
+        console.print(json_mod.dumps(result, indent=2))
+        return
+
     console.print()
     if total == 0:
         console.print("[bold green]✓ Audit passed — all checks clean![/]")
