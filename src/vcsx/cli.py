@@ -145,7 +145,13 @@ def init(cli, all_tools, lang, output_dir):
     type=click.Choice(ALL_TOOLS),
     help="Specific tool configs to add (default: auto-detect from existing files)",
 )
-def update(output_dir, dry_run, tool):
+@click.option(
+    "--auto",
+    is_flag=True,
+    default=False,
+    help="Auto-apply all detected upgrades without prompting",
+)
+def update(output_dir, dry_run, tool, auto):
     """Update an existing project — add missing AI config files.
 
     Detects which config files exist and which are missing, then
@@ -155,6 +161,7 @@ def update(output_dir, dry_run, tool):
         vcsx update               # Auto-detect and add missing configs
         vcsx update --dry-run     # Preview what would be added
         vcsx update --tool gemini # Add Gemini CLI config only
+        vcsx update --auto        # Auto-apply all detected upgrades
     """
     target = Path(output_dir).resolve()
     console.print(f"\n[bold cyan]vcsx update[/] — Scanning: {target}\n")
@@ -225,10 +232,35 @@ def update(output_dir, dry_run, tool):
             console.print(f"Would generate: {', '.join(missing_files)}")
         return
 
+    # --auto: apply all detected upgrades automatically
+    if auto and missing_files and not tools_to_add:
+        console.print("\n[cyan]Auto-applying upgrades...[/]")
+        from vcsx.core.context import ProjectContext
+
+        ctx = ProjectContext(project_name=target.name, lang="en")
+        if ".claudeignore" in missing_files and (target / "CLAUDE.md").exists():
+            from vcsx.generators.claude_code import ClaudeCodeGenerator
+
+            ClaudeCodeGenerator().generate_scaffold(ctx, str(target))
+            console.print("[green]✓ .claudeignore generated[/]")
+        if "AGENTS.md" in missing_files:
+            from vcsx.generators.agents_md import AgentsMdGenerator
+
+            AgentsMdGenerator().generate_config(ctx, str(target))
+            console.print("[green]✓ AGENTS.md generated[/]")
+        if ".windsurf/rules/ (new format)" in missing_files:
+            from vcsx.generators.windsurf import WindsurfGenerator
+
+            WindsurfGenerator()._generate_windsurf_rules(ctx, str(target))
+            console.print("[green]✓ .windsurf/rules/ generated[/]")
+        console.print("\n[green]Done![/]")
+        return
+
     if not tools_to_add:
         console.print("\nRun with [cyan]--tool <name>[/] to add a specific tool, e.g.:")
         console.print("  vcsx update --tool gemini")
         console.print("  vcsx update --tool agents-md")
+        console.print("  vcsx update --auto        # apply all detected upgrades")
         return
 
     # Run generators for requested tools
@@ -992,6 +1024,69 @@ def stats(path):
             parts = ", ".join(f"{v} {k}" for k, v in counts.items() if v)
             if parts:
                 console.print(f"  [cyan]{tool}:[/] {parts}")
+
+
+@main.command("changelog")
+@click.option("--version", "-v", default=None, help="Show changelog for specific version")
+@click.option("--latest", "-l", is_flag=True, default=False, help="Show only the latest version")
+def show_changelog(version, latest):
+    """Show the changelog for vcsx.
+
+    Examples:
+        vcsx changelog           # Full changelog
+        vcsx changelog --latest  # Latest version only
+        vcsx changelog -v 4.0.0  # Specific version
+    """
+    import re
+
+    # Find CHANGELOG.md relative to the installed package
+    import vcsx
+
+    package_dir = Path(vcsx.__file__).parent.parent.parent
+    changelog_path = package_dir / "CHANGELOG.md"
+
+    if not changelog_path.exists():
+        # Try common locations
+        for candidate in [
+            Path("CHANGELOG.md"),
+            Path(__file__).parent.parent.parent / "CHANGELOG.md",
+        ]:
+            if candidate.exists():
+                changelog_path = candidate
+                break
+
+    if not changelog_path.exists():
+        console.print("[yellow]CHANGELOG.md not found.[/]")
+        console.print("See: https://github.com/barancanercan/vcsx/releases")
+        return
+
+    content = changelog_path.read_text(encoding="utf-8")
+    sections = re.split(r"\n## \[", content)
+
+    if latest:
+        # Show only first section
+        for section in sections[1:]:
+            if section.strip():
+                console.print(f"## [{section[:200]}")
+                return
+        return
+
+    if version:
+        for section in sections[1:]:
+            if section.startswith(version):
+                console.print(f"## [{section}")
+                return
+        console.print(f"[yellow]Version {version} not found in changelog.[/]")
+        return
+
+    # Show full changelog (last 3 versions)
+    shown = 0
+    for section in sections[1:]:
+        if shown >= 3:
+            break
+        if section.strip() and not section.startswith("Unreleased"):
+            console.print(f"\n## [{section[:500]}")
+            shown += 1
 
 
 @main.command("plugins")

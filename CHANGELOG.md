@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.5.0] - 2026-04-03
+
+### Added
+- **`vcsx export [path]`**: Export all AI config files to a ZIP archive. Supports `--output` and `--include-all` flags.
+- **`vcsx stats [path]`**: Show per-tool statistics — skills, hooks, agents, rules count.
+- **`vcsx changelog`**: Show CHANGELOG from installed package. Flags: `--latest`, `--version`.
+- **`vcsx update --auto`**: Auto-apply all detected upgrades (.claudeignore, AGENTS.md, .windsurf/rules/) without prompting.
+- **`vcsx new --preset`**: Use template presets (fastapi-postgres, react-typescript, nextjs, go-api, rust-cli).
+- **7 new languages in inference engine**: Kotlin, Swift, Dart, C#, PHP, Ruby — each with framework_map, test_framework, formatter, linter.
+- **4 new Claude Code agents**: code-reviewer, debugger, api-designer (api projects), data-analyst (data projects).
+
+### Changed
+- `vcsx new --lang`: extended choices to include kotlin/swift/dart/csharp/php/ruby.
+- `vcsx update`: added `--auto` flag for non-interactive upgrades.
+
 ## [4.4.0] - 2026-04-03
 
 ### Added
