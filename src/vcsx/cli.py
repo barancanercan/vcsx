@@ -721,6 +721,118 @@ def new_project(project_name, project_type, lang, tool, output_dir):
         console.print("  npm install")
 
 
+@main.command("export")
+@click.argument("path", default=".", type=click.Path(exists=True))
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    default=None,
+    help="Output ZIP file path (default: <project-name>-ai-configs.zip)",
+)
+@click.option(
+    "--include-all",
+    is_flag=True,
+    default=False,
+    help="Include all files including .gitignore, README, etc.",
+)
+def export_configs(path, output, include_all):
+    """Export all AI config files to a ZIP archive.
+
+    Useful for sharing configs across projects or backing up setups.
+
+    Examples:
+        vcsx export                           # Export current project configs
+        vcsx export ~/my-project              # Export specific project
+        vcsx export --output my-configs.zip   # Custom output name
+        vcsx export --include-all             # Include all project files
+    """
+    import zipfile
+
+    target = Path(path).resolve()
+    project_name = target.name
+
+    # Determine output path
+    if output:
+        zip_path = Path(output)
+    else:
+        zip_path = Path(f"{project_name}-ai-configs.zip")
+
+    # AI config patterns to include
+    ai_patterns = [
+        "CLAUDE.md",
+        ".claudeignore",
+        "GEMINI.md",
+        "AGENTS.md",
+        ".aider.conf.yaml",
+        ".aider.context.md",
+        ".cursorrules",
+        ".windsurfrules",
+        ".claude/**",
+        ".cursor/**",
+        ".windsurf/**",
+        ".zed/**",
+        ".bolt/**",
+        ".openai/**",
+        ".github/copilot-instructions.md",
+        ".github/instructions/**",
+    ]
+
+    collected = []
+
+    def should_include(rel_path: str) -> bool:
+        if include_all:
+            return True
+        p = rel_path.replace("\\", "/")
+        for pattern in ai_patterns:
+            if pattern.endswith("/**"):
+                prefix = pattern[:-3]
+                if p.startswith(prefix):
+                    return True
+            elif p == pattern or p.startswith(pattern.rstrip("*")):
+                return True
+        return False
+
+    # Walk directory
+    for file_path in sorted(target.rglob("*")):
+        if file_path.is_file():
+            # Skip .git and common build dirs
+            parts = file_path.relative_to(target).parts
+            if any(
+                p in (".git", "node_modules", "__pycache__", ".venv", "dist", "build")
+                for p in parts
+            ):
+                continue
+            rel = str(file_path.relative_to(target))
+            if should_include(rel):
+                collected.append((file_path, rel))
+
+    if not collected:
+        console.print("[yellow]No AI config files found to export.[/]")
+        console.print("Run [cyan]vcsx init[/] to set up AI configs first.")
+        return
+
+    # Write ZIP
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for file_path, rel in collected:
+            zf.write(file_path, rel)
+
+    total_size = zip_path.stat().st_size
+    size_kb = total_size / 1024
+
+    console.print(f"\n[bold]vcsx export[/] — {target}")
+    console.print(f"\n[green]✓ Exported {len(collected)} files → {zip_path}[/]")
+    console.print(f"  Size: {size_kb:.1f} KB")
+    console.print("\n[dim]Files included:[/]")
+    for _, rel in collected[:20]:
+        console.print(f"  • {rel}")
+    if len(collected) > 20:
+        console.print(f"  ... and {len(collected) - 20} more")
+
+    console.print("\n[dim]To use in another project:[/]")
+    console.print(f"  unzip {zip_path} -d /path/to/project")
+
+
 @main.command("stats")
 @click.argument("path", default=".", type=click.Path(exists=True))
 def stats(path):

@@ -97,6 +97,69 @@ STACK_MAP = {
         "formatter": "google-java-format",
         "linter": "checkstyle",
     },
+    "kotlin": {
+        "keywords": ["kotlin", "ktor", "exposed", "coroutine", "android", "compose"],
+        "framework_map": {
+            "ktor": "Ktor",
+            "compose": "Jetpack Compose",
+            "android": "Android",
+        },
+        "test_framework": "junit",
+        "formatter": "ktlint",
+        "linter": "detekt",
+    },
+    "swift": {
+        "keywords": ["swift", "swiftui", "vapor", "ios", "macos", "xcode"],
+        "framework_map": {
+            "swiftui": "SwiftUI",
+            "vapor": "Vapor",
+            "ios": "iOS",
+        },
+        "test_framework": "xctest",
+        "formatter": "swiftformat",
+        "linter": "swiftlint",
+    },
+    "csharp": {
+        "keywords": ["c#", "csharp", "dotnet", ".net", "aspnet", "asp.net", "blazor", "unity"],
+        "framework_map": {
+            "aspnet": "ASP.NET Core",
+            "blazor": "Blazor",
+            "unity": "Unity",
+        },
+        "test_framework": "xunit",
+        "formatter": "dotnet format",
+        "linter": "roslyn",
+    },
+    "php": {
+        "keywords": ["php", "laravel", "symfony", "wordpress", "composer"],
+        "framework_map": {
+            "laravel": "Laravel",
+            "symfony": "Symfony",
+            "wordpress": "WordPress",
+        },
+        "test_framework": "phpunit",
+        "formatter": "php-cs-fixer",
+        "linter": "phpstan",
+    },
+    "ruby": {
+        "keywords": ["ruby", "rails", "sinatra", "rake", "rspec"],
+        "framework_map": {
+            "rails": "Ruby on Rails",
+            "sinatra": "Sinatra",
+        },
+        "test_framework": "rspec",
+        "formatter": "rubocop",
+        "linter": "rubocop",
+    },
+    "dart": {
+        "keywords": ["dart", "flutter", "pub"],
+        "framework_map": {
+            "flutter": "Flutter",
+        },
+        "test_framework": "flutter test",
+        "formatter": "dart format",
+        "linter": "dart analyze",
+    },
 }
 
 

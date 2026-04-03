@@ -57,6 +57,46 @@ class TestInference:
         assert infer_linter("typescript") == "eslint"
 
 
+class TestInferenceExtended:
+    """Test new language support in inference engine."""
+
+    def test_kotlin(self):
+        assert infer_language("Kotlin, Ktor, Coroutines") == "kotlin"
+
+    def test_swift(self):
+        assert infer_language("Swift, SwiftUI, iOS") == "swift"
+
+    def test_dart_flutter(self):
+        assert infer_language("Dart, Flutter") == "dart"
+
+    def test_csharp(self):
+        assert infer_language("C#, ASP.NET Core") == "csharp"
+
+    def test_php_laravel(self):
+        assert infer_language("PHP, Laravel") == "php"
+
+    def test_ruby_rails(self):
+        assert infer_language("Ruby, Rails") == "ruby"
+
+    def test_kotlin_test_framework(self):
+        assert infer_test_framework("kotlin") == "junit"
+
+    def test_swift_test_framework(self):
+        assert infer_test_framework("swift") == "xctest"
+
+    def test_dart_formatter(self):
+        assert infer_formatter("dart") == "dart format"
+
+    def test_ruby_linter(self):
+        assert infer_linter("ruby") == "rubocop"
+
+    def test_kotlin_framework(self):
+        assert infer_framework("Kotlin, Ktor API") == "Ktor"
+
+    def test_swift_framework(self):
+        assert infer_framework("SwiftUI app") == "SwiftUI"
+
+
 class TestValidators:
     def test_valid_project_name(self):
         assert validate_project_name("my-project") is True
