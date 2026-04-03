@@ -214,6 +214,30 @@ class TestNewCommand:
         assert (Path(tmp_dir) / "my-web" / ".cursorrules").exists()
 
 
+class TestSearchCommand:
+    def test_search_no_results(self, runner, tmp_dir):
+        result = runner.invoke(main, ["search", "nonexistent_keyword_xyz", tmp_dir])
+        assert result.exit_code == 0
+        assert "No results" in result.output
+
+    def test_search_finds_in_skills(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["search", "security", tmp_dir])
+        assert result.exit_code == 0
+        assert "security" in result.output.lower()
+
+    def test_search_with_type_filter(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["search", "commit", tmp_dir, "--type", "skill"])
+        assert result.exit_code == 0
+
+
 class TestValidateCommand:
     def test_validate_empty_dir(self, runner, tmp_dir):
         result = runner.invoke(main, ["validate", tmp_dir])

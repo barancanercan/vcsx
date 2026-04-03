@@ -1010,16 +1010,82 @@ description: Performance optimization patterns and profiling techniques. Use whe
 
 # Performance Skill
 
-## Profiling
-- CPU profiling
-- Memory profiling
-- Network profiling
+Systematically identify and fix performance bottlenecks.
 
-## Optimization Areas
-- Database queries
-- Algorithm complexity
-- Caching strategies
-- Bundle size
+## Step 1: Measure First
+Never optimize without data. Profile before you fix.
+
+```bash
+# Python
+python -m cProfile -o profile.out your_script.py
+python -m pstats profile.out
+
+# Node.js
+node --prof app.js && node --prof-process isolate-*.log
+
+# Go
+go test -cpuprofile cpu.prof -memprofile mem.prof -bench .
+go tool pprof cpu.prof
+```
+
+## Step 2: Find the Hotspot
+- 80% of performance issues are in 20% of the code
+- Focus on the innermost loop, highest-frequency path
+- Check: database queries, network calls, file I/O first
+
+## Common Bottlenecks & Fixes
+
+### Database (most common)
+- **N+1 queries**: use eager loading / joins
+- **Missing index**: check `EXPLAIN ANALYZE` output
+- **Full table scan**: add index on WHERE/ORDER BY columns
+- **SELECT ***: only fetch columns you need
+
+```sql
+-- Find slow queries (PostgreSQL)
+SELECT query, mean_exec_time, calls
+FROM pg_stat_statements
+ORDER BY mean_exec_time DESC LIMIT 10;
+```
+
+### Python
+- **Slow loops**: use list comprehensions, numpy vectorization
+- **Repeated computation**: cache with `functools.lru_cache`
+- **I/O bound**: use `asyncio` or `concurrent.futures`
+- **Memory**: use generators instead of lists for large datasets
+
+### JavaScript/TypeScript
+- **Re-renders**: memo/useMemo/useCallback in React
+- **Bundle size**: code splitting, dynamic imports
+- **DOM manipulation**: batch updates, use DocumentFragment
+- **Memory leaks**: clean up event listeners and timers
+
+### API/Network
+- **No pagination**: add `limit/offset` or cursor pagination
+- **No caching**: add `Cache-Control` headers, Redis cache
+- **Chatty API**: batch requests, use GraphQL or compound endpoints
+
+## Step 3: Fix & Verify
+1. Make ONE change at a time
+2. Benchmark before and after
+3. Document what changed and the measured improvement
+
+## Output Format
+```
+## Performance Analysis
+
+### Bottleneck Found
+[File:line] — Description of the issue
+Estimated impact: HIGH/MEDIUM/LOW
+
+### Root Cause
+[Explain why it's slow]
+
+### Fix Applied
+[Code change + benchmark result]
+Before: Xms / Y req/s
+After:  Xms / Y req/s (+Z% improvement)
+```
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "performance"
@@ -1028,29 +1094,97 @@ description: Performance optimization patterns and profiling techniques. Use whe
 def _skill_debt_analyzer(skills_dir: Path) -> str:
     d = skills_dir / "debt-analyzer"
     d.mkdir(parents=True, exist_ok=True)
-    content = """---
+    content = r"""---
 name: debt-analyzer
-description: Analyzes code for technical debt and code smells. Use when assessing code quality.
+description: Analyzes code for technical debt and code smells. Use when assessing code quality or planning a refactor sprint.
 ---
 
 # Technical Debt Analyzer
 
-## Metrics
-- Cyclomatic complexity
-- Coupling
-- Code duplication
-- Missing documentation
+Audit the codebase for technical debt and produce a prioritized action plan.
 
-## Tools
-- SonarQube
-- CodeClimate
-- SonarLint
+## Debt Categories
 
-## Process
-1. Run analysis
-2. Review high-priority issues
-3. Create refactoring tickets
-4. Track debt over time
+### 🔴 Critical Debt (fix this sprint)
+- Security vulnerabilities
+- Tests with `skip` or `xfail` that hide real bugs
+- Hardcoded configuration values in production code
+- `# TODO: fix before release` comments
+
+### 🟡 High Debt (schedule soon)
+- Functions > 50 lines
+- Files > 300 lines
+- Cyclomatic complexity > 10 (count `if`/`for`/`while`/`try` branches)
+- Copy-pasted code blocks (> 10 lines identical)
+- Missing tests on critical paths
+- Outdated dependencies with known issues
+
+### 🟢 Low Debt (track & address gradually)
+- Poor naming
+- Missing docstrings on public functions
+- Inconsistent code style
+- Overly deep nesting (> 4 levels)
+- Magic numbers without named constants
+
+## Analysis Process
+1. **Grep for known debt markers**:
+   ```bash
+   grep -rn "TODO\|FIXME\|HACK\|XXX\|NOSONAR" src/
+   grep -rn "# type: ignore" src/
+   grep -rn "pylint: disable\|noqa" src/
+   ```
+
+2. **Find long functions** (Python):
+   ```bash
+   python3 -c "
+   import ast, sys
+   from pathlib import Path
+   for f in Path('src').rglob('*.py'):
+       tree = ast.parse(f.read_text())
+       for node in ast.walk(tree):
+           if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+               lines = node.end_lineno - node.lineno
+               if lines > 30:
+                   print(f'{f}:{node.lineno} {node.name}() = {lines} lines')
+   "
+   ```
+
+3. **Check test coverage**:
+   ```bash
+   pytest --cov=src --cov-report=term-missing
+   ```
+
+4. **Check outdated deps**:
+   ```bash
+   pip list --outdated   # Python
+   npm outdated          # Node
+   ```
+
+## Output Format
+```
+## Technical Debt Report
+
+### Summary
+- Critical issues: X
+- High priority: Y
+- Low priority: Z
+- Estimated cleanup effort: N days
+
+### 🔴 Critical
+| File | Issue | Effort |
+|------|-------|--------|
+| src/auth.py:45 | Hardcoded JWT secret | 30min |
+
+### 🟡 High Priority
+| File | Issue | Effort |
+|------|-------|--------|
+| src/api/users.py | 150-line function | 2h |
+
+### Recommended Sprint Plan
+1. [Quick wins < 1h]
+2. [Medium tasks 1-4h]
+3. [Large refactors > 4h — schedule separately]
+```
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "debt-analyzer"

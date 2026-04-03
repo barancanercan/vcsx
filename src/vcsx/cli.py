@@ -1026,6 +1026,90 @@ def stats(path):
                 console.print(f"  [cyan]{tool}:[/] {parts}")
 
 
+@main.command("search")
+@click.argument("query")
+@click.argument("path", default=".", type=click.Path(exists=True))
+@click.option("--type", "-t", type=click.Choice(["skill", "hook", "agent", "all"]), default="all")
+def search_configs(query, path, type):
+    """Search inside AI config files for a keyword.
+
+    Searches skills, hooks, agents and other config files for the given query.
+
+    Examples:
+        vcsx search deploy              # Find anything about deploy
+        vcsx search pytest --type skill # Find pytest in skills only
+        vcsx search "jwt" ~/my-project  # Search in specific project
+    """
+    import re
+
+    target = Path(path).resolve()
+    query_lower = query.lower()
+    results = []
+
+    search_paths = {
+        "skill": [".claude/skills"],
+        "hook": [".claude/hooks"],
+        "agent": [".claude/agents"],
+        "all": [
+            ".claude/skills",
+            ".claude/hooks",
+            ".claude/agents",
+            ".cursor/rules",
+            ".windsurf/rules",
+            ".github/instructions",
+        ],
+    }
+
+    dirs_to_search = search_paths.get(type, search_paths["all"])
+
+    for dir_rel in dirs_to_search:
+        search_dir = target / dir_rel
+        if not search_dir.exists():
+            continue
+        for file_path in sorted(search_dir.rglob("*")):
+            if file_path.is_file() and file_path.suffix in (
+                ".md",
+                ".sh",
+                ".yaml",
+                ".json",
+                ".toml",
+                ".mdc",
+            ):
+                try:
+                    content = file_path.read_text(encoding="utf-8", errors="replace")
+                    if query_lower in content.lower():
+                        # Find matching lines
+                        matching_lines = [
+                            (i + 1, line.strip())
+                            for i, line in enumerate(content.splitlines())
+                            if query_lower in line.lower()
+                        ]
+                        results.append(
+                            {
+                                "file": str(file_path.relative_to(target)),
+                                "matches": matching_lines[:3],  # max 3 lines per file
+                            }
+                        )
+                except Exception:
+                    pass
+
+    if not results:
+        console.print(f"\n[yellow]No results for '[bold]{query}[/bold]' in {target}[/]")
+        return
+
+    console.print(f"\n[bold]Search:[/] '{query}' — {len(results)} file(s)\n")
+
+    for r in results:
+        console.print(f"  [cyan]{r['file']}[/]")
+        for lineno, line in r["matches"]:
+            # Highlight the query in the line
+            highlighted = re.sub(
+                re.escape(query), f"[bold yellow]{query}[/bold yellow]", line, flags=re.IGNORECASE
+            )
+            console.print(f"    [dim]{lineno}:[/] {highlighted}")
+        console.print()
+
+
 @main.command("changelog")
 @click.option("--version", "-v", default=None, help="Show changelog for specific version")
 @click.option("--latest", "-l", is_flag=True, default=False, help="Show only the latest version")
