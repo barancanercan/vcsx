@@ -723,6 +723,98 @@ class TestMigrateCommandExtended:
         assert (Path(tmp_dir) / ".github" / "instructions").exists()
 
 
+class TestUpdateAutoWindsurf:
+    def test_update_auto_windsurf_rules(self, runner, tmp_dir):
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        (Path(tmp_dir) / ".windsurfrules").write_text("# rules")
+        result = runner.invoke(main, ["update", "--output-dir", tmp_dir, "--auto"])
+        assert result.exit_code == 0
+
+
+class TestCompareIdenticalFiles:
+    def test_compare_identical_configs(self, runner, tmp_dir):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp2:
+            from vcsx.core.context import ProjectContext
+            from vcsx.generators.gemini import GeminiGenerator
+            ctx = ProjectContext(project_name="test")
+            GeminiGenerator().generate_all(ctx, tmp_dir)
+            GeminiGenerator().generate_all(ctx, tmp2)
+            result = runner.invoke(main, ["compare", tmp_dir, tmp2])
+            assert result.exit_code == 0
+            assert "identical" in result.output or "both" in result.output.lower()
+
+
+class TestStatsWindsurf:
+    def test_stats_windsurf_rules(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.windsurf import WindsurfGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        WindsurfGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["stats", tmp_dir])
+        assert result.exit_code == 0
+
+    def test_stats_copilot_scoped(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.copilot import CopilotGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        CopilotGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["stats", tmp_dir])
+        assert result.exit_code == 0
+        assert "copilot" in result.output.lower() or "configured" in result.output.lower()
+
+
+class TestGenerateCommandExtended:
+    def test_generate_aider(self, runner, tmp_dir):
+        result = runner.invoke(
+            main, ["generate", "aider", "--project-name", "test", "--output-dir", tmp_dir]
+        )
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / ".aider.conf.yaml").exists()
+
+    def test_generate_cursor(self, runner, tmp_dir):
+        result = runner.invoke(
+            main, ["generate", "cursor", "--project-name", "test", "--lang", "python", "--output-dir", tmp_dir]
+        )
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / ".cursorrules").exists()
+
+    def test_generate_zed(self, runner, tmp_dir):
+        result = runner.invoke(
+            main, ["generate", "zed", "--project-name", "test", "--output-dir", tmp_dir]
+        )
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / ".zed" / "settings.json").exists()
+
+    def test_generate_bolt(self, runner, tmp_dir):
+        result = runner.invoke(
+            main, ["generate", "bolt", "--project-name", "test", "--output-dir", tmp_dir]
+        )
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / ".bolt" / "workspace.json").exists()
+
+    def test_generate_copilot(self, runner, tmp_dir):
+        result = runner.invoke(
+            main, ["generate", "copilot", "--project-name", "test", "--output-dir", tmp_dir]
+        )
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / ".github" / "copilot-instructions.md").exists()
+
+    def test_generate_windsurf(self, runner, tmp_dir):
+        result = runner.invoke(
+            main, ["generate", "windsurf", "--project-name", "test", "--output-dir", tmp_dir]
+        )
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / ".windsurfrules").exists()
+
+    def test_generate_codex(self, runner, tmp_dir):
+        result = runner.invoke(
+            main, ["generate", "codex", "--project-name", "test", "--output-dir", tmp_dir]
+        )
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / ".openai" / "instructions.md").exists()
+
+
 class TestChangelogCommand:
     def test_changelog_shows_versions(self, runner):
         result = runner.invoke(main, ["changelog"])
