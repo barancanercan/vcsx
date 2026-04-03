@@ -123,6 +123,26 @@ class TestCheckCommand:
         assert 0 <= data["overall_score"] <= 100
 
 
+class TestInitFastMode:
+    def test_fast_mode_accepts_input(self, runner, tmp_dir):
+        result = runner.invoke(
+            main,
+            ["init", "--fast", "--cli", "gemini", "--output-dir", tmp_dir],
+            input="my-project\nPython, FastAPI\n",
+        )
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / "GEMINI.md").exists()
+
+    def test_fast_mode_detects_language(self, runner, tmp_dir):
+        result = runner.invoke(
+            main,
+            ["init", "--fast", "--cli", "agents-md", "--output-dir", tmp_dir],
+            input="test-app\nTypeScript, React\n",
+        )
+        assert result.exit_code == 0
+        assert "typescript" in result.output.lower() or (Path(tmp_dir) / "AGENTS.md").exists()
+
+
 class TestUpdateCommand:
     def test_update_dry_run(self, runner, tmp_dir):
         result = runner.invoke(main, ["update", "--output-dir", tmp_dir, "--dry-run"])

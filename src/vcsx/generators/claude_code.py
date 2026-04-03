@@ -564,25 +564,161 @@ Check `.env.example` for required vars. Verify all are set in {hosting} before d
 def _skill_auth(skills_dir: Path, ctx: ProjectContext) -> str:
     d = skills_dir / "auth-conventions"
     d.mkdir(parents=True, exist_ok=True)
+    auth_method = ctx.auth_method or "JWT"
+
+    jwt_section = (
+        """
+## JWT Implementation
+```python
+import jwt
+from datetime import datetime, timedelta
+
+SECRET_KEY = os.environ["JWT_SECRET"]  # Never hardcode!
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE = timedelta(minutes=15)
+REFRESH_TOKEN_EXPIRE = timedelta(days=7)
+
+def create_access_token(user_id: str) -> str:
+    payload = {
+        "sub": user_id,
+        "exp": datetime.utcnow() + ACCESS_TOKEN_EXPIRE,
+        "iat": datetime.utcnow(),
+        "type": "access",
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+def verify_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload["type"] != "access":
+            raise ValueError("Invalid token type")
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise AuthError("Token expired")
+    except jwt.JWTError:
+        raise AuthError("Invalid token")
+```
+
+## Token Storage
+- **Web apps**: httpOnly cookies (not localStorage — XSS vulnerable)
+- **Mobile apps**: secure storage (Keychain/Keystore)
+- **APIs**: Authorization header: `Bearer <token>`
+
+## Refresh Token Rotation
+```python
+def refresh_tokens(refresh_token: str) -> tuple[str, str]:
+    # Verify refresh token
+    payload = verify_refresh_token(refresh_token)
+    user_id = payload["sub"]
+
+    # Rotate: invalidate old, issue new
+    invalidate_refresh_token(refresh_token)  # Add to blocklist
+    new_access = create_access_token(user_id)
+    new_refresh = create_refresh_token(user_id)
+    return new_access, new_refresh
+```
+"""
+        if "jwt" in auth_method.lower()
+        else ""
+    )
+
+    oauth_section = (
+        """
+## OAuth2 / OIDC Flow
+1. Redirect user to provider authorization URL
+2. User grants permission
+3. Provider redirects back with `code`
+4. Exchange `code` for access + refresh tokens
+5. Store tokens securely, never expose to client JS
+
+## State Parameter (CSRF protection)
+```python
+import secrets
+state = secrets.token_urlsafe(32)
+session["oauth_state"] = state
+# Verify state matches on callback
+```
+"""
+        if "oauth" in auth_method.lower()
+        else ""
+    )
+
     content = f"""---
 name: auth-conventions
-description: Authentication patterns and flows using {ctx.auth_method}. Use when working with auth code.
+description: Authentication patterns and security rules for {auth_method}. Use when working with auth, login, or protected routes.
 ---
 
-# Auth Conventions
+# Auth Conventions — {auth_method}
 
-## Method: {ctx.auth_method}
+## Non-Negotiable Security Rules
+- [ ] Never log tokens, passwords, or session IDs
+- [ ] Never store passwords in plaintext — use bcrypt/argon2
+- [ ] Never expose whether an email exists on login failure
+- [ ] Rate limit auth endpoints (login: 5/min, password reset: 3/hour)
+- [ ] All protected routes verify auth on every request
+- [ ] HTTPS only — never allow HTTP for auth endpoints
 
-## Patterns
-- All protected endpoints require valid auth token
-- Tokens stored securely (httpOnly cookies or secure storage)
-- Refresh tokens rotated on each use
-- Failed attempts logged but don't expose user existence
+## Password Hashing
+```python
+# ✅ bcrypt (recommended)
+import bcrypt
+hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12))
+bcrypt.checkpw(password.encode(), hashed)
 
-## Security
-- Never log tokens or passwords
-- Use bcrypt or equivalent for password hashing
-- Implement CSRF protection for web apps
+# ✅ argon2 (more modern)
+from argon2 import PasswordHasher
+ph = PasswordHasher()
+hash = ph.hash(password)
+ph.verify(hash, password)
+
+# ❌ NEVER
+hashlib.md5(password).hexdigest()  # broken
+hashlib.sha256(password).hexdigest()  # broken (no salt)
+```
+
+## Login Response
+```python
+# ✅ Same error for wrong email AND wrong password
+raise AuthError("Invalid credentials")  # Don't leak user existence
+
+# ❌ Leaks user existence
+if user is None:
+    raise AuthError("User not found")
+if not verify_password(password, user.hashed_password):
+    raise AuthError("Wrong password")
+```
+
+{jwt_section}{oauth_section}
+
+## Session Security (web)
+```python
+SESSION_COOKIE_SECURE = True      # HTTPS only
+SESSION_COOKIE_HTTPONLY = True    # No JS access
+SESSION_COOKIE_SAMESITE = "Lax"  # CSRF protection
+SESSION_COOKIE_MAX_AGE = 3600    # 1 hour
+```
+
+## Auth Middleware Pattern
+```python
+async def require_auth(request):
+    token = request.headers.get("Authorization", "").removeprefix("Bearer ")
+    if not token:
+        raise HTTPException(401, "Authentication required")
+    try:
+        payload = verify_token(token)
+        request.user_id = payload["sub"]
+    except AuthError as e:
+        raise HTTPException(401, str(e))
+```
+
+## Security Checklist
+- [ ] Passwords hashed with bcrypt/argon2
+- [ ] Login doesn't reveal user existence
+- [ ] Tokens expire (access: 15min, refresh: 7days)
+- [ ] Refresh tokens rotate on use
+- [ ] Rate limiting on /login, /register, /reset-password
+- [ ] CSRF protection for cookie-based auth
+- [ ] Audit log for login attempts
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "auth-conventions"
@@ -1589,24 +1725,93 @@ jobs:
 def _skill_mutation_testing(skills_dir: Path, ctx: ProjectContext) -> str:
     d = skills_dir / "mutation-testing"
     d.mkdir(parents=True, exist_ok=True)
+    lang = (ctx.language or "").lower()
+
+    if lang == "python":
+        tool = "mutmut"
+        install = "pip install mutmut"
+        run_cmd = "mutmut run"
+        results_cmd = "mutmut results\nmutmut show <id>"
+    elif lang in ("typescript", "javascript"):
+        tool = "Stryker"
+        install = "npm install -D @stryker-mutator/core @stryker-mutator/vitest-runner"
+        run_cmd = "npx stryker run"
+        results_cmd = "# Open reports/mutation/index.html"
+    else:
+        tool = "generic"
+        install = "# Install your language's mutation testing tool"
+        run_cmd = "# Run mutation tests"
+        results_cmd = "# View results"
+
     content = f"""---
 name: mutation-testing
-description: Mutation testing setup using {ctx.test_framework or "mutmut"}. Use when validating test quality.
+description: Mutation testing to verify test quality. Use when coverage is high but bugs still slip through.
 ---
 
-# Mutation Testing
+# Mutation Testing — {tool}
 
-## Framework: {ctx.test_framework or "mutmut"}
+## What is Mutation Testing?
+Code coverage tells you which lines are executed by tests.
+Mutation testing tells you if your tests actually *catch bugs*.
 
-## Process
-1. Install mutation testing library
-2. Run mutation tests
-3. Review killed mutations
-4. Improve weak tests
+A "mutant" is a small code change (e.g., `>` → `>=`, `True` → `False`).
+If your tests don't catch the mutant, they're weak.
 
-## Metrics
-- Mutation Score Indicator (MSI)
-- Coverage percentage
+## Setup
+```bash
+{install}
+```
+
+## Run
+```bash
+{run_cmd}
+```
+
+## Analyze Results
+```bash
+{results_cmd}
+```
+
+## Mutation Score
+- **> 80%**: Good — tests catch most mutations
+- **60-80%**: Acceptable — some gaps to fill
+- **< 60%**: Tests are too weak — improve assertions
+
+## Common Surviving Mutants & Fixes
+
+### Boundary mutations (`>` → `>=`)
+```python
+# Surviving mutant: if x > 0 → if x >= 0
+# Fix: add boundary test
+def test_zero_not_positive():
+    assert not is_positive(0)  # catches >= mutation
+
+def test_one_is_positive():
+    assert is_positive(1)
+```
+
+### Boolean mutations
+```python
+# Surviving mutant: return True → return False
+# Fix: test both branches
+def test_is_active_when_status_active():
+    assert user.is_active() is True
+
+def test_not_active_when_status_inactive():
+    assert user.is_active() is False  # don't just test truthy
+```
+
+### String mutations
+```python
+# Fix: assert exact strings, not just `in`
+assert error_message == "Email is required"  # not just "assert 'Email' in msg"
+```
+
+## Focus Areas
+Mutation testing is expensive. Focus on:
+- Critical business logic (payment, auth, calculations)
+- Functions with complex conditionals
+- Areas with recent bug reports
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "mutation-testing"

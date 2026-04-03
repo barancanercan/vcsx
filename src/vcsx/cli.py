@@ -75,11 +75,20 @@ def main(ctx):
     default=".",
     help="Target directory for setup",
 )
-def init(cli, all_tools, lang, output_dir):
+@click.option(
+    "--fast",
+    "-f",
+    is_flag=True,
+    default=False,
+    help="Fast mode: skip full discovery, just ask project name and stack",
+)
+def init(cli, all_tools, lang, output_dir, fast):
     """Start interactive setup wizard.
 
+    \b
     Examples:
-        vcsx init                          # Single tool (interactive)
+        vcsx init                          # Full interactive wizard
+        vcsx init --fast                   # Fast mode (minimal questions)
         vcsx init -c claude-code -c cursor # Two specific tools
         vcsx init --all-tools              # All 10 tools at once
     """
@@ -91,8 +100,36 @@ def init(cli, all_tools, lang, output_dir):
         )
     )
 
-    console.print("\nPHASE 1: DISCOVERY")
-    context = run_discovery(console, lang=lang)
+    # Fast mode: skip full discovery
+    if fast:
+        from rich.prompt import Prompt
+
+        from vcsx.core.context import ProjectContext
+        from vcsx.core.inference import (
+            infer_formatter,
+            infer_language,
+            infer_linter,
+            infer_test_framework,
+        )
+
+        console.print("\n[bold cyan]Fast Mode[/] — minimal questions\n")
+        project_name = Prompt.ask("Project name", default="my-project")
+        tech_stack = Prompt.ask("Tech stack (e.g. Python, FastAPI / TypeScript, React)", default="")
+        inferred_lang = infer_language(tech_stack)
+
+        context = ProjectContext(
+            project_name=project_name,
+            tech_stack=tech_stack,
+            language=inferred_lang,
+            test_framework=infer_test_framework(inferred_lang),
+            formatter=infer_formatter(inferred_lang),
+            linter=infer_linter(inferred_lang),
+            lang="en",
+        )
+        console.print(f"\n[green]✓[/] Language detected: [cyan]{inferred_lang}[/]")
+    else:
+        console.print("\nPHASE 1: DISCOVERY")
+        context = run_discovery(console, lang=lang)
 
     # Determine which tools to use (CLI flags override discovery)
     if all_tools:
@@ -109,11 +146,12 @@ def init(cli, all_tools, lang, output_dir):
     else:
         selected_tools = [context.ai_tool]
 
-    console.print("\nPHASE 2: PLAN")
-    generate_plan(context, console, selected_tools)
-    if not confirm_plan(console):
-        console.print("Setup cancelled. Run 'vcsx init' to try again.")
-        return
+    if not fast:
+        console.print("\nPHASE 2: PLAN")
+        generate_plan(context, console, selected_tools)
+        if not confirm_plan(console):
+            console.print("Setup cancelled. Run 'vcsx init' to try again.")
+            return
 
     console.print("\nPHASE 3: IMPLEMENTATION")
     generators = [get_generator(t) for t in selected_tools]
