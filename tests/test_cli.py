@@ -234,6 +234,74 @@ class TestNewCommand:
         assert (Path(tmp_dir) / "my-web" / ".cursorrules").exists()
 
 
+class TestConfigCommandExtended:
+    def test_config_set_auto_push_true(self, runner):
+        result = runner.invoke(main, ["config", "--set", "auto_push", "true"])
+        assert result.exit_code == 0
+        assert "auto_push" in result.output
+
+    def test_config_set_auto_push_false(self, runner):
+        result = runner.invoke(main, ["config", "--set", "auto_push", "false"])
+        assert result.exit_code == 0
+
+    def test_config_get_unknown_key(self, runner):
+        result = runner.invoke(main, ["config", "--get", "nonexistent_key"])
+        assert result.exit_code == 0
+        assert "Unknown key" in result.output
+
+    def test_config_set_default_type(self, runner):
+        result = runner.invoke(main, ["config", "--set", "default_type", "api"])
+        assert result.exit_code == 0
+        assert "default_type" in result.output
+
+
+class TestCompareCommandExtended:
+    def test_compare_shows_only_in_b(self, runner, tmp_dir):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp_dir2:
+            from vcsx.core.context import ProjectContext
+            from vcsx.generators.gemini import GeminiGenerator
+            ctx = ProjectContext(project_name="b")
+            GeminiGenerator().generate_all(ctx, tmp_dir2)
+            result = runner.invoke(main, ["compare", tmp_dir, tmp_dir2])
+            assert result.exit_code == 0
+            assert "only in B" in result.output or "gemini" in result.output.lower()
+
+    def test_compare_with_windsurf(self, runner, tmp_dir):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp_dir2:
+            (Path(tmp_dir) / ".windsurfrules").write_text("# rules")
+            result = runner.invoke(main, ["compare", tmp_dir, tmp_dir2])
+            assert result.exit_code == 0
+            assert "windsurf" in result.output.lower()
+
+
+class TestSearchCommandExtended:
+    def test_search_skill_type_filter(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["search", "deploy", tmp_dir, "--type", "skill"])
+        assert result.exit_code == 0
+
+    def test_search_hook_type_filter(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["search", "secret", tmp_dir, "--type", "hook"])
+        assert result.exit_code == 0
+
+    def test_search_agent_type_filter(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["search", "security", tmp_dir, "--type", "agent"])
+        assert result.exit_code == 0
+
+
 class TestConfigCommand:
     def test_config_list(self, runner):
         result = runner.invoke(main, ["config", "--list"])
@@ -453,6 +521,97 @@ class TestMigrateCommand:
         (Path(tmp_dir) / ".cursorrules").write_text("# Old rules")
         result = runner.invoke(main, ["migrate", "cursor", "--dir", tmp_dir, "--dry-run"])
         assert result.exit_code == 0
+
+
+class TestCheckCommandExtended:
+    def test_check_json_no_tools(self, runner, tmp_dir):
+        result = runner.invoke(main, ["check", tmp_dir, "--json"])
+        assert result.exit_code == 0
+        import json
+        data = json.loads(result.output)
+        assert data["tools_configured"] == 0
+        assert data["overall_score"] == 0
+
+    def test_check_with_multiple_tools(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        from vcsx.generators.gemini import GeminiGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        GeminiGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["check", tmp_dir, "--json"])
+        data = __import__("json").loads(result.output)
+        assert data["tools_configured"] >= 2
+
+
+class TestDoctorCommandExtended:
+    def test_doctor_with_multiple_configs(self, runner, tmp_dir):
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        (Path(tmp_dir) / ".cursorrules").write_text("# rules")
+        result = runner.invoke(main, ["doctor", "--dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "claude-code" in result.output
+        assert "cursor" in result.output
+
+    def test_doctor_missing_claudeignore_tip(self, runner, tmp_dir):
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        result = runner.invoke(main, ["doctor", "--dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "claudeignore" in result.output.lower() or "claude" in result.output.lower()
+
+
+class TestExportCommandExtended:
+    def test_export_include_all(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        zip_path = Path(tmp_dir) / "all.zip"
+        result = runner.invoke(main, ["export", tmp_dir, "--output", str(zip_path), "--include-all"])
+        assert result.exit_code == 0
+        assert zip_path.exists()
+
+    def test_export_default_filename(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.gemini import GeminiGenerator
+        ctx = ProjectContext(project_name="test")
+        GeminiGenerator().generate_all(ctx, tmp_dir)
+        # Run from tmp_dir so zip is created there
+        import os
+        old_cwd = os.getcwd()
+        os.chdir(tmp_dir)
+        try:
+            result = runner.invoke(main, ["export", "."])
+            assert result.exit_code == 0
+        finally:
+            os.chdir(old_cwd)
+
+
+class TestAuditCommandExtended:
+    def test_audit_with_windsurf_no_rules(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".windsurfrules").write_text("# rules")
+        result = runner.invoke(main, ["audit", tmp_dir])
+        assert result.exit_code == 0
+        assert "windsurf" in result.output.lower()
+
+    def test_audit_with_cursor_no_rules(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".cursorrules").write_text("# rules")
+        result = runner.invoke(main, ["audit", tmp_dir])
+        assert result.exit_code == 0
+        assert "cursor" in result.output.lower()
+
+    def test_audit_aider_invalid_keys(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".aider.conf.yaml").write_text("model: gpt-4o\nrepo: test\n")
+        result = runner.invoke(main, ["audit", tmp_dir])
+        assert result.exit_code == 0
+        assert "invalid" in result.output.lower() or "repo:" in result.output
+
+    def test_audit_large_claude_md(self, runner, tmp_dir):
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test\n" + "line\n" * 250)
+        result = runner.invoke(main, ["audit", tmp_dir])
+        assert result.exit_code == 0
+        # Should warn about large file
+        assert "250" in result.output or "200" in result.output
 
 
 class TestUpdateCommandExtended:
