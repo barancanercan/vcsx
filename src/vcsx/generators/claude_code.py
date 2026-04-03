@@ -1927,21 +1927,105 @@ def _skill_openapi_generator(skills_dir: Path) -> str:
     d.mkdir(parents=True, exist_ok=True)
     content = """---
 name: openapi-generator
-description: Generates API documentation and client code from OpenAPI specs. Use when building APIs.
+description: Generates OpenAPI spec and API documentation. Use when documenting or designing APIs.
 ---
 
 # OpenAPI Generator
 
-## Workflow
-1. Write OpenAPI spec (YAML/JSON)
-2. Generate server stubs
-3. Generate client SDKs
-4. Generate documentation
+Generate a complete OpenAPI 3.1 spec for the current API.
 
-## Tools
-- OpenAPI Generator
-- Swagger UI
-- Redoc
+## Minimal OpenAPI Spec Template
+```yaml
+openapi: 3.1.0
+info:
+  title: My API
+  version: 1.0.0
+  description: API description
+
+servers:
+  - url: https://api.example.com/v1
+    description: Production
+  - url: http://localhost:8000/v1
+    description: Development
+
+paths:
+  /users:
+    get:
+      summary: List users
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  nextCursor:
+                    type: string
+
+components:
+  schemas:
+    User:
+      type: object
+      required: [id, email]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+
+security:
+  - BearerAuth: []
+```
+
+## Process
+1. Read the existing route/controller files
+2. Identify all endpoints, params, and response shapes
+3. Generate the OpenAPI YAML
+4. Save to `openapi.yaml` or `docs/openapi.yaml`
+5. Validate: `npx @redocly/cli lint openapi.yaml`
+
+## Documentation Options
+```bash
+# Swagger UI (development)
+npx @stoplight/prism-cli mock openapi.yaml
+
+# ReDoc static HTML
+npx @redocly/cli build-docs openapi.yaml
+
+# Scalar (modern alternative)
+npx @scalar/cli serve openapi.yaml
+```
+
+## Auto-generate from code
+```bash
+# FastAPI — auto-generated at /docs and /openapi.json
+# NestJS — @nestjs/swagger
+# Express — swagger-jsdoc
+```
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "openapi-generator"
@@ -1957,15 +2041,82 @@ description: gRPC service design patterns and protobuf conventions. Use when bui
 
 # gRPC Conventions
 
-## Protocol Buffers
-- Use proto3 syntax
-- Define services and messages
-- Use well-known types
+## Proto3 Service Template
+```proto
+syntax = "proto3";
+package myservice.v1;
 
-## Best Practices
-- Version your protos
-- Use streaming sparingly
-- Implement proper error handling
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// Always version your package: myservice.v1
+service UserService {
+  rpc GetUser (GetUserRequest) returns (User);
+  rpc ListUsers (ListUsersRequest) returns (ListUsersResponse);
+  rpc CreateUser (CreateUserRequest) returns (User);
+  rpc DeleteUser (DeleteUserRequest) returns (google.protobuf.Empty);
+  // Server streaming for real-time updates
+  rpc WatchUsers (WatchUsersRequest) returns (stream User);
+}
+
+message User {
+  string id = 1;
+  string email = 2;
+  string name = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message ListUsersRequest {
+  int32 page_size = 1;    // max 100
+  string page_token = 2;  // cursor
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  string next_page_token = 2;
+}
+```
+
+## Field Number Rules
+- 1-15: most frequently used fields (1-byte encoding)
+- 16-2047: less frequent fields (2-byte encoding)
+- Never reuse field numbers (breaks backward compat)
+- Use `reserved` to prevent reuse of deleted fields:
+  ```proto
+  reserved 5, 6;
+  reserved "old_field_name";
+  ```
+
+## Error Handling
+Use Google's standard status codes:
+```
+OK, CANCELLED, UNKNOWN, INVALID_ARGUMENT, NOT_FOUND,
+ALREADY_EXISTS, PERMISSION_DENIED, UNAUTHENTICATED,
+RESOURCE_EXHAUSTED, FAILED_PRECONDITION, ABORTED,
+INTERNAL, UNAVAILABLE, DEADLINE_EXCEEDED
+```
+
+## Versioning
+- Package: `myservice.v1`, `myservice.v2`
+- Breaking changes require a new version
+- Backward compatible: adding optional fields, adding methods
+
+## Generate Code
+```bash
+# Python
+python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. service.proto
+
+# Node.js
+npx grpc-tools node_modules/.bin/grpc_tools_node_protoc \\
+  --js_out=. --grpc_out=grpc_js:. service.proto
+
+# Go
+protoc --go_out=. --go-grpc_out=. service.proto
+```
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "grpc-conventions"
@@ -1976,22 +2127,110 @@ def _skill_query_optimization(skills_dir: Path) -> str:
     d.mkdir(parents=True, exist_ok=True)
     content = """---
 name: query-optimization
-description: Database query optimization techniques and indexing strategies. Use when optimizing database performance.
+description: Database query optimization — indexing, EXPLAIN analysis, common anti-patterns. Use when queries are slow.
 ---
 
 # Query Optimization
 
-## Techniques
-- Analyze query plans
-- Add appropriate indexes
-- Avoid SELECT *
-- Use pagination
-- Implement caching
+## Step 1: Find the Slow Queries
+```sql
+-- PostgreSQL: queries taking > 100ms
+SELECT query, mean_exec_time, calls, total_exec_time
+FROM pg_stat_statements
+WHERE mean_exec_time > 100
+ORDER BY mean_exec_time DESC
+LIMIT 10;
 
-## Anti-Patterns
-- N+1 queries
-- Missing indexes
-- Full table scans
+-- MySQL: slow query log
+SET GLOBAL slow_query_log = 1;
+SET GLOBAL long_query_time = 0.1;
+```
+
+## Step 2: Analyze with EXPLAIN
+```sql
+-- PostgreSQL
+EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
+SELECT * FROM orders WHERE user_id = 123 ORDER BY created_at DESC;
+
+-- Look for:
+-- Seq Scan on large tables → needs index
+-- Nested Loop with high rows → missing index
+-- Sort with high cost → add index on ORDER BY column
+-- Hash Join → often OK but check row estimates
+```
+
+## Common Issues & Fixes
+
+### Missing Index (most common)
+```sql
+-- Seq Scan detected → add index
+CREATE INDEX CONCURRENTLY idx_orders_user_id ON orders(user_id);
+CREATE INDEX CONCURRENTLY idx_orders_created_at ON orders(created_at DESC);
+
+-- Composite index for common WHERE + ORDER BY
+CREATE INDEX CONCURRENTLY idx_orders_user_created
+ON orders(user_id, created_at DESC);
+```
+
+### N+1 Queries
+```python
+# Problem
+orders = Order.query.all()
+for order in orders:
+    print(order.user.email)  # 1 query per order!
+
+# Fix: eager load
+orders = Order.query.options(joinedload(Order.user)).all()
+```
+
+### SELECT * on Wide Tables
+```sql
+-- Bad: fetches all 50 columns
+SELECT * FROM users WHERE email = 'alice@example.com';
+
+-- Good: only needed columns
+SELECT id, name, email FROM users WHERE email = 'alice@example.com';
+```
+
+### Missing Pagination
+```sql
+-- Bad: full table scan
+SELECT * FROM events ORDER BY created_at DESC;
+
+-- Good: cursor-based pagination
+SELECT * FROM events
+WHERE created_at < $cursor
+ORDER BY created_at DESC
+LIMIT 20;
+```
+
+### Inefficient COUNT
+```sql
+-- Slow on large tables
+SELECT COUNT(*) FROM huge_table WHERE status = 'active';
+
+-- Better: use approximate count or pre-aggregate
+-- PostgreSQL: use pg_stat_user_tables for estimates
+SELECT reltuples::bigint FROM pg_class WHERE relname = 'huge_table';
+```
+
+## Index Types
+| Type | Use Case |
+|------|----------|
+| B-tree (default) | Equality, range, sorting |
+| Hash | Equality only (fast) |
+| GIN | Full-text search, JSONB |
+| GiST | Geometric, full-text |
+| Partial | `WHERE status = 'active'` |
+| Covering | `INCLUDE (email)` to avoid table lookup |
+
+## Checklist
+- [ ] EXPLAIN shows no Seq Scan on large tables
+- [ ] All foreign keys indexed
+- [ ] All WHERE columns in queries have indexes
+- [ ] ORDER BY columns indexed (DESC if needed)
+- [ ] No SELECT * on tables > 10 columns
+- [ ] All list queries have LIMIT
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "query-optimization"
