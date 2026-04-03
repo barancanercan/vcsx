@@ -1682,6 +1682,99 @@ def list_plugins():
     console.print(table)
 
 
+@main.command("quality")
+@click.argument("path", default=".", type=click.Path(exists=True))
+def quality_report(path):
+    """Show a comprehensive quality report for a project's AI setup.
+
+    Combines scanner detection, tool coverage, and actionable suggestions
+    into a single report.
+
+    Examples:
+        vcsx quality              # Current directory
+        vcsx quality ~/my-proj    # Specific project
+    """
+    from vcsx.core.scanner import format_scan_summary, scan_project
+
+    target = Path(path).resolve()
+    console.print(f"\n[bold]vcsx quality[/] — {target.name}\n")
+    console.print("=" * 50)
+
+    # 1. Tech stack detection
+    scan = scan_project(str(target))
+    console.print("\n[bold]Project Stack[/]")
+    console.print(f"  {format_scan_summary(scan)}")
+    if scan.get("has_docker"):
+        console.print("  Docker: ✓")
+    if scan.get("has_ci"):
+        console.print("  CI/CD: ✓")
+
+    # 2. AI tools configured
+    tool_files = {
+        "claude-code": "CLAUDE.md",
+        "cursor": ".cursorrules",
+        "windsurf": ".windsurfrules",
+        "gemini": "GEMINI.md",
+        "agents-md": "AGENTS.md",
+        "aider": ".aider.conf.yaml",
+        "copilot": ".github/copilot-instructions.md",
+        "zed": ".zed/settings.json",
+        "bolt": ".bolt/workspace.json",
+        "codex": ".openai/instructions.md",
+    }
+    configured = [t for t, f in tool_files.items() if (target / f).exists()]
+    missing = [t for t, f in tool_files.items() if t not in configured]
+
+    console.print(f"\n[bold]AI Tools ({len(configured)}/10)[/]")
+    for t in configured:
+        console.print(f"  [green]✓[/] {t}")
+    if missing[:3]:
+        console.print(
+            f"  [dim]Not configured: {', '.join(missing[:3])}{'...' if len(missing) > 3 else ''}[/]"
+        )
+
+    # 3. Claude Code stats
+    if "claude-code" in configured:
+        skills = (
+            sum(1 for _ in (target / ".claude" / "skills").glob("*/SKILL.md"))
+            if (target / ".claude" / "skills").exists()
+            else 0
+        )
+        hooks = (
+            sum(1 for _ in (target / ".claude" / "hooks").glob("*.sh"))
+            if (target / ".claude" / "hooks").exists()
+            else 0
+        )
+        agents = (
+            sum(1 for _ in (target / ".claude" / "agents").glob("*.md"))
+            if (target / ".claude" / "agents").exists()
+            else 0
+        )
+        console.print("\n[bold]Claude Code[/]")
+        console.print(f"  Skills: {skills}  |  Hooks: {hooks}  |  Agents: {agents}")
+        if not (target / ".claudeignore").exists():
+            console.print("  [yellow]⚠ Missing .claudeignore[/]")
+
+    # 4. Quick wins
+    quick_wins = []
+    if configured and "agents-md" not in configured:
+        quick_wins.append("vcsx update --tool agents-md  [dim](universal standard)[/]")
+    if (target / ".windsurfrules").exists() and not (target / ".windsurf" / "rules").exists():
+        quick_wins.append("vcsx migrate windsurf  [dim](upgrade to v2 format)[/]")
+    if (target / ".cursorrules").exists() and not (target / ".cursor" / "rules").exists():
+        quick_wins.append("vcsx migrate cursor  [dim](upgrade to .mdc format)[/]")
+    if "claude-code" in configured and not (target / ".claudeignore").exists():
+        quick_wins.append("vcsx update --auto  [dim](generate .claudeignore)[/]")
+
+    if quick_wins:
+        console.print("\n[bold]Quick Wins[/]")
+        for qw in quick_wins[:4]:
+            console.print(f"  → {qw}")
+
+    console.print()
+    console.print("[dim]For details: vcsx audit | vcsx check --json | vcsx stats[/]\n")
+
+
 @main.command("status")
 @click.argument("path", default=".", type=click.Path(exists=True))
 def project_status(path):

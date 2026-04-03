@@ -1072,6 +1072,37 @@ class TestPluginsCommand:
         assert "plugin" in result.output.lower() or result.output.strip() != ""
 
 
+class TestQualityCommand:
+    def test_quality_empty_dir(self, runner, tmp_dir):
+        result = runner.invoke(main, ["quality", tmp_dir])
+        assert result.exit_code == 0
+        assert "Project Stack" in result.output or "quality" in result.output.lower()
+
+    def test_quality_with_claude_code(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python", project_type="api")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["quality", tmp_dir])
+        assert result.exit_code == 0
+        assert "claude-code" in result.output
+        assert "Skills" in result.output
+
+    def test_quality_shows_quick_wins(self, runner, tmp_dir):
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        result = runner.invoke(main, ["quality", tmp_dir])
+        assert result.exit_code == 0
+        # Missing .claudeignore → quick win shown
+        assert "Quick Wins" in result.output or "agents-md" in result.output
+
+    def test_quality_with_python_project(self, runner, tmp_dir):
+        (Path(tmp_dir) / "requirements.txt").write_text("fastapi\n")
+        (Path(tmp_dir) / "GEMINI.md").write_text("# Gemini")
+        result = runner.invoke(main, ["quality", tmp_dir])
+        assert result.exit_code == 0
+        assert "gemini" in result.output.lower() or "AI Tools" in result.output
+
+
 class TestStatusCommand:
     def test_status_empty_dir(self, runner, tmp_dir):
         result = runner.invoke(main, ["status", tmp_dir])
