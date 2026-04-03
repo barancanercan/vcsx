@@ -762,6 +762,35 @@ class TestCopilotScopedInstructions:
         assert "applyTo" in content
 
 
+class TestAiderReadFiles:
+    def test_aider_read_files_go(self, tmp_dir):
+        from vcsx.generators.aider import AiderGenerator
+        ctx = ProjectContext(language="go", project_name="go-proj")
+        gen = AiderGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".aider.conf.yaml").read_text()
+        assert "go.mod" in content
+
+    def test_aider_empty_read_files(self):
+        from vcsx.generators.aider import _format_read_files
+        result = _format_read_files([])
+        assert result == ""
+
+    def test_windsurf_data_pipeline_rules(self, tmp_dir):
+        from vcsx.generators.windsurf import WindsurfGenerator
+        ctx = ProjectContext(
+            project_name="pipeline",
+            language="python",
+            project_type="data-pipeline",
+        )
+        gen = WindsurfGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        rules_dir = Path(tmp_dir) / ".windsurf" / "rules"
+        assert (rules_dir / "data-conventions.md").exists()
+        content = (rules_dir / "data-conventions.md").read_text()
+        assert "chunk" in content.lower() or "idempotent" in content.lower()
+
+
 class TestAiderGeneratorExtended:
     """Extended coverage tests for Aider generator."""
 
