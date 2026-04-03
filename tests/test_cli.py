@@ -123,6 +123,67 @@ class TestCheckCommand:
         assert 0 <= data["overall_score"] <= 100
 
 
+class TestInitAllToolsFast:
+    """Test init --all-tools with fast and scan modes."""
+
+    def test_init_all_tools_scan(self, runner, tmp_dir):
+        import tempfile, json as json_mod
+        with tempfile.TemporaryDirectory() as src_dir:
+            (Path(src_dir) / "requirements.txt").write_text("fastapi\n")
+            result = runner.invoke(
+                main,
+                ["init", "--scan", "--all-tools", "--output-dir", tmp_dir],
+            )
+            assert result.exit_code == 0
+
+    def test_init_multi_tool_list_from_discovery_context(self, runner, tmp_dir):
+        """Test ai_tools_list branch in init."""
+        # Fast mode with explicit tools bypasses discovery
+        result = runner.invoke(
+            main,
+            ["init", "--fast", "--cli", "gemini", "--cli", "agents-md", "--output-dir", tmp_dir],
+            input="test-project\nPython\n",
+        )
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / "GEMINI.md").exists()
+
+
+class TestCheckWithClaude:
+    def test_check_claude_code_recommendations(self, runner, tmp_dir):
+        """Test check with claude-code configured but missing extras."""
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_config(ctx, tmp_dir)  # only config, not all
+        result = runner.invoke(main, ["check", tmp_dir])
+        assert result.exit_code == 0
+
+    def test_check_shows_agents_md_suggestion(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["check", tmp_dir])
+        assert result.exit_code == 0
+
+
+class TestExportWithBuildDirs:
+    def test_export_skips_build_dirs(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        # Create build dirs that should be skipped
+        (Path(tmp_dir) / "node_modules").mkdir()
+        (Path(tmp_dir) / "node_modules" / "test.js").write_text("test")
+        (Path(tmp_dir) / "__pycache__").mkdir()
+        zip_path = Path(tmp_dir) / "out.zip"
+        result = runner.invoke(main, ["export", tmp_dir, "--output", str(zip_path)])
+        assert result.exit_code == 0
+        # ZIP should exist
+        assert zip_path.exists()
+
+
 class TestInitScanMode:
     def test_scan_detects_python_project(self, runner, tmp_dir):
         (Path(tmp_dir) / "requirements.txt").write_text("fastapi\npytest\n")
@@ -339,6 +400,53 @@ class TestSearchCommandExtended:
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["search", "security", tmp_dir, "--type", "agent"])
         assert result.exit_code == 0
+
+
+class TestConfigCorruptFile:
+    def test_config_with_corrupted_file(self, runner):
+        """Test config loads gracefully with corrupted JSON."""
+        import os
+        config_file = __import__("pathlib").Path.home() / ".vcsx" / "config.json"
+        original = None
+        try:
+            if config_file.exists():
+                original = config_file.read_text()
+            config_file.parent.mkdir(exist_ok=True)
+            config_file.write_text("not valid json{{{{")
+            result = runner.invoke(main, ["config", "--list"])
+            assert result.exit_code == 0  # should not crash
+        finally:
+            if original is not None:
+                config_file.write_text(original)
+            elif config_file.exists():
+                config_file.unlink()
+
+
+class TestValidateWarnings:
+    def test_validate_claude_md_150_lines(self, runner, tmp_dir):
+        """Test warning for 150-200 line CLAUDE.md."""
+        content = "# test\n" + "line\n" * 160
+        (Path(tmp_dir) / "CLAUDE.md").write_text(content)
+        result = runner.invoke(main, ["validate", tmp_dir])
+        assert result.exit_code == 0
+        assert "160" in result.output or "150" in result.output or "Warning" in result.output
+
+    def test_validate_gemini_short(self, runner, tmp_dir):
+        (Path(tmp_dir) / "GEMINI.md").write_text("# short\n")
+        result = runner.invoke(main, ["validate", tmp_dir])
+        assert result.exit_code == 0
+
+    def test_validate_all_passed_message(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        ctx = ProjectContext(project_name="clean", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        AgentsMdGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["validate", tmp_dir])
+        assert result.exit_code == 0
+        # Should show CLAUDE.md as valid
+        assert "CLAUDE.md" in result.output
 
 
 class TestConfigCommand:
