@@ -106,6 +106,45 @@ class TestClaudeCodeGenerator:
         assert "scaffold" in result
 
 
+class TestCursorGeneratorExtended:
+    """Extended coverage for cursor generator."""
+
+    def test_cursor_scaffold_go(self, tmp_dir):
+        ctx = ProjectContext(project_name="go-app", language="go", project_type="api")
+        gen = CursorGenerator()
+        result = gen.generate_scaffold(ctx, tmp_dir)
+        assert "go.mod" in result
+
+    def test_cursor_scaffold_python(self, tmp_dir):
+        ctx = ProjectContext(project_name="py-app", language="python")
+        gen = CursorGenerator()
+        result = gen.generate_scaffold(ctx, tmp_dir)
+        assert "requirements.txt" in result
+
+    def test_cursor_api_rules_generated(self, tmp_dir):
+        ctx = ProjectContext(project_name="api", project_type="api", language="python")
+        gen = CursorGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        rules_dir = Path(tmp_dir) / ".cursor" / "rules"
+        files = [f.name for f in rules_dir.iterdir()]
+        assert any("api" in f for f in files)
+
+    def test_cursor_auth_rules_generated(self, tmp_dir):
+        ctx = ProjectContext(
+            project_name="auth-app", language="python", auth_needed=True, auth_method="JWT"
+        )
+        gen = CursorGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        rules_dir = Path(tmp_dir) / ".cursor" / "rules"
+        files = [f.name for f in rules_dir.iterdir()]
+        assert any("auth" in f for f in files)
+
+    def test_cursor_agents_returns_list(self, ctx, tmp_dir):
+        gen = CursorGenerator()
+        result = gen.generate_agents(ctx, tmp_dir)
+        assert isinstance(result, list)
+
+
 class TestCursorGenerator:
     def test_generate_config(self, ctx, tmp_dir):
         gen = CursorGenerator()
@@ -131,6 +170,45 @@ class TestCodexGenerator:
         content = gen.generate_config(ctx, tmp_dir)
         assert (Path(tmp_dir) / ".openai" / "instructions.md").exists()
         assert "test-project" in content
+
+
+class TestCopilotGeneratorExtended:
+    """Extended coverage for copilot generator."""
+
+    def test_copilot_scaffold_typescript(self, tmp_dir):
+        ctx = ProjectContext(project_name="ts-app", language="typescript")
+        gen = CopilotGenerator()
+        result = gen.generate_scaffold(ctx, tmp_dir)
+        assert "package.json" in result
+
+    def test_copilot_scaffold_python(self, tmp_dir):
+        ctx = ProjectContext(project_name="py-app", language="python")
+        gen = CopilotGenerator()
+        result = gen.generate_scaffold(ctx, tmp_dir)
+        assert "requirements.txt" in result
+
+    def test_copilot_scaffold_go(self, tmp_dir):
+        ctx = ProjectContext(project_name="go-app", language="go")
+        gen = CopilotGenerator()
+        result = gen.generate_scaffold(ctx, tmp_dir)
+        assert "go.mod" in result
+
+    def test_copilot_instructions_python_glob(self, tmp_dir):
+        ctx = ProjectContext(project_name="py-app", language="python")
+        gen = CopilotGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".github" / "instructions" / "code-style.instructions.md").read_text()
+        assert "*.py" in content
+
+    def test_copilot_agents_returns_list(self, ctx, tmp_dir):
+        gen = CopilotGenerator()
+        result = gen.generate_agents(ctx, tmp_dir)
+        assert isinstance(result, list)
+
+    def test_copilot_hooks_returns_dict(self, ctx, tmp_dir):
+        gen = CopilotGenerator()
+        result = gen.generate_hooks(ctx, tmp_dir)
+        assert isinstance(result, dict)
 
 
 class TestCopilotGenerator:
@@ -187,6 +265,77 @@ class TestGeminiGenerator:
         content = (Path(tmp_dir) / "GEMINI.md").read_text()
         assert "Data Pipeline" in content
         assert "SQLite" in content
+
+
+class TestAgentsMdExtended:
+    """Extended coverage for agents_md generator."""
+
+    def test_agents_md_with_purpose(self, tmp_dir):
+        ctx = ProjectContext(
+            project_name="my-project",
+            purpose="Build a fintech app",
+            problem="No good tools exist",
+            target_users="Developers",
+            language="python",
+        )
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        gen = AgentsMdGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        assert "Build a fintech app" in content
+        assert "No good tools exist" in content
+
+    def test_agents_md_python_commands(self, tmp_dir):
+        ctx = ProjectContext(
+            project_name="py-app",
+            language="python",
+            test_framework="pytest",
+            formatter="ruff format",
+            linter="ruff check",
+        )
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        gen = AgentsMdGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        assert "pytest" in content
+        assert "ruff" in content
+
+    def test_agents_md_typescript_commands(self, tmp_dir):
+        ctx = ProjectContext(
+            project_name="ts-app",
+            language="typescript",
+            tech_stack="pnpm, react",
+        )
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        gen = AgentsMdGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        assert "pnpm" in content or "npm" in content
+
+    def test_agents_md_with_auth(self, tmp_dir):
+        ctx = ProjectContext(
+            project_name="auth-app",
+            language="python",
+            auth_needed=True,
+            auth_method="JWT",
+        )
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        gen = AgentsMdGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        assert "JWT" in content or "auth" in content.lower()
+
+    def test_agents_md_data_pipeline(self, tmp_dir):
+        ctx = ProjectContext(
+            project_name="pipeline",
+            language="python",
+            project_type="data-pipeline",
+        )
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        gen = AgentsMdGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        assert "chunk" in content.lower() or "idempotent" in content.lower()
 
 
 class TestAgentsMdGenerator:
@@ -286,6 +435,58 @@ class TestCopilotScopedInstructions:
         gen.generate_config(ctx, tmp_dir)
         content = (Path(tmp_dir) / ".github" / "instructions" / "security.instructions.md").read_text()
         assert "applyTo" in content
+
+
+class TestAiderGeneratorExtended:
+    """Extended coverage tests for Aider generator."""
+
+    def test_aider_config_go(self, tmp_dir):
+        ctx = ProjectContext(language="go", project_name="go-proj")
+        gen = AiderGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".aider.conf.yaml").read_text()
+        assert "go" in content.lower() or "model" in content
+
+    def test_aider_context_with_purpose(self, tmp_dir):
+        ctx = ProjectContext(
+            project_name="test",
+            language="python",
+            purpose="Build a REST API",
+            problem="No current API exists",
+        )
+        gen = AiderGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        assert "Build a REST API" in content
+
+    def test_aider_read_files_typescript(self, tmp_dir):
+        ctx = ProjectContext(language="typescript", project_name="ts-proj")
+        gen = AiderGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".aider.conf.yaml").read_text()
+        assert "package.json" in content
+
+    def test_aider_read_files_rust(self, tmp_dir):
+        ctx = ProjectContext(language="rust", project_name="rust-proj")
+        gen = AiderGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".aider.conf.yaml").read_text()
+        assert "Cargo.toml" in content
+
+    def test_aider_hooks_returns_empty(self, ctx, tmp_dir):
+        gen = AiderGenerator()
+        result = gen.generate_hooks(ctx, tmp_dir)
+        assert result == {}
+
+    def test_aider_agents_returns_empty(self, ctx, tmp_dir):
+        gen = AiderGenerator()
+        result = gen.generate_agents(ctx, tmp_dir)
+        assert result == []
+
+    def test_aider_scaffold_returns_empty(self, ctx, tmp_dir):
+        gen = AiderGenerator()
+        result = gen.generate_scaffold(ctx, tmp_dir)
+        assert result == []
 
 
 class TestAiderGenerator:
@@ -406,6 +607,58 @@ class TestZedGenerator:
     def test_output_files_property(self):
         gen = ZedGenerator()
         assert ".zed/settings.json" in gen.output_files
+
+
+class TestCodexGeneratorExtended:
+    """Extended coverage for Codex generator."""
+
+    def test_codex_scaffold_typescript(self, tmp_dir):
+        from vcsx.generators.codex import CodexGenerator
+        ctx = ProjectContext(
+            project_name="my-ts-app",
+            language="typescript",
+            project_type="web",
+            test_framework="vitest",
+        )
+        gen = CodexGenerator()
+        result = gen.generate_scaffold(ctx, tmp_dir)
+        assert "package.json" in result
+        assert (Path(tmp_dir) / "package.json").exists()
+
+    def test_codex_scaffold_python(self, tmp_dir):
+        from vcsx.generators.codex import CodexGenerator
+        ctx = ProjectContext(project_name="my-py", language="python")
+        gen = CodexGenerator()
+        result = gen.generate_scaffold(ctx, tmp_dir)
+        assert "requirements.txt" in result
+
+    def test_codex_scaffold_go(self, tmp_dir):
+        from vcsx.generators.codex import CodexGenerator
+        ctx = ProjectContext(project_name="my-go", language="go")
+        gen = CodexGenerator()
+        result = gen.generate_scaffold(ctx, tmp_dir)
+        assert "go.mod" in result
+        assert (Path(tmp_dir) / "go.mod").exists()
+
+    def test_codex_config_content(self, ctx, tmp_dir):
+        from vcsx.generators.codex import CodexGenerator
+        gen = CodexGenerator()
+        content = gen.generate_config(ctx, tmp_dir)
+        assert "test-project" in content
+        assert "python" in content.lower()
+
+    def test_codex_hooks_returns_dict(self, ctx, tmp_dir):
+        from vcsx.generators.codex import CodexGenerator
+        gen = CodexGenerator()
+        result = gen.generate_hooks(ctx, tmp_dir)
+        assert isinstance(result, dict)
+
+    def test_codex_no_test_level(self, tmp_dir):
+        from vcsx.generators.codex import CodexGenerator
+        ctx = ProjectContext(project_name="no-test", language="python", test_level="none")
+        gen = CodexGenerator()
+        content = gen.generate_config(ctx, tmp_dir)
+        assert "No tests" in content or "no tests" in content.lower()
 
 
 class TestMultiToolInit:
