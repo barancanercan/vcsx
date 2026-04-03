@@ -624,26 +624,159 @@ description: REST API design patterns and endpoint naming conventions. Use when 
 def _skill_test_patterns(skills_dir: Path, ctx: ProjectContext) -> str:
     d = skills_dir / "test-patterns"
     d.mkdir(parents=True, exist_ok=True)
+    fw = ctx.test_framework or infer_test_framework(ctx.language)
+    lang = (ctx.language or "").lower()
+
+    python_examples = (
+        """
+## Python / pytest Examples
+
+### Basic test structure
+```python
+def test_create_user_returns_id():
+    # Arrange
+    db = FakeDatabase()
+    service = UserService(db)
+
+    # Act
+    user_id = service.create_user(name="Alice", email="alice@example.com")
+
+    # Assert
+    assert user_id is not None
+    assert db.find_user(user_id).email == "alice@example.com"
+```
+
+### Parametrized tests
+```python
+@pytest.mark.parametrize("email,expected", [
+    ("valid@example.com", True),
+    ("invalid-email", False),
+    ("", False),
+    (None, False),
+])
+def test_validate_email(email, expected):
+    assert validate_email(email) == expected
+```
+
+### Fixtures
+```python
+@pytest.fixture
+def user():
+    return User(id=1, name="Alice", email="alice@example.com")
+
+@pytest.fixture
+def mock_db(mocker):
+    db = mocker.Mock()
+    db.find_user.return_value = None
+    return db
+
+def test_user_not_found_raises(mock_db):
+    service = UserService(mock_db)
+    with pytest.raises(UserNotFoundError):
+        service.get_user(99)
+```
+
+### Testing exceptions
+```python
+def test_invalid_input_raises_value_error():
+    with pytest.raises(ValueError, match="Email cannot be empty"):
+        create_user(name="Bob", email="")
+```
+"""
+        if lang == "python"
+        else ""
+    )
+
+    ts_examples = (
+        """
+## TypeScript / Vitest Examples
+
+### Basic test
+```typescript
+import { describe, it, expect, vi } from 'vitest'
+import { createUser } from './user-service'
+
+describe('createUser', () => {
+  it('returns user id on success', async () => {
+    const db = { insert: vi.fn().mockResolvedValue({ id: '123' }) }
+    const result = await createUser(db, { name: 'Alice' })
+    expect(result.id).toBe('123')
+  })
+
+  it('throws on missing name', async () => {
+    await expect(createUser(db, {})).rejects.toThrow('Name is required')
+  })
+})
+```
+
+### Mocking
+```typescript
+vi.mock('./email-service', () => ({
+  sendEmail: vi.fn().mockResolvedValue(true),
+}))
+```
+"""
+        if lang in ("typescript", "javascript")
+        else ""
+    )
+
     content = f"""---
 name: test-patterns
-description: Test writing patterns using {ctx.test_framework or infer_test_framework(ctx.language)}. Use when writing tests.
+description: Test writing patterns using {fw}. Use when writing tests or asked to add test coverage.
 ---
 
-# Test Patterns
+# Test Patterns — {fw}
 
-## Framework: {ctx.test_framework or infer_test_framework(ctx.language)}
+## AAA Structure (non-negotiable)
+Every test follows Arrange → Act → Assert:
+1. **Arrange**: set up test data and dependencies
+2. **Act**: execute the code under test (usually one line)
+3. **Assert**: verify the outcome
 
-## Structure
-1. Arrange — Set up test data
-2. Act — Execute code under test
-3. Assert — Verify outcome
+## Naming Convention
+`test_<function>_<scenario>_<expected_outcome>`
 
-## Guidelines
-- Test behavior, not implementation
-- One assertion per test when possible
-- Descriptive test names
-- Mock external dependencies
-- Test edge cases and error conditions
+Examples:
+- `test_create_user_valid_input_returns_id`
+- `test_create_user_empty_email_raises_value_error`
+- `test_login_wrong_password_returns_401`
+
+## What to Test
+- ✅ Happy path (valid input → expected output)
+- ✅ Edge cases (empty, null, zero, max values)
+- ✅ Error cases (invalid input → exception/error response)
+- ✅ Boundary conditions (off-by-one, limits)
+- ❌ Implementation details (internal variable names)
+- ❌ Third-party library behavior
+
+## Test Isolation Rules
+- Tests must be **independent** — no shared mutable state
+- Tests must be **deterministic** — same result every run
+- **Mock external dependencies**: database, HTTP, file system, time
+- Use **factories/fixtures** for test data, not hardcoded values
+
+## Coverage Targets
+- Critical business logic: 100%
+- API endpoints: 100% (happy + error paths)
+- Utilities: 80%+
+- UI components: key interactions
+
+{python_examples}{ts_examples}
+
+## Running Tests
+```bash
+# Run all tests
+{fw}
+
+# Run specific file
+{"pytest tests/test_users.py -v" if lang == "python" else "npx vitest run src/users.test.ts"}
+
+# With coverage
+{"pytest --cov=src --cov-report=term-missing" if lang == "python" else "npx vitest run --coverage"}
+
+# Watch mode (development)
+{"pytest-watch" if lang == "python" else "npx vitest"}
+```
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "test-patterns"
@@ -873,26 +1006,89 @@ description: Rolls back deployment to previous version on {hosting}. Use when de
 def _skill_migration(skills_dir: Path, ctx: ProjectContext) -> str:
     d = skills_dir / "migration"
     d.mkdir(parents=True, exist_ok=True)
+    lang = (ctx.language or "").lower()
+    framework = (ctx.framework or "").lower()
+
+    if lang == "python" and "django" in framework:
+        migration_cmds = "python manage.py makemigrations\npython manage.py migrate"
+        rollback_cmd = "python manage.py migrate <app> <prev_migration>"
+        show_cmd = "python manage.py showmigrations"
+    else:
+        migration_cmds = "alembic revision --autogenerate -m 'description'\nalembic upgrade head"
+        rollback_cmd = "alembic downgrade -1"
+        show_cmd = "alembic history --verbose"
+
     content = f"""---
 name: migration
-description: Generates database migration files using {ctx.test_framework or "ORM"}. Use when creating database schema changes.
+description: Creates and applies database migrations safely. Use when changing database schema.
 ---
 
-# Migration Skill
+# Database Migration Skill
 
-## Framework: {ctx.test_framework or "SQLAlchemy/Django ORM"}
+## ⚠️ Golden Rules
+1. **Never modify already-applied migrations** — create a new one instead
+2. **Always include a down migration** (rollback)
+3. **Test rollback BEFORE merging** — verify it actually works
+4. **One concern per migration** — don't combine unrelated schema changes
+5. **Coordinate with team** — migrations in main branch require communication
 
-## Process
-1. Generate migration: alembic revision --autogenerate
-2. Review generated migration
-3. Apply locally: alembic upgrade head
-4. Test rollback: alembic downgrade -1
-5. Commit migration file
+## Create Migration
+```bash
+{migration_cmds}
+```
 
-## Guidelines
-- Never modify committed migrations
-- Always include rollback
-- Test on staging first
+## Review Before Applying
+Check the generated migration for:
+- [ ] Correct table/column names
+- [ ] No accidental DROP TABLE or DROP COLUMN
+- [ ] Data migrations included if needed (backfill)
+- [ ] Indexes added for new foreign keys
+- [ ] Nullable vs NOT NULL is intentional
+
+## Apply & Verify
+```bash
+# Check pending migrations
+{show_cmd}
+
+# Apply
+{"python manage.py migrate" if "django" in framework else "alembic upgrade head"}
+
+# Verify
+{"python manage.py showmigrations" if "django" in framework else "alembic current"}
+```
+
+## Rollback (if something goes wrong)
+```bash
+{rollback_cmd}
+```
+
+## Dangerous Operations (handle with care)
+- **DROP COLUMN**: data is lost forever — backup first
+- **NOT NULL without default**: will fail if existing rows don't have data
+- **Rename column**: breaks all code using old name — do it in 3 migrations:
+  1. Add new column
+  2. Backfill data, update code
+  3. Drop old column (separate PR)
+
+## Data Migrations
+When migrating data (not just schema):
+```python
+# Do in batches to avoid locking
+BATCH_SIZE = 1000
+offset = 0
+while True:
+    rows = db.query(f"SELECT id FROM users LIMIT {{BATCH_SIZE}} OFFSET {{offset}}")
+    if not rows:
+        break
+    # process rows...
+    offset += BATCH_SIZE
+```
+
+## Pre-Production Checklist
+- [ ] Migration runs in < 5 minutes on production data size
+- [ ] Rollback tested on local copy of production data
+- [ ] No table locks during peak hours (use `LOCK TIMEOUT`)
+- [ ] Communicated to team before running
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "migration"
