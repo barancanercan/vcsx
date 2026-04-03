@@ -212,6 +212,179 @@ class TestInferProjectType:
         assert _infer_project_type(Path(tmp_dir), "typescript") == "web"
 
 
+class TestScanJava:
+    def test_detects_java_from_pom(self, tmp_dir):
+        (Path(tmp_dir) / "pom.xml").write_text("<project><name>my-app</name></project>")
+        result = scan_project(tmp_dir)
+        assert result["language"] == "java"
+        assert result["project_type"] == "api"
+
+    def test_detects_java_from_gradle(self, tmp_dir):
+        (Path(tmp_dir) / "build.gradle").write_text("plugins { id 'java' }")
+        result = scan_project(tmp_dir)
+        assert result["language"] == "java"
+
+
+class TestScanDart:
+    def test_detects_dart_flutter(self, tmp_dir):
+        (Path(tmp_dir) / "pubspec.yaml").write_text("name: my_app\ndependencies:\n  flutter:\n")
+        result = scan_project(tmp_dir)
+        assert result["language"] == "dart"
+        assert result["framework"] == "Flutter"
+        assert result["project_type"] == "mobile"
+
+
+class TestScanPythonFrameworks:
+    def test_detects_starlette(self, tmp_dir):
+        (Path(tmp_dir) / "requirements.txt").write_text("starlette>=0.30\n")
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "Starlette"
+
+    def test_detects_tornado(self, tmp_dir):
+        (Path(tmp_dir) / "requirements.txt").write_text("tornado>=6.0\n")
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "Tornado"
+
+    def test_detects_data_science(self, tmp_dir):
+        (Path(tmp_dir) / "requirements.txt").write_text("pandas\nnumpy\nscikit-learn\n")
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "Data Science"
+
+    def test_detects_scrapy(self, tmp_dir):
+        (Path(tmp_dir) / "requirements.txt").write_text("scrapy>=2.0\n")
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "Scrapy"
+
+    def test_no_framework_returns_empty(self, tmp_dir):
+        (Path(tmp_dir) / "requirements.txt").write_text("click>=8.0\nrich\n")
+        result = scan_project(tmp_dir)
+        assert result["framework"] == ""
+
+
+class TestScanGoFrameworks:
+    def test_detects_echo(self, tmp_dir):
+        (Path(tmp_dir) / "go.mod").write_text(
+            "module my-app\n\nrequire github.com/labstack/echo/v4 v4.11.0\n"
+        )
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "Echo"
+
+    def test_detects_fiber(self, tmp_dir):
+        (Path(tmp_dir) / "go.mod").write_text(
+            "module my-app\n\nrequire github.com/gofiber/fiber/v2 v2.50.0\n"
+        )
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "Fiber"
+
+    def test_no_framework_go(self, tmp_dir):
+        (Path(tmp_dir) / "go.mod").write_text("module my-app\n\ngo 1.21\n")
+        result = scan_project(tmp_dir)
+        assert result["framework"] == ""
+
+
+class TestScanRustFrameworks:
+    def test_detects_actix(self, tmp_dir):
+        (Path(tmp_dir) / "Cargo.toml").write_text(
+            '[package]\nname = "my-api"\n\n[dependencies]\nactix-web = "4"\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "Actix"
+        assert result["project_type"] == "api"
+
+    def test_no_framework_rust(self, tmp_dir):
+        (Path(tmp_dir) / "Cargo.toml").write_text('[package]\nname = "my-lib"\n')
+        result = scan_project(tmp_dir)
+        assert result["framework"] == ""
+
+
+class TestScanTechStackString:
+    def test_tech_stack_includes_language_and_framework(self, tmp_dir):
+        (Path(tmp_dir) / "requirements.txt").write_text("fastapi\n")
+        result = scan_project(tmp_dir)
+        assert "python" in result["tech_stack"].lower()
+        assert "FastAPI" in result["tech_stack"]
+
+    def test_tech_stack_without_framework(self, tmp_dir):
+        (Path(tmp_dir) / "go.mod").write_text("module my-app\n\ngo 1.21\n")
+        result = scan_project(tmp_dir)
+        assert "Go" in result["tech_stack"] or "go" in result["tech_stack"].lower()
+
+    def test_empty_dir_defaults(self, tmp_dir):
+        result = scan_project(tmp_dir)
+        assert result["project_name"] == Path(tmp_dir).name
+        assert result["has_docker"] is False
+        assert result["has_ci"] is False
+
+
+class TestScanPackageJsonExtended:
+    def test_detects_svelte(self, tmp_dir):
+        pkg = {"name": "my-app", "dependencies": {"svelte": "^4.0.0"}}
+        (Path(tmp_dir) / "package.json").write_text(json.dumps(pkg))
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "Svelte"
+
+    def test_detects_jest(self, tmp_dir):
+        pkg = {"name": "my-app", "devDependencies": {"jest": "^29.0.0"}}
+        (Path(tmp_dir) / "package.json").write_text(json.dumps(pkg))
+        result = scan_project(tmp_dir)
+        assert result["test_framework"] == "jest"
+
+    def test_detects_yarn_lock(self, tmp_dir):
+        pkg = {"name": "my-app", "dependencies": {}}
+        (Path(tmp_dir) / "package.json").write_text(json.dumps(pkg))
+        (Path(tmp_dir) / "yarn.lock").write_text("")
+        result = scan_project(tmp_dir)
+        assert result.get("package_manager") == "yarn"
+
+    def test_description_from_package_json(self, tmp_dir):
+        pkg = {"name": "my-app", "description": "My awesome app", "dependencies": {}}
+        (Path(tmp_dir) / "package.json").write_text(json.dumps(pkg))
+        result = scan_project(tmp_dir)
+        assert result["description"] == "My awesome app"
+
+    def test_detects_nestjs(self, tmp_dir):
+        pkg = {"name": "my-api", "dependencies": {"@nestjs/core": "^10.0.0"}}
+        (Path(tmp_dir) / "package.json").write_text(json.dumps(pkg))
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "NestJS"
+        assert result["project_type"] == "api"
+
+    def test_javascript_no_tsconfig(self, tmp_dir):
+        pkg = {"name": "my-app", "dependencies": {"express": "^4.0.0"}}
+        (Path(tmp_dir) / "package.json").write_text(json.dumps(pkg))
+        result = scan_project(tmp_dir)
+        assert result["language"] == "javascript"
+
+    def test_typescript_from_tsconfig(self, tmp_dir):
+        pkg = {"name": "my-app", "dependencies": {}}
+        (Path(tmp_dir) / "package.json").write_text(json.dumps(pkg))
+        (Path(tmp_dir) / "tsconfig.json").write_text("{}")
+        result = scan_project(tmp_dir)
+        assert result["language"] == "typescript"
+
+
+class TestInferProjectTypeExtended:
+    def test_infers_api_from_api_dir(self, tmp_dir):
+        (Path(tmp_dir) / "src" / "api").mkdir(parents=True)
+        assert _infer_project_type(Path(tmp_dir), "typescript") == "api"
+
+    def test_infers_api_from_controllers(self, tmp_dir):
+        (Path(tmp_dir) / "src" / "controllers").mkdir(parents=True)
+        assert _infer_project_type(Path(tmp_dir), "typescript") == "api"
+
+    def test_infers_data_pipeline_from_notebooks(self, tmp_dir):
+        (Path(tmp_dir) / "notebooks").mkdir()
+        assert _infer_project_type(Path(tmp_dir), "python") == "data-pipeline"
+
+    def test_infers_library_python(self, tmp_dir):
+        (Path(tmp_dir) / "setup.py").write_text("from setuptools import setup; setup()")
+        assert _infer_project_type(Path(tmp_dir), "python") == "library"
+
+    def test_infers_cli_from_cmd_dir(self, tmp_dir):
+        (Path(tmp_dir) / "cmd").mkdir()
+        assert _infer_project_type(Path(tmp_dir), "go") == "cli"
+
+
 class TestFormatScanSummary:
     def test_formats_full_scan(self):
         scan = {
