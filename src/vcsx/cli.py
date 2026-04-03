@@ -1064,6 +1064,96 @@ def stats(path):
                 console.print(f"  [cyan]{tool}:[/] {parts}")
 
 
+@main.command("config")
+@click.option("--set", "set_key", nargs=2, metavar="KEY VALUE", help="Set a config value")
+@click.option("--get", "get_key", metavar="KEY", help="Get a config value")
+@click.option("--list", "list_all", is_flag=True, help="List all config values")
+@click.option("--reset", is_flag=True, help="Reset config to defaults")
+def config_cmd(set_key, get_key, list_all, reset):
+    """Manage vcsx user configuration (~/.vcsx/config.json).
+
+    \b
+    Available config keys:
+      default_tool     Default AI tool (default: claude-code)
+      default_lang     Default language (default: typescript)
+      default_type     Default project type (default: web)
+      lang             UI language: tr or en (default: tr)
+      auto_push        Auto git-push after generate (default: false)
+
+    \b
+    Examples:
+        vcsx config --set default_tool cursor
+        vcsx config --set default_lang python
+        vcsx config --set lang en
+        vcsx config --get default_tool
+        vcsx config --list
+        vcsx config --reset
+    """
+    import json
+
+    config_dir = Path.home() / ".vcsx"
+    config_file = config_dir / "config.json"
+    config_dir.mkdir(exist_ok=True)
+
+    defaults = {
+        "default_tool": "claude-code",
+        "default_lang": "typescript",
+        "default_type": "web",
+        "lang": "tr",
+        "auto_push": False,
+    }
+
+    # Load existing config
+    if config_file.exists():
+        try:
+            cfg = json.loads(config_file.read_text())
+        except Exception:
+            cfg = {}
+    else:
+        cfg = {}
+
+    if reset:
+        config_file.write_text(json.dumps(defaults, indent=2))
+        console.print("[green]✓ Config reset to defaults.[/]")
+        return
+
+    if set_key:
+        key, value = set_key
+        if key not in defaults:
+            console.print(f"[red]Unknown key:[/] {key}")
+            console.print(f"Available keys: {', '.join(defaults.keys())}")
+            return
+        # Type coerce
+        if key == "auto_push":
+            value = value.lower() in ("true", "1", "yes")
+        cfg[key] = value
+        config_file.write_text(json.dumps(cfg, indent=2))
+        console.print(f"[green]✓ Set[/] {key} = {value}")
+        return
+
+    if get_key:
+        merged = {**defaults, **cfg}
+        if get_key not in merged:
+            console.print(f"[red]Unknown key:[/] {get_key}")
+            return
+        console.print(f"{get_key} = {merged[get_key]}")
+        return
+
+    # Default: list all
+    merged = {**defaults, **cfg}
+    table = Table(title=f"vcsx config ({config_file})")
+    table.add_column("Key", style="cyan")
+    table.add_column("Value")
+    table.add_column("Source", style="dim")
+
+    for key, default_val in defaults.items():
+        current = merged[key]
+        source = "user" if key in cfg else "default"
+        table.add_row(key, str(current), source)
+
+    console.print(table)
+
+
 @main.command("audit")
 @click.argument("path", default=".", type=click.Path(exists=True))
 @click.option("--fix", "auto_fix", is_flag=True, help="Auto-fix issues where possible")

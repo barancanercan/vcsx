@@ -234,6 +234,31 @@ class TestNewCommand:
         assert (Path(tmp_dir) / "my-web" / ".cursorrules").exists()
 
 
+class TestConfigCommand:
+    def test_config_list(self, runner):
+        result = runner.invoke(main, ["config", "--list"])
+        assert result.exit_code == 0
+        assert "default_tool" in result.output
+        assert "claude-code" in result.output
+
+    def test_config_set_and_get(self, runner, tmp_dir):
+        result = runner.invoke(main, ["config", "--set", "default_lang", "python"])
+        assert result.exit_code == 0
+        result2 = runner.invoke(main, ["config", "--get", "default_lang"])
+        assert result.exit_code == 0
+        assert "python" in result2.output
+
+    def test_config_unknown_key(self, runner):
+        result = runner.invoke(main, ["config", "--set", "nonexistent_key", "value"])
+        assert result.exit_code == 0
+        assert "Unknown key" in result.output
+
+    def test_config_reset(self, runner):
+        result = runner.invoke(main, ["config", "--reset"])
+        assert result.exit_code == 0
+        assert "reset" in result.output.lower()
+
+
 class TestAuditCommand:
     def test_audit_empty_dir(self, runner, tmp_dir):
         result = runner.invoke(main, ["audit", tmp_dir])
