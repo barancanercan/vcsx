@@ -44,9 +44,21 @@ def scan_project(project_dir: str) -> dict:
     elif (root / "Cargo.toml").exists():
         result["language"] = "rust"
         _scan_cargo_toml(root, result)
+    elif (root / "build.gradle.kts").exists() or (root / "settings.gradle.kts").exists():
+        result["language"] = "kotlin"
+        _scan_kotlin_gradle(root, result)
     elif (root / "pom.xml").exists() or (root / "build.gradle").exists():
         result["language"] = "java"
         result["project_type"] = "api"
+    elif (root / "Package.swift").exists() or any(root.glob("*.xcodeproj")):
+        result["language"] = "swift"
+        _scan_package_swift(root, result)
+    elif (root / "composer.json").exists():
+        result["language"] = "php"
+        _scan_composer_json(root, result)
+    elif (root / "Gemfile").exists() or list(root.glob("*.gemspec")):
+        result["language"] = "ruby"
+        _scan_gemfile(root, result)
     elif (root / "pubspec.yaml").exists():
         result["language"] = "dart"
         result["framework"] = "Flutter"
@@ -245,6 +257,148 @@ def _scan_cargo_toml(root: Path, result: dict) -> None:
             result["project_type"] = "cli"
 
         result["test_framework"] = "cargo test"
+    except Exception:
+        pass
+
+
+def _scan_kotlin_gradle(root: Path, result: dict) -> None:
+    """Scan Kotlin project from build.gradle.kts or settings.gradle.kts."""
+    try:
+        gradle_file = root / "build.gradle.kts"
+        if not gradle_file.exists():
+            gradle_file = root / "settings.gradle.kts"
+        content = gradle_file.read_text(encoding="utf-8")
+
+        # Try to extract rootProject.name from settings.gradle.kts
+        settings_file = root / "settings.gradle.kts"
+        if settings_file.exists():
+            settings_content = settings_file.read_text(encoding="utf-8")
+            for line in settings_content.splitlines():
+                if "rootProject.name" in line and "=" in line:
+                    name = line.split("=", 1)[1].strip().strip("\"'")
+                    if name:
+                        result["project_name"] = name
+                    break
+
+        deps_lower = content.lower()
+        if "spring" in deps_lower:
+            result["framework"] = "Spring"
+            result["project_type"] = "api"
+        elif "ktor" in deps_lower:
+            result["framework"] = "Ktor"
+            result["project_type"] = "api"
+        elif "android" in deps_lower or "compose" in deps_lower:
+            result["framework"] = "Android"
+            result["project_type"] = "mobile"
+
+        result["test_framework"] = "JUnit"
+    except Exception:
+        pass
+
+
+def _scan_package_swift(root: Path, result: dict) -> None:
+    """Scan Swift project from Package.swift."""
+    try:
+        package_swift = root / "Package.swift"
+        if package_swift.exists():
+            content = package_swift.read_text(encoding="utf-8")
+
+            # Extract package name
+            for line in content.splitlines():
+                if 'name:' in line and '"' in line:
+                    parts = line.split('"')
+                    if len(parts) >= 2:
+                        result["project_name"] = parts[1]
+                    break
+
+            deps_lower = content.lower()
+            if "vapor" in deps_lower:
+                result["framework"] = "Vapor"
+                result["project_type"] = "api"
+            elif "hummingbird" in deps_lower:
+                result["framework"] = "Hummingbird"
+                result["project_type"] = "api"
+        else:
+            # Xcode project — mobile app
+            result["project_type"] = "mobile"
+
+        result["test_framework"] = "XCTest"
+    except Exception:
+        pass
+
+
+def _scan_composer_json(root: Path, result: dict) -> None:
+    """Scan PHP project from composer.json."""
+    try:
+        import json
+
+        data = json.loads((root / "composer.json").read_text(encoding="utf-8"))
+        result["project_name"] = data.get("name", root.name).split("/")[-1]
+        result["description"] = data.get("description", "")
+
+        all_deps: dict = {}
+        all_deps.update(data.get("require", {}))
+        all_deps.update(data.get("require-dev", {}))
+        deps_lower = " ".join(all_deps.keys()).lower()
+
+        if "laravel/framework" in deps_lower or "laravel/laravel" in deps_lower:
+            result["framework"] = "Laravel"
+            result["project_type"] = "web"
+        elif "symfony/symfony" in deps_lower or "symfony/framework-bundle" in deps_lower:
+            result["framework"] = "Symfony"
+            result["project_type"] = "web"
+        elif "slim/slim" in deps_lower:
+            result["framework"] = "Slim"
+            result["project_type"] = "api"
+        elif "cakephp/cakephp" in deps_lower:
+            result["framework"] = "CakePHP"
+            result["project_type"] = "web"
+
+        if "phpunit/phpunit" in deps_lower:
+            result["test_framework"] = "PHPUnit"
+    except Exception:
+        pass
+
+
+def _scan_gemfile(root: Path, result: dict) -> None:
+    """Scan Ruby project from Gemfile or *.gemspec."""
+    try:
+        gemfile = root / "Gemfile"
+        content = ""
+        if gemfile.exists():
+            content = gemfile.read_text(encoding="utf-8")
+
+        # Try gemspec for project name/description
+        gemspecs = list(root.glob("*.gemspec"))
+        if gemspecs:
+            spec_content = gemspecs[0].read_text(encoding="utf-8")
+            for line in spec_content.splitlines():
+                if ".name" in line and "=" in line and '"' in line:
+                    parts = line.split('"')
+                    if len(parts) >= 2:
+                        result["project_name"] = parts[1]
+                    break
+                if ".summary" in line and "=" in line and '"' in line:
+                    parts = line.split('"')
+                    if len(parts) >= 2:
+                        result["description"] = parts[1]
+            content = content + "\n" + spec_content
+
+        deps_lower = content.lower()
+        if "rails" in deps_lower:
+            result["framework"] = "Rails"
+            result["project_type"] = "web"
+        elif "sinatra" in deps_lower:
+            result["framework"] = "Sinatra"
+            result["project_type"] = "web"
+        elif "hanami" in deps_lower:
+            result["framework"] = "Hanami"
+            result["project_type"] = "web"
+
+        if "rspec" in deps_lower:
+            result["test_framework"] = "RSpec"
+        elif "minitest" in deps_lower:
+            result["test_framework"] = "Minitest"
     except Exception:
         pass
 

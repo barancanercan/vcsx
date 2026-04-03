@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from vcsx.core.scanner import scan_project, format_scan_summary, _infer_project_type
+from vcsx.core.scanner import _infer_project_type, format_scan_summary, scan_project
 
 
 @pytest.fixture
@@ -462,3 +462,214 @@ class TestFormatScanSummary:
         scan = {"language": "go", "framework": ""}
         summary = format_scan_summary(scan)
         assert "go" in summary.lower()
+
+
+class TestScanKotlin:
+    def test_detects_kotlin_from_build_gradle_kts(self, tmp_dir):
+        (Path(tmp_dir) / "build.gradle.kts").write_text(
+            'plugins { kotlin("jvm") version "1.9.0" }\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["language"] == "kotlin"
+
+    def test_detects_kotlin_from_settings_gradle_kts(self, tmp_dir):
+        (Path(tmp_dir) / "settings.gradle.kts").write_text(
+            'rootProject.name = "my-kotlin-app"\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["language"] == "kotlin"
+
+    def test_extracts_project_name_from_settings(self, tmp_dir):
+        (Path(tmp_dir) / "build.gradle.kts").write_text("")
+        (Path(tmp_dir) / "settings.gradle.kts").write_text(
+            'rootProject.name = "cool-kotlin-project"\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["project_name"] == "cool-kotlin-project"
+
+    def test_detects_spring_framework(self, tmp_dir):
+        (Path(tmp_dir) / "build.gradle.kts").write_text(
+            'plugins { id("org.springframework.boot") version "3.2.0" }\n'
+            'dependencies { implementation("org.springframework.boot:spring-boot-starter-web") }\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "Spring"
+        assert result["project_type"] == "api"
+
+    def test_detects_ktor_framework(self, tmp_dir):
+        (Path(tmp_dir) / "build.gradle.kts").write_text(
+            'dependencies { implementation("io.ktor:ktor-server-core:2.3.0") }\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "Ktor"
+        assert result["project_type"] == "api"
+
+    def test_detects_android_project(self, tmp_dir):
+        (Path(tmp_dir) / "build.gradle.kts").write_text(
+            'plugins { id("com.android.application") }\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "Android"
+        assert result["project_type"] == "mobile"
+
+    def test_kotlin_junit_test_framework(self, tmp_dir):
+        (Path(tmp_dir) / "build.gradle.kts").write_text(
+            'dependencies { testImplementation("org.junit.jupiter:junit-jupiter:5.10.0") }\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["test_framework"] == "JUnit"
+
+
+class TestScanSwift:
+    def test_detects_swift_from_package_swift(self, tmp_dir):
+        (Path(tmp_dir) / "Package.swift").write_text(
+            '// swift-tools-version:5.9\nimport PackageDescription\n'
+            'let package = Package(\n    name: "MyLib",\n)\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["language"] == "swift"
+
+    def test_extracts_swift_package_name(self, tmp_dir):
+        (Path(tmp_dir) / "Package.swift").write_text(
+            'let package = Package(\n    name: "swift-awesome",\n)\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["project_name"] == "swift-awesome"
+
+    def test_detects_vapor_framework(self, tmp_dir):
+        (Path(tmp_dir) / "Package.swift").write_text(
+            'let package = Package(\n    name: "vapor-app",\n'
+            '    dependencies: [.package(url: "https://github.com/vapor/vapor.git", from: "4.0.0")]\n)\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "Vapor"
+        assert result["project_type"] == "api"
+
+    def test_swift_xctest_framework(self, tmp_dir):
+        (Path(tmp_dir) / "Package.swift").write_text(
+            'let package = Package(name: "my-lib")\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["test_framework"] == "XCTest"
+
+    def test_detects_xcodeproj(self, tmp_dir):
+        xcodeproj = Path(tmp_dir) / "MyApp.xcodeproj"
+        xcodeproj.mkdir()
+        result = scan_project(tmp_dir)
+        assert result["language"] == "swift"
+        assert result["project_type"] == "mobile"
+
+
+class TestScanPHP:
+    def test_detects_php_from_composer_json(self, tmp_dir):
+        composer = {"name": "myorg/my-app", "require": {"php": "^8.2"}}
+        (Path(tmp_dir) / "composer.json").write_text(json.dumps(composer))
+        result = scan_project(tmp_dir)
+        assert result["language"] == "php"
+
+    def test_extracts_php_project_name(self, tmp_dir):
+        composer = {"name": "myorg/cool-api", "require": {}}
+        (Path(tmp_dir) / "composer.json").write_text(json.dumps(composer))
+        result = scan_project(tmp_dir)
+        assert result["project_name"] == "cool-api"
+
+    def test_detects_laravel_framework(self, tmp_dir):
+        composer = {"name": "myorg/app", "require": {"laravel/framework": "^10.0"}}
+        (Path(tmp_dir) / "composer.json").write_text(json.dumps(composer))
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "Laravel"
+        assert result["project_type"] == "web"
+
+    def test_detects_symfony_framework(self, tmp_dir):
+        composer = {"name": "myorg/app", "require": {"symfony/framework-bundle": "^6.0"}}
+        (Path(tmp_dir) / "composer.json").write_text(json.dumps(composer))
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "Symfony"
+
+    def test_detects_slim_framework(self, tmp_dir):
+        composer = {"name": "myorg/api", "require": {"slim/slim": "^4.0"}}
+        (Path(tmp_dir) / "composer.json").write_text(json.dumps(composer))
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "Slim"
+        assert result["project_type"] == "api"
+
+    def test_detects_phpunit(self, tmp_dir):
+        composer = {"name": "myorg/app", "require-dev": {"phpunit/phpunit": "^11.0"}}
+        (Path(tmp_dir) / "composer.json").write_text(json.dumps(composer))
+        result = scan_project(tmp_dir)
+        assert result["test_framework"] == "PHPUnit"
+
+    def test_php_no_framework(self, tmp_dir):
+        composer = {"name": "myorg/tool", "require": {"php": "^8.2"}}
+        (Path(tmp_dir) / "composer.json").write_text(json.dumps(composer))
+        result = scan_project(tmp_dir)
+        assert result["framework"] == ""
+
+    def test_php_invalid_composer_json(self, tmp_dir):
+        (Path(tmp_dir) / "composer.json").write_text("not valid json{")
+        result = scan_project(tmp_dir)
+        assert result["language"] == "php"
+
+
+class TestScanRuby:
+    def test_detects_ruby_from_gemfile(self, tmp_dir):
+        (Path(tmp_dir) / "Gemfile").write_text('source "https://rubygems.org"\ngem "rake"\n')
+        result = scan_project(tmp_dir)
+        assert result["language"] == "ruby"
+
+    def test_detects_rails_framework(self, tmp_dir):
+        (Path(tmp_dir) / "Gemfile").write_text(
+            'source "https://rubygems.org"\ngem "rails", "~> 7.0"\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "Rails"
+        assert result["project_type"] == "web"
+
+    def test_detects_sinatra_framework(self, tmp_dir):
+        (Path(tmp_dir) / "Gemfile").write_text(
+            'source "https://rubygems.org"\ngem "sinatra"\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "Sinatra"
+
+    def test_detects_rspec_test_framework(self, tmp_dir):
+        (Path(tmp_dir) / "Gemfile").write_text(
+            'source "https://rubygems.org"\ngem "rspec"\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["test_framework"] == "RSpec"
+
+    def test_detects_minitest(self, tmp_dir):
+        (Path(tmp_dir) / "Gemfile").write_text(
+            'source "https://rubygems.org"\ngem "minitest"\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["test_framework"] == "Minitest"
+
+    def test_detects_ruby_from_gemspec(self, tmp_dir):
+        (Path(tmp_dir) / "my_gem.gemspec").write_text(
+            'Gem::Specification.new do |s|\n'
+            '  s.name = "my_gem"\n'
+            '  s.summary = "A test gem"\n'
+            '  s.add_development_dependency "rspec"\n'
+            'end\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["language"] == "ruby"
+
+    def test_extracts_ruby_gem_name_from_gemspec(self, tmp_dir):
+        (Path(tmp_dir) / "Gemfile").write_text('source "https://rubygems.org"\n')
+        (Path(tmp_dir) / "my_awesome_gem.gemspec").write_text(
+            'Gem::Specification.new do |s|\n'
+            '  s.name = "my_awesome_gem"\n'
+            'end\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["project_name"] == "my_awesome_gem"
+
+    def test_ruby_no_framework(self, tmp_dir):
+        (Path(tmp_dir) / "Gemfile").write_text(
+            'source "https://rubygems.org"\ngem "rake"\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["framework"] == ""
