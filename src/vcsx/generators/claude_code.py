@@ -1157,25 +1157,106 @@ while True:
 def _skill_orm_conventions(skills_dir: Path, ctx: ProjectContext) -> str:
     d = skills_dir / "orm-conventions"
     d.mkdir(parents=True, exist_ok=True)
+    lang = (ctx.language or "").lower()
+    (ctx.framework or "").lower()
+
+    python_orm = (
+        """
+## SQLAlchemy Patterns
+```python
+# Model definition
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(default=func.now())
+    # Soft delete
+    deleted_at: Mapped[datetime | None] = mapped_column(nullable=True)
+
+# Efficient querying — avoid N+1
+users = session.scalars(
+    select(User).options(selectinload(User.orders))
+).all()
+
+# Bulk operations
+session.execute(insert(User), [{"email": e} for e in emails])
+```
+
+## Django ORM Patterns
+```python
+# Good: select_related for ForeignKey
+orders = Order.objects.select_related("user").filter(status="pending")
+
+# Good: prefetch_related for ManyToMany
+users = User.objects.prefetch_related("groups").all()
+
+# Good: only() to limit fields
+users = User.objects.only("id", "email").filter(active=True)
+
+# Avoid: evaluating querysets in loops
+# ❌ for user in User.objects.all(): order = user.orders.first()
+# ✅ Use select_related or prefetch_related
+```
+"""
+        if lang == "python"
+        else ""
+    )
+
     content = f"""---
 name: orm-conventions
 description: Database ORM patterns and conventions for {ctx.language}. Use when defining models or querying data.
 ---
 
-# ORM Conventions
+# ORM Conventions — {ctx.language}
 
-## Language: {ctx.language}
+## Model Design Rules
+- **Index foreign keys** — always add index on FK columns
+- **Index query columns** — add index on columns used in WHERE/ORDER BY
+- **Explicit relationships** — define all relations explicitly, don't rely on implicit
+- **Soft deletes** — use `deleted_at` timestamp instead of hard delete where audit matters
+- **Timestamps** — always include `created_at` and `updated_at`
+- **UUID or ULID** — prefer over sequential integer IDs for public-facing endpoints
 
-## Patterns
-- Use migrations for schema changes
-- Define relationships explicitly
-- Use migrations for data changes
-- Index foreign keys
+## N+1 Query Problem (most common ORM mistake)
+```
+# Problem: 1 query for users + N queries for each user's orders
+users = User.query.all()
+for user in users:
+    print(user.orders)  # N+1 queries!
 
-## Best Practices
-- Never hardcode credentials
-- Use connection pooling
-- Implement soft deletes where appropriate
+# Solution: eager loading — 2 queries total
+users = User.query.options(joinedload(User.orders)).all()
+```
+
+## Connection Pooling
+- Development: pool_size=5
+- Production: pool_size=20, max_overflow=10, pool_timeout=30
+- Always use `pool_pre_ping=True` to detect stale connections
+
+## Query Optimization Checklist
+- [ ] No `SELECT *` — only fetch needed columns
+- [ ] Eager loading for relations accessed in loops
+- [ ] Pagination on all list queries
+- [ ] Indexes on frequently filtered columns
+- [ ] Bulk insert instead of row-by-row for large datasets
+- [ ] Count queries use `COUNT(*)` not `len(list_all())`
+
+{python_orm}
+
+## Transactions
+```python
+# Always use context managers for transactions
+with session.begin():
+    user = User(email="alice@example.com")
+    session.add(user)
+    # auto-commit on exit, auto-rollback on exception
+```
+
+## What NOT to Do
+- ❌ Raw SQL with f-strings (SQL injection risk)
+- ❌ Queries inside template rendering
+- ❌ Loading entire table to filter in Python
+- ❌ Ignoring transaction boundaries
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "orm-conventions"
@@ -1390,25 +1471,116 @@ kubectl get events --sort-by='.lastTimestamp'
 def _skill_ci_cd_builder(skills_dir: Path, ctx: ProjectContext) -> str:
     d = skills_dir / "ci-cd-builder"
     d.mkdir(parents=True, exist_ok=True)
+    lang = (ctx.language or "").lower()
+    test_cmd = _get_test_cmd(ctx)
+    build_cmd = _get_build_cmd(ctx)
+    lint_cmd = ctx.linter or ("ruff check ." if lang == "python" else "eslint .")
+    hosting = ctx.hosting or "your hosting provider"
+
+    if lang == "python":
+        lang_setup = (
+            "      - uses: actions/setup-python@v5\n"
+            "        with:\n"
+            "          python-version: '3.12'\n"
+            "          cache: pip\n\n"
+            "      - name: Install\n"
+            "        run: pip install -e '.[dev]'"
+        )
+        matrix_block = "    strategy:\n      matrix:\n        python-version: ['3.11', '3.12']\n"
+    else:
+        lang_setup = (
+            "      - uses: actions/setup-node@v4\n"
+            "        with:\n"
+            "          node-version: 20\n"
+            "          cache: npm\n\n"
+            "      - name: Install\n"
+            "        run: npm ci"
+        )
+        matrix_block = ""
+
     content = f"""---
 name: ci-cd-builder
-description: Builds CI/CD pipeline configuration for {ctx.project_type} projects. Use when setting up automated pipelines.
+description: Builds GitHub Actions CI/CD pipeline configuration. Use when setting up or fixing automated pipelines.
 ---
 
-# CI/CD Builder
+# CI/CD Builder — GitHub Actions
 
-## Project Type: {ctx.project_type}
+## Standard Pipeline (.github/workflows/ci.yml)
+```yaml
+name: CI
 
-## Pipeline Stages
-1. Lint
-2. Test
-3. Build
-4. Deploy
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
 
-## Tools
-- GitHub Actions / GitLab CI / ArgoCD
-- Docker for containerization
-- Cloud-native deployments
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+{matrix_block}
+    steps:
+      - uses: actions/checkout@v4
+
+{lang_setup}
+
+      - name: Lint
+        run: {lint_cmd}
+
+      - name: Test
+        run: {test_cmd}
+
+      - name: Build
+        run: {build_cmd}
+```
+
+## CD Pipeline (.github/workflows/deploy.yml)
+```yaml
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to {hosting}
+        env:
+          DEPLOY_TOKEN: ${{{{ secrets.DEPLOY_TOKEN }}}}
+        run: |
+          echo "Deploy to {hosting}"
+```
+
+## Pipeline Best Practices
+- **Cache dependencies** — saves 30-60s per run
+- **Fail fast** — lint before test, test before build
+- **Secrets in GitHub Secrets** — never hardcode in YAML
+- **Environment protection rules** — require approval for production
+- **Branch protection** — require CI to pass before merge
+- **Notifications** — Slack/email on failure
+
+## Useful Actions
+```yaml
+# Cache pip
+- uses: actions/cache@v4
+  with:
+    path: ~/.cache/pip
+    key: ${{{{ runner.os }}}}-pip-${{{{ hashFiles('**/requirements*.txt') }}}}
+
+# Upload test coverage
+- uses: codecov/codecov-action@v4
+  with:
+    file: coverage.xml
+
+# Auto-merge dependabot PRs
+- uses: fastify/github-action-merge-dependabot@v3
+```
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "ci-cd-builder"
@@ -1445,20 +1617,116 @@ def _skill_e2e_patterns(skills_dir: Path) -> str:
     d.mkdir(parents=True, exist_ok=True)
     content = """---
 name: e2e-patterns
-description: End-to-end testing patterns and best practices. Use when writing E2E tests.
+description: End-to-end testing patterns with Playwright. Use when writing E2E tests or setting up browser automation.
 ---
 
-# E2E Patterns
+# E2E Patterns — Playwright
 
-## Framework
-- Playwright / Cypress / Puppeteer
+## What to Test with E2E
+✅ Critical user journeys (signup, login, checkout, core feature)
+✅ Cross-browser behavior (Chrome, Firefox, Safari)
+✅ Authentication flows end-to-end
+❌ Unit-testable logic (use unit tests instead)
+❌ Every UI element (too brittle)
 
-## Best Practices
-- Test critical user flows
-- Use realistic test data
-- Clean up after tests
-- Parallel where possible
-- Screenshot on failure
+## Playwright Setup
+```bash
+npm install -D @playwright/test
+npx playwright install
+```
+
+## Test Structure
+```typescript
+import { test, expect } from '@playwright/test'
+
+test.describe('User authentication', () => {
+  test('user can sign up and log in', async ({ page }) => {
+    // Navigate
+    await page.goto('/signup')
+
+    // Fill form
+    await page.fill('[data-testid="email"]', 'test@example.com')
+    await page.fill('[data-testid="password"]', 'SecurePass123!')
+    await page.click('[data-testid="submit"]')
+
+    // Assert redirect to dashboard
+    await expect(page).toHaveURL('/dashboard')
+    await expect(page.getByText('Welcome')).toBeVisible()
+  })
+})
+```
+
+## Page Object Pattern (for larger suites)
+```typescript
+class LoginPage {
+  constructor(private page: Page) {}
+
+  async login(email: string, password: string) {
+    await this.page.goto('/login')
+    await this.page.fill('#email', email)
+    await this.page.fill('#password', password)
+    await this.page.click('#submit')
+  }
+
+  async expectDashboard() {
+    await expect(this.page).toHaveURL('/dashboard')
+  }
+}
+
+test('user can login', async ({ page }) => {
+  const loginPage = new LoginPage(page)
+  await loginPage.login('user@example.com', 'password')
+  await loginPage.expectDashboard()
+})
+```
+
+## Test Data Strategy
+- Use `data-testid` attributes (never CSS classes or text content)
+- Create/cleanup test data via API calls in `beforeEach`/`afterEach`
+- Use separate test database or test user accounts
+- Seed data deterministically
+
+## Flaky Test Prevention
+```typescript
+// ✅ Wait for element to be ready
+await page.waitForLoadState('networkidle')
+await expect(button).toBeEnabled()
+
+// ❌ Arbitrary sleep (brittle)
+await page.waitForTimeout(2000)
+```
+
+## Running Tests
+```bash
+# All tests
+npx playwright test
+
+# Specific file
+npx playwright test auth.spec.ts
+
+# With UI (debug mode)
+npx playwright test --ui
+
+# Generate report
+npx playwright show-report
+```
+
+## CI Configuration
+```yaml
+- name: Install Playwright
+  run: npx playwright install --with-deps chromium
+
+- name: Run E2E tests
+  run: npx playwright test
+  env:
+    BASE_URL: http://localhost:3000
+
+- uses: actions/upload-artifact@v4
+  if: failure()
+  with:
+    name: playwright-report
+    path: playwright-report/
+```
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "e2e-patterns"
