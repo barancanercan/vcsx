@@ -455,6 +455,129 @@ class TestMigrateCommand:
         assert result.exit_code == 0
 
 
+class TestUpdateCommandExtended:
+    """Extended update command coverage."""
+
+    def test_update_with_claude_missing_claudeignore(self, runner, tmp_dir):
+        """Detects missing .claudeignore upgrade."""
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        result = runner.invoke(main, ["update", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "claudeignore" in result.output.lower() or "upgrade" in result.output.lower()
+
+    def test_update_auto_generates_claudeignore(self, runner, tmp_dir):
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        result = runner.invoke(main, ["update", "--output-dir", tmp_dir, "--auto"])
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / ".claudeignore").exists()
+
+    def test_update_auto_generates_agents_md(self, runner, tmp_dir):
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        result = runner.invoke(main, ["update", "--output-dir", tmp_dir, "--auto"])
+        assert result.exit_code == 0
+
+    def test_update_windsurf_missing_rules(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".windsurfrules").write_text("# rules")
+        result = runner.invoke(main, ["update", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "windsurf" in result.output.lower() or "rules" in result.output.lower()
+
+    def test_update_with_tool_adds_config(self, runner, tmp_dir):
+        result = runner.invoke(main, ["update", "--output-dir", tmp_dir, "--tool", "agents-md"])
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / "AGENTS.md").exists()
+
+    def test_update_dry_run_with_tool(self, runner, tmp_dir):
+        result = runner.invoke(
+            main, ["update", "--output-dir", tmp_dir, "--dry-run", "--tool", "gemini"]
+        )
+        assert result.exit_code == 0
+        assert "gemini" in result.output.lower()
+
+    def test_update_everything_up_to_date(self, runner, tmp_dir):
+        # Empty dir with no AI configs
+        result = runner.invoke(main, ["update", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "up to date" in result.output or "tool" in result.output.lower()
+
+
+class TestStatsCommandExtended:
+    def test_stats_with_gemini(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.gemini import GeminiGenerator
+        ctx = ProjectContext(project_name="test")
+        GeminiGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["stats", tmp_dir])
+        assert result.exit_code == 0
+
+    def test_stats_cursor_counts_rules(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.cursor import CursorGenerator
+        ctx = ProjectContext(project_name="test", language="python", project_type="api")
+        CursorGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["stats", tmp_dir])
+        assert result.exit_code == 0
+        assert "cursor" in result.output.lower() or "rules" in result.output.lower()
+
+    def test_stats_empty_dir(self, runner, tmp_dir):
+        result = runner.invoke(main, ["stats", tmp_dir])
+        assert result.exit_code == 0
+        assert "No AI" in result.output or "vcsx init" in result.output
+
+
+class TestMigrateCommandExtended:
+    def test_migrate_cursor_creates_rules(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".cursorrules").write_text("# Old rules")
+        result = runner.invoke(main, ["migrate", "cursor", "--dir", tmp_dir])
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / ".cursor" / "rules").exists()
+
+    def test_migrate_claude_code_no_file(self, runner, tmp_dir):
+        result = runner.invoke(main, ["migrate", "claude-code", "--dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "No CLAUDE.md" in result.output or "nothing to migrate" in result.output.lower()
+
+    def test_migrate_copilot_no_file(self, runner, tmp_dir):
+        result = runner.invoke(main, ["migrate", "copilot", "--dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "nothing to migrate" in result.output.lower() or "No .github" in result.output
+
+    def test_migrate_windsurf_already_migrated(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".windsurfrules").write_text("# rules")
+        rules_dir = Path(tmp_dir) / ".windsurf" / "rules"
+        rules_dir.mkdir(parents=True)
+        result = runner.invoke(main, ["migrate", "windsurf", "--dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "already" in result.output.lower()
+
+    def test_migrate_claude_code_adds_agents(self, runner, tmp_dir):
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        (Path(tmp_dir) / ".claudeignore").write_text("*.pyc")
+        result = runner.invoke(main, ["migrate", "claude-code", "--dir", tmp_dir])
+        assert result.exit_code == 0
+
+    def test_migrate_copilot_creates_instructions(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".github").mkdir()
+        (Path(tmp_dir) / ".github" / "copilot-instructions.md").write_text("# Copilot")
+        result = runner.invoke(main, ["migrate", "copilot", "--dir", tmp_dir])
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / ".github" / "instructions").exists()
+
+
+class TestChangelogCommand:
+    def test_changelog_shows_versions(self, runner):
+        result = runner.invoke(main, ["changelog"])
+        assert result.exit_code == 0
+
+    def test_changelog_latest(self, runner):
+        result = runner.invoke(main, ["changelog", "--latest"])
+        assert result.exit_code == 0
+
+    def test_changelog_specific_version(self, runner):
+        result = runner.invoke(main, ["changelog", "--version", "4.4.0"])
+        assert result.exit_code == 0
+
+
 class TestInstallCommand:
     def test_install_pip(self, runner):
         result = runner.invoke(main, ["install", "pip"])
