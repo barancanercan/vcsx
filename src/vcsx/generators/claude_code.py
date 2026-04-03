@@ -599,23 +599,83 @@ description: REST API design patterns and endpoint naming conventions. Use when 
 # API Conventions
 
 ## URL Design
-- kebab-case for paths: `/api/user-profiles`
-- Nouns not verbs: `/api/users`
-- Version in URL: `/api/v1/users`
-- Plural nouns for collections
+| Rule | ✅ Good | ❌ Bad |
+|------|---------|--------|
+| Plural nouns | `/v1/users` | `/v1/user` |
+| kebab-case | `/v1/user-profiles` | `/v1/userProfiles` |
+| Nouns not verbs | `/v1/orders` | `/v1/getOrders` |
+| Versioned | `/v1/users` | `/users` |
+| Nested for relations | `/v1/users/{id}/orders` | `/v1/user-orders?userId=1` |
 
-## HTTP Methods
-- GET — Retrieve, POST — Create, PUT — Update, PATCH — Partial, DELETE — Remove
+## HTTP Methods & Status Codes
+| Method | Use Case | Success | Error |
+|--------|----------|---------|-------|
+| GET | Retrieve | 200 | 404 |
+| POST | Create | 201 | 400/422 |
+| PUT | Replace | 200 | 404/400 |
+| PATCH | Update | 200 | 404/400 |
+| DELETE | Remove | 204 | 404 |
 
-## Response Format
+## Standard Response Envelope
 ```json
-{"data": {...}, "meta": {"page": 1, "perPage": 20, "total": 100}}
+{
+  "data": { "id": "123", "name": "Alice" },
+  "meta": {
+    "page": 1,
+    "perPage": 20,
+    "total": 150,
+    "requestId": "req_abc123"
+  }
+}
 ```
 
-## Error Format
+## Standard Error Format
 ```json
-{"error": {"code": "VALIDATION_ERROR", "message": "...", "details": []}}
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Email is invalid",
+    "details": [
+      { "field": "email", "message": "Must be a valid email address" }
+    ],
+    "requestId": "req_abc123"
+  }
+}
 ```
+
+## Pagination
+Always paginate list endpoints. Use cursor-based for large datasets:
+```
+GET /v1/users?limit=20&cursor=eyJpZCI6MTIzfQ==
+Response: { "data": [...], "nextCursor": "eyJpZCI6MTQzfQ==" }
+```
+
+## Filtering & Sorting
+```
+GET /v1/users?status=active&role=admin
+GET /v1/orders?sort=-createdAt,+total   # - = desc, + = asc
+GET /v1/products?fields=id,name,price   # sparse fieldsets
+```
+
+## Authentication Headers
+```
+Authorization: Bearer <token>
+X-API-Key: <key>
+```
+
+## Idempotency
+For POST/PATCH, support idempotency keys:
+```
+Idempotency-Key: a6c2a234-a0c7-4b62-9f4c-14b6b5a31d0b
+```
+
+## Common Mistakes to Avoid
+- ❌ Returning 200 for errors
+- ❌ Different field names in request vs response (`userId` vs `user_id`)
+- ❌ No pagination on list endpoints
+- ❌ Exposing internal IDs (use UUIDs or encoded IDs)
+- ❌ Inconsistent naming across endpoints
+- ❌ No request/response documentation
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "api-conventions"
@@ -1220,26 +1280,108 @@ def _skill_k8s_conventions(skills_dir: Path) -> str:
     d.mkdir(parents=True, exist_ok=True)
     content = """---
 name: k8s-conventions
-description: Kubernetes deployment conventions and YAML patterns. Use when deploying to Kubernetes.
+description: Kubernetes deployment conventions and YAML patterns. Use when deploying to or reviewing Kubernetes configs.
 ---
 
 # Kubernetes Conventions
 
-## Resource Types
-- Deployment for stateless apps
-- StatefulSet for stateful apps
-- Job for batch operations
+## Deployment Template (production-ready)
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+  labels:
+    app: my-app
+    version: "1.0.0"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: my-app
+        image: registry/my-app:1.0.0  # NEVER use :latest
+        ports:
+        - containerPort: 8080
+        # Resource limits REQUIRED
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        # Probes REQUIRED
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        # Environment from ConfigMap/Secret, not hardcoded
+        envFrom:
+        - configMapRef:
+            name: my-app-config
+        - secretRef:
+            name: my-app-secrets
+        # Security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: true
+```
 
-## Best Practices
-- Use liveness/readiness probes
-- Resource limits required
-- Use ConfigMaps for config
-- Use Secrets for sensitive data
+## Checklist Before Deploying to K8s
+- [ ] Image tag is specific version, not `latest`
+- [ ] Resource requests AND limits set
+- [ ] Liveness + readiness probes configured
+- [ ] Secrets in `Secret` object, not `ConfigMap` or env vars
+- [ ] `runAsNonRoot: true` in securityContext
+- [ ] Horizontal Pod Autoscaler (HPA) for production
+- [ ] PodDisruptionBudget for high-availability
 
-## Security
-- Never run privileged
-- Use RBAC
-- Network policies
+## Common Mistakes
+| ❌ Mistake | ✅ Fix |
+|-----------|--------|
+| `image: myapp:latest` | `image: myapp:1.2.3` |
+| No resource limits | Always set requests+limits |
+| No health checks | Add liveness + readiness probes |
+| Secrets in ConfigMap | Use `kind: Secret` |
+| Running as root | `runAsNonRoot: true` |
+| Single replica | `replicas: 3` minimum in prod |
+
+## Useful Commands
+```bash
+# Apply changes
+kubectl apply -f k8s/
+
+# Check rollout status
+kubectl rollout status deployment/my-app
+
+# Rollback
+kubectl rollout undo deployment/my-app
+
+# Check logs
+kubectl logs -l app=my-app --tail=100 -f
+
+# Debug a pod
+kubectl exec -it <pod-name> -- /bin/sh
+
+# Check events (for debugging)
+kubectl get events --sort-by='.lastTimestamp'
+```
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "k8s-conventions"
