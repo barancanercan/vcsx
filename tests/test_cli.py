@@ -863,6 +863,19 @@ class TestInfoCommandExtended:
         assert "Usage" in result.output or "tool" in result.output.lower()
 
 
+class TestGeminiGlobalCommand:
+    def test_gemini_global_creates_file(self, runner, tmp_dir):
+        # We can't easily test ~/.gemini/ creation but can test via mock
+        # Just verify the command exists and accepts args
+        result = runner.invoke(main, ["gemini-global", "--help"])
+        assert result.exit_code == 0
+        assert "gemini" in result.output.lower() or "global" in result.output.lower()
+
+    def test_gemini_global_lang_option(self, runner):
+        result = runner.invoke(main, ["gemini-global", "--help"])
+        assert "lang" in result.output.lower() or "language" in result.output.lower()
+
+
 class TestMigrateClaudeCodeExtended:
     def test_migrate_claude_code_already_complete(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext

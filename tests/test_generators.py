@@ -703,6 +703,70 @@ class TestAiderGenerator:
         assert ".aider.context.md" in gen.output_files
 
 
+class TestBoltGeneratorExtended:
+    """Extended coverage for bolt generator."""
+
+    def test_workspace_json_has_system_prompt(self, ctx, tmp_dir):
+        from vcsx.generators.bolt import BoltGenerator
+        gen = BoltGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        data = json.loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
+        assert "systemPrompt" in data["ai"]
+        assert "test-project" in data["ai"]["systemPrompt"]
+
+    def test_workspace_json_has_env_vars(self, ctx, tmp_dir):
+        from vcsx.generators.bolt import BoltGenerator
+        gen = BoltGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        data = json.loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
+        assert "required" in data["env"]
+        assert len(data["env"]["required"]) > 0
+
+    def test_workspace_json_port(self, tmp_dir):
+        from vcsx.generators.bolt import BoltGenerator
+        ctx = ProjectContext(project_name="api", language="python", framework="FastAPI")
+        gen = BoltGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        data = json.loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
+        assert data["sandbox"]["port"] == 8000
+
+    def test_workspace_json_nextjs_port(self, tmp_dir):
+        from vcsx.generators.bolt import BoltGenerator
+        ctx = ProjectContext(project_name="app", language="typescript", framework="Next.js")
+        gen = BoltGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        data = json.loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
+        assert data["sandbox"]["port"] == 3000
+
+    def test_prompts_md_has_all_sections(self, ctx, tmp_dir):
+        from vcsx.generators.bolt import BoltGenerator
+        gen = BoltGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".bolt" / "prompts.md").read_text()
+        assert "New Feature" in content
+        assert "Bug Fix" in content
+        assert "Refactor" in content
+        assert "Add Tests" in content
+        assert "Code Review" in content
+
+    def test_bolt_model_name(self, ctx, tmp_dir):
+        from vcsx.generators.bolt import BoltGenerator
+        gen = BoltGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".bolt" / "workspace.json").read_text()
+        assert "claude-sonnet-4-5" in content
+
+    def test_auth_needed_adds_jwt_secret(self, tmp_dir):
+        from vcsx.generators.bolt import BoltGenerator
+        ctx = ProjectContext(
+            project_name="auth-app", language="python", auth_needed=True, auth_method="JWT"
+        )
+        gen = BoltGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        data = json.loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
+        assert "JWT_SECRET" in data["env"]["required"]
+
+
 class TestBoltGenerator:
     def test_generate_config(self, ctx, tmp_dir):
         gen = BoltGenerator()

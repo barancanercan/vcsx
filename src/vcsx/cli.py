@@ -1634,6 +1634,63 @@ def list_plugins():
     console.print(table)
 
 
+@main.command("gemini-global")
+@click.option(
+    "--lang",
+    "-l",
+    type=click.Choice(["python", "typescript", "javascript", "go", "rust"]),
+    default="python",
+    help="Primary language for global config",
+)
+@click.option("--force", is_flag=True, help="Overwrite existing global config")
+def gemini_global(lang, force):
+    """Create ~/.gemini/GEMINI.md — global Gemini CLI config.
+
+    This file is loaded by Gemini CLI for ALL projects.
+    Use it to set your preferred conventions, style, and tools.
+
+    Examples:
+        vcsx gemini-global --lang python
+        vcsx gemini-global --lang typescript --force
+    """
+    from vcsx.core.context import ProjectContext
+    from vcsx.core.inference import infer_formatter, infer_linter, infer_test_framework
+    from vcsx.generators.gemini import GeminiGenerator
+
+    gemini_dir = Path.home() / ".gemini"
+    gemini_dir.mkdir(exist_ok=True)
+    target = gemini_dir / "GEMINI.md"
+
+    if target.exists() and not force:
+        console.print("[yellow]~/.gemini/GEMINI.md already exists.[/]")
+        console.print("Use [cyan]--force[/] to overwrite.")
+        return
+
+    ctx = ProjectContext(
+        project_name="Global",
+        language=lang,
+        tech_stack=lang,
+        description="Global Gemini CLI configuration — applies to all projects",
+        project_type="general",
+        test_framework=infer_test_framework(lang),
+        formatter=infer_formatter(lang),
+        linter=infer_linter(lang),
+        lang="en",
+    )
+
+    gen = GeminiGenerator()
+    gen.generate_config(ctx, str(gemini_dir))
+
+    # Rename GEMINI.md (generated in gemini_dir)
+    # Actually the generator writes to output_dir/GEMINI.md
+    # which is already ~/.gemini/GEMINI.md ✓
+
+    console.print(f"\n[green]✓ Created:[/] {target}")
+    console.print(f"[dim]Language:[/] {lang}")
+    console.print("\nGemini CLI will now load this config for all projects.")
+    console.print("Override per-project with a local GEMINI.md in your project root.")
+
+
 @main.command("generate")
 @click.argument("tool", type=click.Choice(ALL_TOOLS))
 @click.argument("file_type", required=False)

@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0] - 2026-04-03
+
+### Major Release — Production Quality
+
+#### New Commands (9 new since v4.0)
+- **`vcsx init --scan`**: Auto-detect tech stack from existing project files
+- **`vcsx init --fast`**: Minimal wizard (project name + stack only)
+- **`vcsx audit [--fix]`**: Comprehensive config audit with auto-fix
+- **`vcsx compare <a> <b>`**: Diff AI configs between two projects
+- **`vcsx search <query>`**: Search inside skill/hook/agent files
+- **`vcsx stats`**: Count skills, hooks, agents, rules per tool
+- **`vcsx export [--include-all]`**: ZIP archive of AI configs
+- **`vcsx config`**: User settings (~/.vcsx/config.json)
+- **`vcsx gemini-global`**: Create ~/.gemini/GEMINI.md global config
+
+#### New Modules
+- **`src/vcsx/core/scanner.py`**: Project scanner — auto-detects language, framework, project type from pyproject.toml, package.json, go.mod, Cargo.toml, pubspec.yaml, pom.xml
+- **`src/vcsx/generators/_shared.py`**: Centralized command/style helpers (eliminates duplication across 8 generators)
+
+#### Languages (11 total, was 5)
+Added: Kotlin, Swift, Dart, C#, PHP, Ruby (each with framework_map, test_fw, formatter, linter)
+
+#### Templates (10 total, was 5)
+Added: django-api, flutter-app, saas-nextjs, python-cli, rust-api
+
+#### Generator Quality
+- All 22 Claude Code skills rewritten with production content
+- Windsurf rules: 4 rich scoped rule files (core, testing, security, api/data)
+- Cursor MDC: pr-review severity table, test AAA pattern, api URL table
+- Zed: real settings schema, tasks.json, language-aware LSP/formatter
+- Bolt: system prompt, port detection, 7 prompt templates, env var detection
+- Aider: valid YAML-only (removed invalid keys)
+
+#### Testing
+- 42 → **419 tests**
+- Coverage: ~50% → **85%**
+- Modules at 95%+: inference (100%), gemini (100%), claude_code (98%), codex (98%), _shared (94%), aider (95%), scanner (95%)
+
 ## [4.5.0] - 2026-04-03
 
 ### Added
