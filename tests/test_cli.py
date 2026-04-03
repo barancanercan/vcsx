@@ -234,6 +234,34 @@ class TestNewCommand:
         assert (Path(tmp_dir) / "my-web" / ".cursorrules").exists()
 
 
+class TestAuditCommand:
+    def test_audit_empty_dir(self, runner, tmp_dir):
+        result = runner.invoke(main, ["audit", tmp_dir])
+        assert result.exit_code == 0
+        assert "No AI configs" in result.output or "vcsx init" in result.output
+
+    def test_audit_with_claude_code(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["audit", tmp_dir])
+        assert result.exit_code == 0
+        assert "claude-code" in result.output
+
+    def test_audit_detects_missing_claudeignore(self, runner, tmp_dir):
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        result = runner.invoke(main, ["audit", tmp_dir])
+        assert result.exit_code == 0
+        assert "claudeignore" in result.output.lower()
+
+    def test_audit_autofix(self, runner, tmp_dir):
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        result = runner.invoke(main, ["audit", tmp_dir, "--fix"])
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / ".claudeignore").exists()
+
+
 class TestCompareCommand:
     def test_compare_two_dirs(self, runner, tmp_dir):
         import tempfile

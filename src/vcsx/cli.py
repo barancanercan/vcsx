@@ -1064,6 +1064,155 @@ def stats(path):
                 console.print(f"  [cyan]{tool}:[/] {parts}")
 
 
+@main.command("audit")
+@click.argument("path", default=".", type=click.Path(exists=True))
+@click.option("--fix", "auto_fix", is_flag=True, help="Auto-fix issues where possible")
+def audit_project(path, auto_fix):
+    """Run a comprehensive audit of all AI configs in a project.
+
+    Combines check + validate + stats into one actionable report.
+    With --fix, auto-applies safe fixes.
+
+    Examples:
+        vcsx audit                  # Audit current project
+        vcsx audit ~/my-project     # Audit specific project
+        vcsx audit --fix            # Audit and auto-fix safe issues
+    """
+    target = Path(path).resolve()
+    console.print(f"\n[bold]vcsx audit[/] — {target}\n")
+
+    issues = []
+    warnings = []
+    fixes_applied = []
+
+    # 1. Check which tools are configured
+    tool_files = {
+        "claude-code": "CLAUDE.md",
+        "cursor": ".cursorrules",
+        "windsurf": ".windsurfrules",
+        "gemini": "GEMINI.md",
+        "agents-md": "AGENTS.md",
+        "aider": ".aider.conf.yaml",
+        "copilot": ".github/copilot-instructions.md",
+        "zed": ".zed/settings.json",
+        "bolt": ".bolt/workspace.json",
+        "codex": ".openai/instructions.md",
+    }
+    configured = [t for t, f in tool_files.items() if (target / f).exists()]
+
+    if not configured:
+        console.print("[yellow]No AI configs found. Run vcsx init to get started.[/]")
+        return
+
+    console.print(f"[bold]Configured tools ({len(configured)}):[/] {', '.join(configured)}\n")
+
+    # 2. Claude Code specific checks
+    if "claude-code" in configured:
+        claude_md = target / "CLAUDE.md"
+        lines = len(claude_md.read_text().splitlines())
+        if lines > 200:
+            issues.append(f"CLAUDE.md: {lines} lines (max 200) — too large, AI context bloat")
+        elif lines > 150:
+            warnings.append(f"CLAUDE.md: {lines} lines — consider trimming to < 150")
+        else:
+            console.print(f"  [green]✓[/] CLAUDE.md: {lines} lines (OK)")
+
+        if not (target / ".claudeignore").exists():
+            issues.append("Missing .claudeignore — context window not optimized")
+            if auto_fix:
+                from vcsx.core.context import ProjectContext
+                from vcsx.generators.claude_code import ClaudeCodeGenerator
+
+                ctx = ProjectContext(project_name=target.name)
+                ClaudeCodeGenerator().generate_scaffold(ctx, str(target))
+                fixes_applied.append("Generated .claudeignore")
+        else:
+            console.print("  [green]✓[/] .claudeignore present")
+
+        skills_count = (
+            sum(1 for _ in (target / ".claude" / "skills").glob("*/SKILL.md"))
+            if (target / ".claude" / "skills").exists()
+            else 0
+        )
+        hooks_count = (
+            sum(1 for _ in (target / ".claude" / "hooks").glob("*.sh"))
+            if (target / ".claude" / "hooks").exists()
+            else 0
+        )
+        agents_count = (
+            sum(1 for _ in (target / ".claude" / "agents").glob("*.md"))
+            if (target / ".claude" / "agents").exists()
+            else 0
+        )
+
+        console.print(
+            f"  [green]✓[/] Skills: {skills_count} | Hooks: {hooks_count} | Agents: {agents_count}"
+        )
+        if skills_count < 5:
+            warnings.append(
+                f"Only {skills_count} skills — run vcsx generate claude-code to add more"
+            )
+
+    # 3. Security: check for .env in repo
+    gitignore = target / ".gitignore"
+    env_file = target / ".env"
+    if env_file.exists():
+        if gitignore.exists() and ".env" not in gitignore.read_text():
+            issues.append("SECURITY: .env exists but not in .gitignore!")
+        elif not gitignore.exists():
+            issues.append("SECURITY: .env exists but no .gitignore found!")
+        else:
+            console.print("  [green]✓[/] .env in .gitignore")
+
+    # 4. Aider config validation
+    if "aider" in configured:
+        aider_conf = (target / ".aider.conf.yaml").read_text()
+        invalid = [k for k in ["repo:", "tools:", "command:", "only:"] if k in aider_conf]
+        if invalid:
+            issues.append(f".aider.conf.yaml has invalid keys: {', '.join(invalid)}")
+
+    # 5. Windsurf format check
+    if "windsurf" in configured:
+        if not (target / ".windsurf" / "rules").exists():
+            warnings.append("Windsurf: only legacy .windsurfrules — run: vcsx migrate windsurf")
+
+    # 6. Cursor format check
+    if "cursor" in configured:
+        if not (target / ".cursor" / "rules").exists():
+            warnings.append("Cursor: only legacy .cursorrules — run: vcsx migrate cursor")
+
+    # 7. Universal standard
+    if "agents-md" not in configured:
+        warnings.append("No AGENTS.md (universal standard) — run: vcsx update --tool agents-md")
+
+    # Print results
+    console.print()
+    if issues:
+        console.print("[bold red]Issues:[/]")
+        for i in issues:
+            console.print(f"  ✗ {i}")
+
+    if warnings:
+        console.print("\n[bold yellow]Warnings:[/]")
+        for w in warnings:
+            console.print(f"  ⚠ {w}")
+
+    if fixes_applied:
+        console.print("\n[bold green]Auto-fixed:[/]")
+        for f in fixes_applied:
+            console.print(f"  ✓ {f}")
+
+    total = len(issues) + len(warnings)
+    console.print()
+    if total == 0:
+        console.print("[bold green]✓ Audit passed — all checks clean![/]")
+    elif issues:
+        console.print(f"[bold red]{len(issues)} issue(s), {len(warnings)} warning(s)[/]")
+        console.print("Run [cyan]vcsx audit --fix[/] to auto-fix safe issues.")
+    else:
+        console.print(f"[yellow]{len(warnings)} warning(s)[/] — no critical issues.")
+
+
 @main.command("compare")
 @click.argument("path_a", type=click.Path(exists=True))
 @click.argument("path_b", type=click.Path(exists=True))
