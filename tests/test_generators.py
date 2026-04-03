@@ -242,6 +242,64 @@ class TestRegistry:
             get_generator("invalid-tool")
 
 
+class TestGeminiGeneratorExtended:
+    """Extended coverage for Gemini generator."""
+
+    def test_gemini_with_purpose_problem(self, tmp_dir):
+        from vcsx.generators.gemini import GeminiGenerator
+        ctx = ProjectContext(
+            project_name="my-app",
+            purpose="Automate workflows",
+            problem="Manual processes are slow",
+            language="python",
+        )
+        gen = GeminiGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "GEMINI.md").read_text()
+        assert "Automate workflows" in content
+        assert "Manual processes are slow" in content
+
+    def test_gemini_project_type_web(self, tmp_dir):
+        from vcsx.generators.gemini import GeminiGenerator
+        ctx = ProjectContext(project_name="web-app", project_type="web", language="typescript")
+        gen = GeminiGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "GEMINI.md").read_text()
+        assert "component" in content.lower() or "Web" in content
+
+    def test_gemini_project_type_cli(self, tmp_dir):
+        from vcsx.generators.gemini import GeminiGenerator
+        ctx = ProjectContext(project_name="my-cli", project_type="cli", language="python")
+        gen = GeminiGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "GEMINI.md").read_text()
+        assert "--help" in content or "CLI" in content
+
+    def test_gemini_project_type_library(self, tmp_dir):
+        from vcsx.generators.gemini import GeminiGenerator
+        ctx = ProjectContext(project_name="my-lib", project_type="library", language="python")
+        gen = GeminiGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "GEMINI.md").read_text()
+        assert "docstring" in content.lower() or "Library" in content
+
+    def test_gemini_ignore_patterns_java(self, tmp_dir):
+        from vcsx.generators.gemini import GeminiGenerator
+        ctx = ProjectContext(project_name="java-app", language="java")
+        gen = GeminiGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "GEMINI.md").read_text()
+        assert ".jar" in content or "target/" in content
+
+    def test_gemini_ignore_patterns_rust(self, tmp_dir):
+        from vcsx.generators.gemini import GeminiGenerator
+        ctx = ProjectContext(project_name="rust-app", language="rust")
+        gen = GeminiGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "GEMINI.md").read_text()
+        assert "target/" in content
+
+
 class TestGeminiGenerator:
     def test_generate_config(self, ctx, tmp_dir):
         from vcsx.generators.gemini import GeminiGenerator
@@ -690,6 +748,109 @@ class TestMultiToolInit:
             assert files not in all_primary_files or gen.name in ("agents-md", "gemini"), \
                 f"Generator {gen.name} has non-unique output files"
             all_primary_files.add(files)
+
+
+class TestSharedHelpersFullCoverage:
+    """Tests to push _shared.py toward 95%+."""
+
+    def test_setup_cmd_python_with_pyproject(self):
+        from vcsx.generators._shared import get_setup_cmd
+        ctx = ProjectContext(language="python", tech_stack="pyproject, fastapi")
+        assert ".[dev]" in get_setup_cmd(ctx)
+
+    def test_setup_cmd_python_with_uv(self):
+        from vcsx.generators._shared import get_setup_cmd
+        ctx = ProjectContext(language="python", tech_stack="uv, ruff")
+        assert ".[dev]" in get_setup_cmd(ctx)
+
+    def test_setup_cmd_typescript_yarn(self):
+        from vcsx.generators._shared import get_setup_cmd
+        ctx = ProjectContext(language="typescript", tech_stack="yarn, react")
+        assert "yarn install" == get_setup_cmd(ctx)
+
+    def test_setup_cmd_javascript_pnpm(self):
+        from vcsx.generators._shared import get_setup_cmd
+        ctx = ProjectContext(language="javascript", tech_stack="pnpm, vue")
+        assert "pnpm install" == get_setup_cmd(ctx)
+
+    def test_build_cmd_javascript(self):
+        from vcsx.generators._shared import get_build_cmd
+        ctx = ProjectContext(language="javascript", tech_stack="pnpm, vue")
+        assert "build" in get_build_cmd(ctx)
+
+    def test_build_cmd_java(self):
+        from vcsx.generators._shared import get_build_cmd
+        ctx = ProjectContext(language="java")
+        assert "mvn" in get_build_cmd(ctx)
+
+    def test_dev_cmd_pnpm_typescript(self):
+        from vcsx.generators._shared import get_dev_cmd
+        ctx = ProjectContext(language="typescript", tech_stack="pnpm, next")
+        assert "pnpm run dev" == get_dev_cmd(ctx)
+
+    def test_dev_cmd_go(self):
+        from vcsx.generators._shared import get_dev_cmd
+        ctx = ProjectContext(language="go")
+        assert "go run" in get_dev_cmd(ctx)
+
+    def test_dev_cmd_rust(self):
+        from vcsx.generators._shared import get_dev_cmd
+        ctx = ProjectContext(language="rust")
+        assert "cargo run" == get_dev_cmd(ctx)
+
+    def test_dev_cmd_fallback(self):
+        from vcsx.generators._shared import get_dev_cmd
+        ctx = ProjectContext(language="cobol")
+        assert "npm run dev" == get_dev_cmd(ctx)
+
+    def test_test_cmd_jest(self):
+        from vcsx.generators._shared import get_test_cmd
+        ctx = ProjectContext(test_framework="jest")
+        assert "jest" in get_test_cmd(ctx)
+
+    def test_test_cmd_java_fallback(self):
+        from vcsx.generators._shared import get_test_cmd
+        ctx = ProjectContext(language="java")
+        assert "mvn test" == get_test_cmd(ctx)
+
+    def test_test_cmd_none_level(self):
+        from vcsx.generators._shared import get_test_cmd
+        ctx = ProjectContext(test_level="none")
+        assert "No tests" in get_test_cmd(ctx)
+
+    def test_style_rules_rust(self):
+        from vcsx.generators._shared import get_style_rules
+        ctx = ProjectContext(language="rust")
+        rules = get_style_rules(ctx)
+        assert any("rustfmt" in r for r in rules)
+
+    def test_style_rules_java(self):
+        from vcsx.generators._shared import get_style_rules
+        ctx = ProjectContext(language="java")
+        rules = get_style_rules(ctx)
+        assert any("camelCase" in r for r in rules)
+
+    def test_style_rules_unknown_lang(self):
+        from vcsx.generators._shared import get_style_rules
+        ctx = ProjectContext(language="cobol")
+        rules = get_style_rules(ctx)
+        assert len(rules) > 0
+
+    def test_lint_cmd_inferred_typescript(self):
+        from vcsx.generators._shared import get_lint_cmd
+        ctx = ProjectContext(language="typescript")
+        assert "eslint" in get_lint_cmd(ctx)
+
+    def test_format_cmd_inferred_python(self):
+        from vcsx.generators._shared import get_format_cmd
+        ctx = ProjectContext(language="python")
+        assert "ruff" in get_format_cmd(ctx)
+
+    def test_commands_block_go(self):
+        from vcsx.generators._shared import get_commands_block
+        ctx = ProjectContext(language="go")
+        block = get_commands_block(ctx)
+        assert "go" in block
 
 
 class TestSharedHelpersExtended:

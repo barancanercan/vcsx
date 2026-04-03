@@ -97,6 +97,48 @@ class TestValidatorsExtended:
         assert "auth" in result
 
 
+class TestInferenceEdgeCases:
+    """Test inference edge cases for 88% → 95%."""
+
+    def test_infer_language_empty_returns_typescript(self):
+        assert infer_language("") == "typescript"
+
+    def test_infer_language_none_stack(self):
+        # Test with unknown stack falls back to typescript
+        assert infer_language("cobol, mainframe") == "typescript"
+
+    def test_infer_framework_empty(self):
+        assert infer_framework("") == ""
+
+    def test_infer_framework_no_match(self):
+        assert infer_framework("python, unknown-framework-xyz") == ""
+
+    def test_infer_test_framework_unknown_lang(self):
+        # Falls back to pytest for unknown
+        assert infer_test_framework("cobol") == "pytest"
+
+    def test_infer_formatter_unknown_lang(self):
+        assert infer_formatter("cobol") == "prettier"
+
+    def test_infer_linter_unknown_lang(self):
+        assert infer_linter("cobol") == "eslint"
+
+    def test_infer_framework_gin(self):
+        assert infer_framework("Go, Gin framework") == "Gin"
+
+    def test_infer_framework_echo(self):
+        assert infer_framework("Go, Echo") == "Echo"
+
+    def test_infer_kotlin_test_fw(self):
+        assert infer_test_framework("kotlin") == "junit"
+
+    def test_infer_dart_formatter(self):
+        assert infer_formatter("dart") == "dart format"
+
+    def test_infer_csharp_linter(self):
+        assert infer_linter("csharp") == "roslyn"
+
+
 class TestInferenceExtended:
     """Test new language support in inference engine."""
 
