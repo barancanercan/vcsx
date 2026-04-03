@@ -385,6 +385,60 @@ class TestInferProjectTypeExtended:
         assert _infer_project_type(Path(tmp_dir), "go") == "cli"
 
 
+class TestScanEdgeCases:
+    def test_scan_invalid_pyproject(self, tmp_dir):
+        """Invalid TOML should not crash."""
+        (Path(tmp_dir) / "pyproject.toml").write_text("{{invalid toml}")
+        result = scan_project(tmp_dir)
+        assert result["language"] == "python"  # still detected
+
+    def test_scan_invalid_package_json(self, tmp_dir):
+        """Invalid JSON should not crash."""
+        (Path(tmp_dir) / "package.json").write_text("not valid json{{{")
+        result = scan_project(tmp_dir)
+        # language may not be detected but should not raise
+        assert isinstance(result, dict)
+
+    def test_scan_invalid_go_mod(self, tmp_dir):
+        """go.mod that raises should not crash."""
+        (Path(tmp_dir) / "go.mod").write_text("")  # empty
+        result = scan_project(tmp_dir)
+        assert result["language"] == "go"
+
+    def test_scan_invalid_cargo_toml(self, tmp_dir):
+        """Cargo.toml that raises should not crash."""
+        (Path(tmp_dir) / "Cargo.toml").write_text("")  # empty, no name
+        result = scan_project(tmp_dir)
+        assert result["language"] == "rust"
+
+    def test_package_json_defaults_npm(self, tmp_dir):
+        """No lock file → defaults to npm."""
+        import json
+        pkg = {"name": "my-app", "dependencies": {}}
+        (Path(tmp_dir) / "package.json").write_text(json.dumps(pkg))
+        result = scan_project(tmp_dir)
+        assert result.get("package_manager") == "npm"
+
+    def test_scan_pyproject_no_name(self, tmp_dir):
+        """pyproject.toml without name field."""
+        (Path(tmp_dir) / "pyproject.toml").write_text(
+            "[build-system]\nrequires = ['setuptools']\n"
+        )
+        result = scan_project(tmp_dir)
+        assert result["language"] == "python"
+        # project_name should fall back to directory name
+        assert result["project_name"] == Path(tmp_dir).name
+
+    def test_scan_pyproject_with_framework(self, tmp_dir):
+        (Path(tmp_dir) / "pyproject.toml").write_text(
+            '[project]\nname = "my-app"\n[project.dependencies]\n'
+            'fastapi = "*"\npytest = "*"\n'
+        )
+        result = scan_project(tmp_dir)
+        assert result["framework"] == "FastAPI"
+        assert result["test_framework"] == "pytest"
+
+
 class TestFormatScanSummary:
     def test_formats_full_scan(self):
         scan = {

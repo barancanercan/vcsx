@@ -606,10 +606,17 @@ def doctor(dir):
 @main.command("check")
 @click.argument("path", default=".", type=click.Path(exists=True))
 @click.option("--json", "output_json", is_flag=True, help="Output results as JSON")
-def check_project(path, output_json):
+@click.option(
+    "--min-score",
+    default=0,
+    type=int,
+    help="Exit with code 1 if score is below this threshold (for CI)",
+)
+def check_project(path, output_json, min_score):
     """Analyze a project's AI config quality and give a score.
 
     Checks for: config files present, quality indicators, best practices.
+    Use --min-score for CI pipelines (exits 1 if score below threshold).
 
     Examples:
         vcsx check                    # Check current directory
@@ -762,6 +769,11 @@ def check_project(path, output_json):
         console.print("\n[bold]Recommendations:[/]")
         for s in suggestions:
             console.print(f"  • {s}")
+
+    # CI exit code support
+    if min_score > 0 and overall_pct < min_score:
+        console.print(f"\n[red]✗ Score {overall_pct}% is below minimum {min_score}%[/]")
+        raise SystemExit(1)
 
 
 @main.command("new")

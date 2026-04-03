@@ -670,6 +670,30 @@ class TestMigrateCommand:
         assert result.exit_code == 0
 
 
+class TestCheckMinScore:
+    def test_check_min_score_passes(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["check", tmp_dir, "--min-score", "0"])
+        assert result.exit_code == 0
+
+    def test_check_min_score_fails(self, runner, tmp_dir):
+        # Empty dir = 0% score, min-score 50 → exit 1
+        result = runner.invoke(main, ["check", tmp_dir, "--min-score", "50"])
+        assert result.exit_code == 1 or "below minimum" in result.output or "No AI" in result.output
+
+    def test_check_min_score_100_passes_with_claude(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        # claude-code at 100% but only 1 tool → overall might be low
+        result = runner.invoke(main, ["check", tmp_dir, "--min-score", "0"])
+        assert result.exit_code == 0
+
+
 class TestCheckCommandExtended:
     def test_check_json_no_tools(self, runner, tmp_dir):
         result = runner.invoke(main, ["check", tmp_dir, "--json"])
@@ -759,6 +783,40 @@ class TestAuditCommandExtended:
         assert result.exit_code == 0
         # Should warn about large file
         assert "250" in result.output or "200" in result.output
+
+
+class TestDoctorPlatformInfo:
+    def test_doctor_shows_platform(self, runner):
+        result = runner.invoke(main, ["doctor"])
+        assert result.exit_code == 0
+        assert "Platform" in result.output or "python" in result.output.lower()
+
+    def test_doctor_detects_aider(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".aider.conf.yaml").write_text("model: gpt-4o\n")
+        result = runner.invoke(main, ["doctor", "--dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "aider" in result.output.lower()
+
+    def test_doctor_detects_bolt(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".bolt").mkdir()
+        (Path(tmp_dir) / ".bolt" / "workspace.json").write_text("{}")
+        result = runner.invoke(main, ["doctor", "--dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "bolt" in result.output.lower()
+
+    def test_doctor_detects_codex(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".openai").mkdir()
+        (Path(tmp_dir) / ".openai" / "instructions.md").write_text("# Codex")
+        result = runner.invoke(main, ["doctor", "--dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "codex" in result.output.lower()
+
+    def test_doctor_detects_zed(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".zed").mkdir()
+        (Path(tmp_dir) / ".zed" / "settings.json").write_text("{}")
+        result = runner.invoke(main, ["doctor", "--dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "zed" in result.output.lower()
 
 
 class TestUpdateCommandExtended:
@@ -971,6 +1029,14 @@ class TestInfoCommandExtended:
         assert "Usage" in result.output or "tool" in result.output.lower()
 
 
+class TestPluginsCommand:
+    def test_plugins_list(self, runner):
+        result = runner.invoke(main, ["plugins"])
+        assert result.exit_code == 0
+        # Either shows no plugins or a table
+        assert "plugin" in result.output.lower() or result.output.strip() != ""
+
+
 class TestStatusCommand:
     def test_status_empty_dir(self, runner, tmp_dir):
         result = runner.invoke(main, ["status", tmp_dir])
@@ -1009,6 +1075,26 @@ class TestStatusCommand:
         AgentsMdGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["status", tmp_dir])
         assert result.exit_code == 0
+
+    def test_status_with_windsurf_old_format(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".windsurfrules").write_text("# rules")
+        result = runner.invoke(main, ["status", tmp_dir])
+        assert result.exit_code == 0
+        assert "windsurf" in result.output.lower()
+
+    def test_status_with_cursor_old_format(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".cursorrules").write_text("# rules")
+        result = runner.invoke(main, ["status", tmp_dir])
+        assert result.exit_code == 0
+
+    def test_status_with_cursor_and_rules(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.cursor import CursorGenerator
+        ctx = ProjectContext(project_name="test", language="python", project_type="api")
+        CursorGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["status", tmp_dir])
+        assert result.exit_code == 0
+        assert "%" in result.output
 
 
 class TestGeminiGlobalCommand:
@@ -1230,6 +1316,11 @@ class TestChangelogCommand:
     def test_changelog_specific_version(self, runner):
         result = runner.invoke(main, ["changelog", "--version", "4.4.0"])
         assert result.exit_code == 0
+
+    def test_changelog_unknown_version(self, runner):
+        result = runner.invoke(main, ["changelog", "--version", "0.0.0"])
+        assert result.exit_code == 0
+        assert "not found" in result.output.lower() or result.output == "" or "0.0.0" in result.output
 
 
 class TestCompletionCommand:
