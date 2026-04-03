@@ -24,6 +24,27 @@ from vcsx.templates import get_template_registry, list_official_templates, searc
 
 console = Console(force_terminal=False)
 
+
+def _load_config() -> dict:
+    """Load user config from ~/.vcsx/config.json with defaults."""
+    import json
+
+    defaults = {
+        "default_tool": "claude-code",
+        "default_lang": "typescript",
+        "default_type": "web",
+        "lang": "tr",
+        "auto_push": False,
+    }
+    config_file = Path.home() / ".vcsx" / "config.json"
+    if config_file.exists():
+        try:
+            return {**defaults, **json.loads(config_file.read_text())}
+        except Exception:
+            pass
+    return defaults
+
+
 BANNER = """
   ==================
        [SETUP]
@@ -112,9 +133,14 @@ def init(cli, all_tools, lang, output_dir, fast):
             infer_test_framework,
         )
 
+        user_cfg = _load_config()
         console.print("\n[bold cyan]Fast Mode[/] — minimal questions\n")
         project_name = Prompt.ask("Project name", default="my-project")
-        tech_stack = Prompt.ask("Tech stack (e.g. Python, FastAPI / TypeScript, React)", default="")
+        default_stack = user_cfg.get("default_lang", "typescript")
+        tech_stack = Prompt.ask(
+            "Tech stack (e.g. Python, FastAPI / TypeScript, React)",
+            default=default_stack,
+        )
         inferred_lang = infer_language(tech_stack)
 
         context = ProjectContext(

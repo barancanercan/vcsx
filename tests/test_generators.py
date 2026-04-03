@@ -439,6 +439,73 @@ class TestMultiToolInit:
             all_primary_files.add(files)
 
 
+class TestSharedHelpersExtended:
+    """Extended tests for _shared module."""
+
+    def test_setup_cmd_rust(self):
+        from vcsx.generators._shared import get_setup_cmd
+        ctx = ProjectContext(language="rust")
+        assert "cargo" in get_setup_cmd(ctx)
+
+    def test_setup_cmd_java(self):
+        from vcsx.generators._shared import get_setup_cmd
+        ctx = ProjectContext(language="java")
+        assert "mvn" in get_setup_cmd(ctx)
+
+    def test_build_cmd_rust(self):
+        from vcsx.generators._shared import get_build_cmd
+        ctx = ProjectContext(language="rust")
+        assert "cargo" in get_build_cmd(ctx)
+
+    def test_build_cmd_go(self):
+        from vcsx.generators._shared import get_build_cmd
+        ctx = ProjectContext(language="go")
+        assert "go build" in get_build_cmd(ctx)
+
+    def test_dev_cmd_django(self):
+        from vcsx.generators._shared import get_dev_cmd
+        ctx = ProjectContext(language="python", framework="Django")
+        assert "manage.py" in get_dev_cmd(ctx)
+
+    def test_dev_cmd_flask(self):
+        from vcsx.generators._shared import get_dev_cmd
+        ctx = ProjectContext(language="python", framework="Flask")
+        assert "flask" in get_dev_cmd(ctx)
+
+    def test_style_rules_typescript(self):
+        from vcsx.generators._shared import get_style_rules
+        ctx = ProjectContext(language="typescript")
+        rules = get_style_rules(ctx)
+        assert any("const" in r for r in rules)
+
+    def test_style_rules_go(self):
+        from vcsx.generators._shared import get_style_rules
+        ctx = ProjectContext(language="go")
+        rules = get_style_rules(ctx)
+        assert any("gofmt" in r for r in rules)
+
+    def test_style_rules_data_pipeline(self):
+        from vcsx.generators._shared import get_style_rules
+        ctx = ProjectContext(language="python", project_type="data-pipeline")
+        rules = get_style_rules(ctx)
+        assert any("chunk" in r.lower() for r in rules)
+
+    def test_lint_cmd_uses_ctx_linter(self):
+        from vcsx.generators._shared import get_lint_cmd
+        ctx = ProjectContext(linter="custom-linter")
+        assert get_lint_cmd(ctx) == "custom-linter"
+
+    def test_format_cmd_uses_ctx_formatter(self):
+        from vcsx.generators._shared import get_format_cmd
+        ctx = ProjectContext(formatter="custom-formatter")
+        assert get_format_cmd(ctx) == "custom-formatter"
+
+    def test_test_cmd_no_framework_fallback(self):
+        from vcsx.generators._shared import get_test_cmd
+        ctx = ProjectContext(language="rust")
+        assert "cargo test" in get_test_cmd(ctx)
+
+
 class TestSharedHelpers:
     """Test the shared generator utilities module."""
 

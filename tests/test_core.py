@@ -57,6 +57,46 @@ class TestInference:
         assert infer_linter("typescript") == "eslint"
 
 
+class TestValidatorsExtended:
+    def test_validate_project_name_numbers(self):
+        assert validate_project_name("project123") is True
+
+    def test_validate_project_name_hyphen(self):
+        assert validate_project_name("my-project") is True
+
+    def test_validate_project_name_with_slash_fails(self):
+        assert validate_project_name("my/project") is False
+
+    def test_validate_project_name_space_fails(self):
+        assert validate_project_name("my project") is False
+
+    def test_sanitize_strips_whitespace(self):
+        assert sanitize_input("  hello  ") == "hello"
+
+    def test_sanitize_none_returns_empty(self):
+        assert sanitize_input(None) == ""
+
+    def test_sanitize_empty_returns_empty(self):
+        assert sanitize_input("") == ""
+
+    def test_validate_tech_stack_parses(self):
+        from vcsx.core.validators import validate_tech_stack
+        result = validate_tech_stack("Python, FastAPI, PostgreSQL")
+        assert "Python" in result
+        assert "FastAPI" in result
+        assert len(result) == 3
+
+    def test_validate_tech_stack_empty(self):
+        from vcsx.core.validators import validate_tech_stack
+        assert validate_tech_stack("") == []
+
+    def test_validate_features_parses(self):
+        from vcsx.core.validators import validate_features
+        result = validate_features("auth, CRUD, dashboard")
+        assert len(result) == 3
+        assert "auth" in result
+
+
 class TestInferenceExtended:
     """Test new language support in inference engine."""
 
