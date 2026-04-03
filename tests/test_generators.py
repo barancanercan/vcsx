@@ -748,8 +748,9 @@ class TestZedGenerator:
         gen.generate_config(ctx, tmp_dir)
         content = (Path(tmp_dir) / ".zed" / "settings.json").read_text()
         data = json.loads(content)
-        assert "project" in data
-        assert data["project"]["name"] == "test-project"
+        assert "assistant" in data
+        assert "tab_size" in data
+        assert data["assistant"]["version"] == "2"
 
     def test_generate_skills(self, ctx, tmp_dir):
         gen = ZedGenerator()
