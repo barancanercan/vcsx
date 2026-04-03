@@ -422,6 +422,34 @@ class TestConfigCorruptFile:
                 config_file.unlink()
 
 
+class TestValidateCursorWindsurf:
+    def test_validate_cursorrules_without_rules_dir(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".cursorrules").write_text("# rules")
+        result = runner.invoke(main, ["validate", tmp_dir])
+        assert result.exit_code == 0
+        assert "cursor" in result.output.lower() or "migrate" in result.output.lower()
+
+    def test_validate_windsurfrules_without_rules_dir(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".windsurfrules").write_text("# rules")
+        result = runner.invoke(main, ["validate", tmp_dir])
+        assert result.exit_code == 0
+        assert "windsurf" in result.output.lower() or "migrate" in result.output.lower()
+
+    def test_validate_aider_valid_config(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".aider.conf.yaml").write_text(
+            "model: gpt-4o\nauto-commits: true\nlint-cmd: ruff check .\n"
+        )
+        result = runner.invoke(main, ["validate", tmp_dir])
+        assert result.exit_code == 0
+        assert "no invalid keys" in result.output or "aider" in result.output.lower()
+
+    def test_validate_env_local_with_secrets(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".env.local").write_text("API_KEY=secret123\n")
+        result = runner.invoke(main, ["validate", tmp_dir])
+        assert result.exit_code == 0
+        assert "SECURITY" in result.output or "secret" in result.output.lower()
+
+
 class TestValidateGeminiAgents:
     def test_validate_gemini_md(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
