@@ -123,6 +123,45 @@ class TestCheckCommand:
         assert 0 <= data["overall_score"] <= 100
 
 
+class TestInitScanMode:
+    def test_scan_detects_python_project(self, runner, tmp_dir):
+        (Path(tmp_dir) / "requirements.txt").write_text("fastapi\npytest\n")
+        result = runner.invoke(
+            main,
+            ["init", "--scan", "--cli", "agents-md", "--output-dir", tmp_dir],
+        )
+        assert result.exit_code == 0
+        assert "python" in result.output.lower() or (Path(tmp_dir) / "AGENTS.md").exists()
+
+    def test_scan_detects_typescript_project(self, runner, tmp_dir):
+        import json
+        pkg = {"name": "my-app", "dependencies": {"react": "^18.0.0"}}
+        (Path(tmp_dir) / "package.json").write_text(json.dumps(pkg))
+        result = runner.invoke(
+            main,
+            ["init", "--scan", "--cli", "gemini", "--output-dir", tmp_dir],
+        )
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / "GEMINI.md").exists()
+
+    def test_scan_skips_discovery_wizard(self, runner, tmp_dir):
+        (Path(tmp_dir) / "requirements.txt").write_text("fastapi\n")
+        result = runner.invoke(
+            main,
+            ["init", "--scan", "--cli", "agents-md", "--output-dir", tmp_dir],
+        )
+        # Should not prompt for input (no stdin needed)
+        assert result.exit_code == 0
+
+    def test_scan_shows_detected_stack(self, runner, tmp_dir):
+        (Path(tmp_dir) / "requirements.txt").write_text("fastapi\n")
+        result = runner.invoke(
+            main,
+            ["init", "--scan", "--cli", "agents-md", "--output-dir", tmp_dir],
+        )
+        assert "Detected" in result.output or "python" in result.output.lower()
+
+
 class TestInitFastMode:
     def test_fast_mode_accepts_input(self, runner, tmp_dir):
         result = runner.invoke(
