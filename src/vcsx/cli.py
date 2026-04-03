@@ -1852,7 +1852,14 @@ def gemini_global(lang, force):
     default=".",
     help="Output directory",
 )
-def generate_file(tool, file_type, project_name, lang, project_type, output_dir):
+@click.option(
+    "--from-project",
+    "-p",
+    type=click.Path(exists=True),
+    default=None,
+    help="Auto-detect context from an existing project directory",
+)
+def generate_file(tool, file_type, project_name, lang, project_type, output_dir, from_project):
     """Generate a single AI config file without the full wizard.
 
     Useful for quickly adding a specific config to an existing project
@@ -1867,6 +1874,16 @@ def generate_file(tool, file_type, project_name, lang, project_type, output_dir)
     """
     from vcsx.core.context import ProjectContext
     from vcsx.core.inference import infer_formatter, infer_linter, infer_test_framework
+
+    # Auto-detect from existing project if --from-project given
+    if from_project:
+        from vcsx.core.scanner import scan_project
+
+        detected = scan_project(from_project)
+        lang = detected.get("language", lang) or lang
+        project_type = detected.get("project_type", project_type) or project_type
+        project_name = detected.get("project_name", project_name) or project_name
+        console.print(f"[cyan]Auto-detected from {from_project}:[/] {lang} / {project_type}")
 
     ctx = ProjectContext(
         project_name=project_name,

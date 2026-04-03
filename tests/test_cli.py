@@ -1032,6 +1032,33 @@ class TestStatsWindsurf:
         assert "copilot" in result.output.lower() or "configured" in result.output.lower()
 
 
+class TestGenerateFromProject:
+    def test_generate_from_python_project(self, runner, tmp_dir):
+        import tempfile, json
+        with tempfile.TemporaryDirectory() as src_dir:
+            # Create a Python project
+            (Path(src_dir) / "requirements.txt").write_text("fastapi\npytest\n")
+            result = runner.invoke(
+                main,
+                ["generate", "agents-md", "--from-project", src_dir, "--output-dir", tmp_dir],
+            )
+            assert result.exit_code == 0
+            assert (Path(tmp_dir) / "AGENTS.md").exists()
+
+    def test_generate_from_typescript_project(self, runner, tmp_dir):
+        import tempfile, json as json_mod
+        with tempfile.TemporaryDirectory() as src_dir:
+            pkg = {"name": "my-app", "dependencies": {"react": "^18.0.0"}}
+            (Path(src_dir) / "package.json").write_text(json_mod.dumps(pkg))
+            result = runner.invoke(
+                main,
+                ["generate", "gemini", "--from-project", src_dir, "--output-dir", tmp_dir],
+            )
+            assert result.exit_code == 0
+            content = (Path(tmp_dir) / "GEMINI.md").read_text()
+            assert "typescript" in content.lower() or "GEMINI" in content
+
+
 class TestGenerateCommandExtended:
     def test_generate_aider(self, runner, tmp_dir):
         result = runner.invoke(

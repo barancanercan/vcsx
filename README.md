@@ -39,6 +39,9 @@ $ vcsx init
 # Fast mode (2 questions, no wizard)
 $ vcsx init --fast -c claude-code
 
+# Scan mode (auto-detect from existing project)
+$ vcsx init --scan -c claude-code
+
 # Multi-tool at once
 $ vcsx init -c claude-code -c cursor -c gemini
 $ vcsx init --all-tools
@@ -233,6 +236,8 @@ vcsx new my-saas --preset saas-nextjs --tool claude-code --tool cursor
 | `vcsx new my-api --type api --lang python` | Scaffold typed project |
 | `vcsx new my-app --preset fastapi-postgres` | Use a template preset |
 | `vcsx generate <tool>` | Generate one tool's config files directly |
+| `vcsx status` | One-page AI setup overview (score + counts + suggestions) |
+| `vcsx gemini-global` | Create ~/.gemini/GEMINI.md global Gemini config |
 | **Migration & Maintenance** | |
 | `vcsx migrate windsurf` | Migrate .windsurfrules → .windsurf/rules/ |
 | `vcsx migrate cursor` | Migrate .cursorrules → .cursor/rules/*.mdc |
