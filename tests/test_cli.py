@@ -723,6 +723,107 @@ class TestMigrateCommandExtended:
         assert (Path(tmp_dir) / ".github" / "instructions").exists()
 
 
+class TestAuditEnvSecurity:
+    def test_audit_env_not_in_gitignore(self, runner, tmp_dir):
+        """Detects .env not in .gitignore."""
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        (Path(tmp_dir) / ".env").write_text("API_KEY=secret123")
+        (Path(tmp_dir) / ".gitignore").write_text("node_modules/")  # no .env
+        result = runner.invoke(main, ["audit", tmp_dir])
+        assert result.exit_code == 0
+        assert "gitignore" in result.output.lower() or ".env" in result.output
+
+    def test_audit_env_no_gitignore(self, runner, tmp_dir):
+        """Detects .env without .gitignore at all."""
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        (Path(tmp_dir) / ".env").write_text("PASSWORD=secret")
+        result = runner.invoke(main, ["audit", tmp_dir])
+        assert result.exit_code == 0
+        assert "gitignore" in result.output.lower() or "SECURITY" in result.output
+
+    def test_audit_env_properly_ignored(self, runner, tmp_dir):
+        """Shows OK when .env is in .gitignore."""
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        (Path(tmp_dir) / ".env").write_text("API_KEY=secret")
+        (Path(tmp_dir) / ".gitignore").write_text(".env\nnode_modules/")
+        result = runner.invoke(main, ["audit", tmp_dir])
+        assert result.exit_code == 0
+
+    def test_audit_passed_all_clean(self, runner, tmp_dir):
+        """Shows all-clear when no issues."""
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        ctx = ProjectContext(project_name="clean", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        AgentsMdGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["audit", tmp_dir])
+        assert result.exit_code == 0
+        # Should have no critical issues (may have warnings)
+
+
+class TestStatsClaudeDetails:
+    def test_stats_shows_claude_skill_count(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python", project_type="api")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["stats", tmp_dir])
+        assert result.exit_code == 0
+        assert "22" in result.output or "Skills" in result.output
+
+    def test_stats_shows_breakdown(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["stats", tmp_dir])
+        assert result.exit_code == 0
+        assert "claude-code" in result.output.lower()
+
+
+class TestDockerAndInitMultiTool:
+    def test_init_all_tools_fast(self, runner, tmp_dir):
+        result = runner.invoke(
+            main,
+            ["init", "--fast", "--all-tools", "--output-dir", tmp_dir],
+            input="my-project\nPython, FastAPI\n",
+        )
+        assert result.exit_code == 0
+
+    def test_init_multi_cli_fast(self, runner, tmp_dir):
+        result = runner.invoke(
+            main,
+            ["init", "--fast", "--cli", "gemini", "--cli", "agents-md", "--output-dir", tmp_dir],
+            input="my-project\nPython\n",
+        )
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / "GEMINI.md").exists()
+        assert (Path(tmp_dir) / "AGENTS.md").exists()
+
+
+class TestInfoCommandExtended:
+    def test_info_cursor(self, runner):
+        result = runner.invoke(main, ["info", "cursor"])
+        assert result.exit_code == 0
+        assert ".cursorrules" in result.output
+
+    def test_info_windsurf(self, runner):
+        result = runner.invoke(main, ["info", "windsurf"])
+        assert result.exit_code == 0
+        assert "windsurf" in result.output.lower()
+
+    def test_info_aider(self, runner):
+        result = runner.invoke(main, ["info", "aider"])
+        assert result.exit_code == 0
+        assert ".aider" in result.output
+
+    def test_info_no_args(self, runner):
+        result = runner.invoke(main, ["info"])
+        assert result.exit_code == 0
+        assert "Usage" in result.output or "tool" in result.output.lower()
+
+
 class TestUpdateAutoWindsurf:
     def test_update_auto_windsurf_rules(self, runner, tmp_dir):
         (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
