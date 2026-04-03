@@ -1064,6 +1064,106 @@ def stats(path):
                 console.print(f"  [cyan]{tool}:[/] {parts}")
 
 
+@main.command("compare")
+@click.argument("path_a", type=click.Path(exists=True))
+@click.argument("path_b", type=click.Path(exists=True))
+def compare_projects(path_a, path_b):
+    """Compare AI config files between two projects.
+
+    Shows which tools are configured in each, what's missing,
+    and highlights config differences.
+
+    Examples:
+        vcsx compare ~/project-a ~/project-b
+        vcsx compare . ../other-project
+    """
+    target_a = Path(path_a).resolve()
+    target_b = Path(path_b).resolve()
+
+    console.print("\n[bold]vcsx compare[/]")
+    console.print(f"  A: {target_a}")
+    console.print(f"  B: {target_b}\n")
+
+    # Config files to compare
+    config_files = {
+        "claude-code": ["CLAUDE.md", ".claudeignore", ".claude/settings.json"],
+        "cursor": [".cursorrules"],
+        "windsurf": [".windsurfrules"],
+        "copilot": [".github/copilot-instructions.md"],
+        "gemini": ["GEMINI.md"],
+        "agents-md": ["AGENTS.md"],
+        "aider": [".aider.conf.yaml"],
+        "bolt": [".bolt/workspace.json"],
+        "codex": [".openai/instructions.md"],
+        "zed": [".zed/settings.json"],
+    }
+
+    table = Table(title="Config Comparison", border_style="cyan")
+    table.add_column("Tool", style="cyan")
+    table.add_column(f"A: {target_a.name}", style="bold")
+    table.add_column(f"B: {target_b.name}", style="bold")
+    table.add_column("Status")
+
+    only_in_a = []
+    only_in_b = []
+    in_both = []
+
+    for tool, files in config_files.items():
+        has_a = any((target_a / f).exists() for f in files)
+        has_b = any((target_b / f).exists() for f in files)
+
+        if has_a and has_b:
+            in_both.append(tool)
+            # Check if content differs for primary file
+            for f in files:
+                fa = target_a / f
+                fb = target_b / f
+                if fa.exists() and fb.exists():
+                    try:
+                        same = fa.read_text() == fb.read_text()
+                        diff_note = "[green]identical[/]" if same else "[yellow]differs[/]"
+                    except Exception:
+                        diff_note = "[dim]binary[/]"
+                    break
+            else:
+                diff_note = "[green]present[/]"
+            table.add_row(tool, "[green]✓[/]", "[green]✓[/]", diff_note)
+        elif has_a:
+            only_in_a.append(tool)
+            table.add_row(tool, "[green]✓[/]", "[dim]✗ missing[/]", "[yellow]only in A[/]")
+        elif has_b:
+            only_in_b.append(tool)
+            table.add_row(tool, "[dim]✗ missing[/]", "[green]✓[/]", "[yellow]only in B[/]")
+        else:
+            table.add_row(tool, "[dim]—[/]", "[dim]—[/]", "[dim]neither[/]")
+
+    console.print(table)
+
+    # Summary
+    console.print("\n[bold]Summary:[/]")
+    console.print(f"  Both configured: [green]{len(in_both)}[/] tools")
+    if only_in_a:
+        console.print(f"  Only in A: [yellow]{', '.join(only_in_a)}[/]")
+        console.print(f"    → Run in B: [cyan]vcsx update --tool {' --tool '.join(only_in_a)}[/]")
+    if only_in_b:
+        console.print(f"  Only in B: [yellow]{', '.join(only_in_b)}[/]")
+        console.print(f"    → Run in A: [cyan]vcsx update --tool {' --tool '.join(only_in_b)}[/]")
+
+    # Skill count comparison
+    skills_a = (
+        sum(1 for _ in (target_a / ".claude" / "skills").glob("*/SKILL.md"))
+        if (target_a / ".claude" / "skills").exists()
+        else 0
+    )
+    skills_b = (
+        sum(1 for _ in (target_b / ".claude" / "skills").glob("*/SKILL.md"))
+        if (target_b / ".claude" / "skills").exists()
+        else 0
+    )
+    if skills_a or skills_b:
+        console.print(f"\n  Claude Code skills: A=[cyan]{skills_a}[/] B=[cyan]{skills_b}[/]")
+
+
 @main.command("search")
 @click.argument("query")
 @click.argument("path", default=".", type=click.Path(exists=True))

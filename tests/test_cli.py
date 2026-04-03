@@ -234,6 +234,25 @@ class TestNewCommand:
         assert (Path(tmp_dir) / "my-web" / ".cursorrules").exists()
 
 
+class TestCompareCommand:
+    def test_compare_two_dirs(self, runner, tmp_dir):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp_dir2:
+            # Setup project A
+            from vcsx.core.context import ProjectContext
+            from vcsx.generators.gemini import GeminiGenerator
+            ctx = ProjectContext(project_name="a")
+            GeminiGenerator().generate_all(ctx, tmp_dir)
+            result = runner.invoke(main, ["compare", tmp_dir, tmp_dir2])
+            assert result.exit_code == 0
+            assert "gemini" in result.output.lower() or "only in A" in result.output
+
+    def test_compare_identical(self, runner, tmp_dir):
+        result = runner.invoke(main, ["compare", tmp_dir, tmp_dir])
+        assert result.exit_code == 0
+        assert "Summary" in result.output
+
+
 class TestSearchCommand:
     def test_search_no_results(self, runner, tmp_dir):
         result = runner.invoke(main, ["search", "nonexistent_keyword_xyz", tmp_dir])
