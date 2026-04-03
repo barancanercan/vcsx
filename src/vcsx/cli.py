@@ -1634,6 +1634,136 @@ def list_plugins():
     console.print(table)
 
 
+@main.command("status")
+@click.argument("path", default=".", type=click.Path(exists=True))
+def project_status(path):
+    """Show a one-page AI setup status for a project.
+
+    Combines doctor + check + stats into a single clean overview.
+
+    Examples:
+        vcsx status             # Current directory
+        vcsx status ~/my-proj   # Specific project
+    """
+    target = Path(path).resolve()
+    console.print(f"\n[bold]vcsx status[/] — {target.name}\n")
+
+    # Tool detection
+    tool_files = {
+        "claude-code": "CLAUDE.md",
+        "cursor": ".cursorrules",
+        "windsurf": ".windsurfrules",
+        "gemini": "GEMINI.md",
+        "agents-md": "AGENTS.md",
+        "aider": ".aider.conf.yaml",
+        "copilot": ".github/copilot-instructions.md",
+        "zed": ".zed/settings.json",
+        "bolt": ".bolt/workspace.json",
+        "codex": ".openai/instructions.md",
+    }
+    configured = [t for t, f in tool_files.items() if (target / f).exists()]
+
+    # Score calculation (reuse check logic)
+    total_score = 0
+    tool_scores = {}
+    check_data = {
+        "claude-code": {
+            "files": ["CLAUDE.md", ".claudeignore", ".claude/settings.json"],
+            "quality": [".claude/agents", ".claude/skills"],
+        },
+        "cursor": {"files": [".cursorrules"], "quality": [".cursor/rules"]},
+        "windsurf": {"files": [".windsurfrules"], "quality": [".windsurf/rules"]},
+        "gemini": {"files": ["GEMINI.md"], "quality": []},
+        "agents-md": {"files": ["AGENTS.md"], "quality": []},
+    }
+    for tool, cfg in check_data.items():
+        present = sum(1 for f in cfg["files"] if (target / f).exists())
+        quality = sum(1 for f in cfg["quality"] if (target / f).exists())
+        score = present * 2 + quality
+        max_score = len(cfg["files"]) * 2 + len(cfg["quality"])
+        if present > 0 and max_score > 0:
+            tool_scores[tool] = int(score / max_score * 100)
+            total_score += tool_scores[tool]
+
+    overall = int(total_score / len(tool_scores)) if tool_scores else 0
+
+    # Skill/hook/agent counts
+    skills = (
+        sum(1 for _ in (target / ".claude" / "skills").glob("*/SKILL.md"))
+        if (target / ".claude" / "skills").exists()
+        else 0
+    )
+    hooks = (
+        sum(1 for _ in (target / ".claude" / "hooks").glob("*.sh"))
+        if (target / ".claude" / "hooks").exists()
+        else 0
+    )
+    agents = (
+        sum(1 for _ in (target / ".claude" / "agents").glob("*.md"))
+        if (target / ".claude" / "agents").exists()
+        else 0
+    )
+    rules = (
+        sum(1 for _ in (target / ".cursor" / "rules").glob("*.mdc"))
+        if (target / ".cursor" / "rules").exists()
+        else 0
+    )
+    rules += (
+        sum(1 for _ in (target / ".windsurf" / "rules").glob("*.md"))
+        if (target / ".windsurf" / "rules").exists()
+        else 0
+    )
+
+    # Print overview
+    score_color = "green" if overall >= 80 else "yellow" if overall >= 50 else "red"
+    console.print(
+        f"[bold]Quality Score:[/] [{score_color}]{overall}%[/]  |  Tools: {len(configured)}/{len(tool_files)}"
+    )
+    console.print()
+
+    if configured:
+        console.print(f"[bold]Configured:[/] {', '.join(f'[cyan]{t}[/]' for t in configured)}")
+    else:
+        console.print("[yellow]No AI tool configs found. Run vcsx init to get started.[/]")
+        return
+
+    # Stats
+    if skills or hooks or agents or rules:
+        console.print()
+        console.print("[bold]Contents:[/]")
+        if skills:
+            console.print(f"  Skills (Claude Code): {skills}")
+        if hooks:
+            console.print(f"  Hooks (Claude Code): {hooks}")
+        if agents:
+            console.print(f"  Agents (Claude Code): {agents}")
+        if rules:
+            console.print(f"  Scoped rules (Cursor/Windsurf): {rules}")
+
+    # Issues
+    issues = []
+    if "claude-code" in configured and not (target / ".claudeignore").exists():
+        issues.append("Missing .claudeignore → run: vcsx update --auto")
+    if configured and "agents-md" not in configured:
+        issues.append("No AGENTS.md → run: vcsx update --tool agents-md")
+    if (target / ".windsurfrules").exists() and not (target / ".windsurf" / "rules").exists():
+        issues.append("Windsurf: old format → run: vcsx migrate windsurf")
+    if (target / ".cursorrules").exists() and not (target / ".cursor" / "rules").exists():
+        issues.append("Cursor: old format → run: vcsx migrate cursor")
+
+    if issues:
+        console.print()
+        console.print("[bold yellow]Suggestions:[/]")
+        for i in issues:
+            console.print(f"  • {i}")
+    else:
+        console.print()
+        console.print("[bold green]✓ Everything looks good![/]")
+
+    console.print()
+    console.print("[dim]Run vcsx audit for full analysis  |  vcsx check --json for CI[/]")
+
+
 @main.command("gemini-global")
 @click.option(
     "--lang",

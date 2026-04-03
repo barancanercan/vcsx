@@ -863,6 +863,46 @@ class TestInfoCommandExtended:
         assert "Usage" in result.output or "tool" in result.output.lower()
 
 
+class TestStatusCommand:
+    def test_status_empty_dir(self, runner, tmp_dir):
+        result = runner.invoke(main, ["status", tmp_dir])
+        assert result.exit_code == 0
+        assert "No AI tool" in result.output or "vcsx init" in result.output
+
+    def test_status_with_claude_code(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        ctx = ProjectContext(project_name="test", language="python", project_type="api")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["status", tmp_dir])
+        assert result.exit_code == 0
+        assert "claude-code" in result.output
+        assert "Skills" in result.output or "22" in result.output
+
+    def test_status_shows_score(self, runner, tmp_dir):
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        result = runner.invoke(main, ["status", tmp_dir])
+        assert result.exit_code == 0
+        assert "%" in result.output
+
+    def test_status_shows_suggestions(self, runner, tmp_dir):
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# test")
+        result = runner.invoke(main, ["status", tmp_dir])
+        assert result.exit_code == 0
+        # Missing .claudeignore → suggestion shown
+        assert "claudeignore" in result.output.lower() or "Suggestions" in result.output
+
+    def test_status_all_clean(self, runner, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        from vcsx.generators.claude_code import ClaudeCodeGenerator
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
+        AgentsMdGenerator().generate_all(ctx, tmp_dir)
+        result = runner.invoke(main, ["status", tmp_dir])
+        assert result.exit_code == 0
+
+
 class TestGeminiGlobalCommand:
     def test_gemini_global_creates_file(self, runner, tmp_dir):
         # We can't easily test ~/.gemini/ creation but can test via mock

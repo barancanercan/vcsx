@@ -1,14 +1,26 @@
-"""OpenAI Codex generator — produces .openai/ instructions."""
+"""OpenAI Codex generator — produces .openai/ instructions.
+
+OpenAI Codex CLI reads .openai/instructions.md as project context.
+Reference: https://github.com/openai/codex
+"""
 
 from pathlib import Path
 
 from vcsx.core.context import ProjectContext
-from vcsx.core.inference import infer_formatter, infer_linter, infer_test_framework
+from vcsx.core.inference import infer_test_framework
+from vcsx.generators._shared import (
+    get_build_cmd,
+    get_format_cmd,
+    get_lint_cmd,
+    get_setup_cmd,
+    get_style_rules,
+    get_test_cmd,
+)
 from vcsx.generators.base import BaseGenerator
 
 
 class CodexGenerator(BaseGenerator):
-    """Generates an OpenAI Codex setup."""
+    """Generates an OpenAI Codex CLI setup."""
 
     @property
     def name(self) -> str:
@@ -16,44 +28,80 @@ class CodexGenerator(BaseGenerator):
 
     @property
     def output_files(self) -> list[str]:
-        return [".openai/instructions.md"]
+        return [".openai/instructions.md", "AGENTS.md"]
 
     def generate_config(self, ctx: ProjectContext, output_dir: str) -> str:
-        """Generate .openai/instructions.md."""
-        lines = [
-            f"# {ctx.project_name} — Codex Instructions",
-            "",
-            "## Project Overview",
-            ctx.description or f"A {ctx.project_type} project.",
-            "",
-            "## Commands",
-            "```bash",
-            f"# Setup: {_get_setup_cmd(ctx)}",
-            f"# Build: {_get_build_cmd(ctx)}",
-            f"# Test: {_get_test_cmd(ctx)}",
-            f"# Lint: {ctx.linter or infer_linter(ctx.language)} src/",
-            f"# Format: {ctx.formatter or infer_formatter(ctx.language)} src/",
-            "```",
-            "",
-            "## Code Style",
-        ]
-        lines.extend(_get_style_rules(ctx))
-        lines.extend(
-            [
-                "",
-                "## Architecture",
-                f"- **Type**: {ctx.project_type}",
-                f"- **Language**: {ctx.language}",
-                f"- **Framework**: {ctx.framework or 'None'}",
-                "",
-                "## Rules",
-                "- NEVER commit secrets",
-                "- ALWAYS run tests before committing",
-                "- ALWAYS follow existing patterns",
-            ]
-        )
+        """Generate .openai/instructions.md — Codex CLI project instructions."""
+        setup = get_setup_cmd(ctx)
+        build = get_build_cmd(ctx)
+        test = get_test_cmd(ctx)
+        lint = get_lint_cmd(ctx)
+        fmt = get_format_cmd(ctx)
+        style_rules = get_style_rules(ctx)
 
-        content = "\n".join(lines)
+        purpose_block = ""
+        if ctx.purpose or ctx.problem:
+            lines = []
+            if ctx.purpose:
+                lines.append(f"**Purpose:** {ctx.purpose}")
+            if ctx.problem:
+                lines.append(f"**Problem:** {ctx.problem}")
+            purpose_block = "\n".join(lines) + "\n\n"
+
+        style_section = "\n".join(style_rules) if style_rules else "- Follow language idioms"
+
+        content = f"""# {ctx.project_name} — OpenAI Codex Instructions
+
+> This file is read by OpenAI Codex CLI as project context.
+> Reference: https://github.com/openai/codex
+
+## Project
+{purpose_block}- **Name:** {ctx.project_name}
+- **Type:** {ctx.project_type}
+- **Language:** {ctx.language}
+- **Framework:** {ctx.framework or "None"}
+- **Description:** {ctx.description or "No description provided."}
+
+## Commands
+```bash
+# Setup
+{setup}
+
+# Build
+{build}
+
+# Test
+{test}
+
+# Lint
+{lint}
+
+# Format
+{fmt}
+```
+
+## Code Style
+{style_section}
+
+## Architecture
+The project is organized as a `{ctx.project_type}` application.
+Source code is in `src/` and tests are in `tests/`.
+
+## Rules
+- NEVER commit secrets, API keys, or `.env` files
+- ALWAYS run `{test}` before submitting changes
+- ALWAYS run `{lint}` and fix warnings
+- Follow conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`
+- Keep functions small (< 30 lines) and focused
+- Write tests for every new function
+
+## What NOT to Do
+- `rm -rf` without confirmation
+- `git push --force` on shared branches
+- Modifying already-applied database migrations
+- Installing global packages without noting them
+"""
+
         d = Path(output_dir) / ".openai"
         d.mkdir(parents=True, exist_ok=True)
         (d / "instructions.md").write_text(content, encoding="utf-8")

@@ -890,12 +890,12 @@ class TestCodexGeneratorExtended:
         result = gen.generate_hooks(ctx, tmp_dir)
         assert isinstance(result, dict)
 
-    def test_codex_no_test_level(self, tmp_dir):
+    def test_codex_has_rules_section(self, tmp_dir):
         from vcsx.generators.codex import CodexGenerator
-        ctx = ProjectContext(project_name="no-test", language="python", test_level="none")
+        ctx = ProjectContext(project_name="no-test", language="python")
         gen = CodexGenerator()
         content = gen.generate_config(ctx, tmp_dir)
-        assert "No tests" in content or "no tests" in content.lower()
+        assert "NEVER commit secrets" in content or "Rules" in content
 
 
 class TestMultiToolInit:
