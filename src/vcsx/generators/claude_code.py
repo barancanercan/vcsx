@@ -330,7 +330,7 @@ def _skill_commit_message(skills_dir: Path) -> str:
     d.mkdir(parents=True, exist_ok=True)
     content = """---
 name: commit-message
-description: Generates conventional commit messages from git diff. Use when committing changes or when the user asks to commit.
+description: Generates conventional commit messages from git diff and changelogs. Use when committing changes, creating a release, or when asked to write a commit message or changelog.
 ---
 
 # Commit Message Skill
@@ -357,7 +357,7 @@ Generate conventional commit messages: `<type>(<scope>): <description>`
 - Multi-line body for complex changes: blank line after subject
 
 ## Process
-1. Run `git diff --cached` to see staged changes
+1. Run `git diff --cached` to see staged changes (or `git diff HEAD` for uncommitted)
 2. Identify the primary change type
 3. Determine scope from affected files/modules
 4. Write subject: `<type>(<scope>): <imperative description>`
@@ -381,6 +381,45 @@ feat!: redesign authentication API (breaking change)
 If diff spans multiple concerns, suggest splitting:
 - `git add -p` to stage selectively
 - Separate commits per logical unit
+
+## Changelog Generation
+
+When asked to generate a changelog or prepare a release:
+
+1. Determine version range:
+   ```bash
+   git log <prev-tag>..HEAD --oneline --no-merges
+   # or: git log --since="2 weeks ago" --oneline
+   ```
+
+2. Group commits by type:
+   - **🚀 Features** — all `feat:` commits
+   - **🐛 Bug Fixes** — all `fix:` commits
+   - **⚡ Performance** — all `perf:` commits
+   - **💥 Breaking Changes** — commits with `!` or `BREAKING CHANGE:` footer
+   - **🔧 Chores & Internal** — `chore:`, `refactor:`, `ci:`, `style:`
+   - **📖 Documentation** — `docs:` commits
+
+3. Output CHANGELOG.md entry:
+   ```markdown
+   ## [v1.2.0] — YYYY-MM-DD
+
+   ### 🚀 Features
+   - Add JWT token refresh endpoint (#42)
+   - Support multi-tenant auth flows
+
+   ### 🐛 Bug Fixes
+   - Handle null response from payment gateway
+   - Fix race condition in session cleanup
+
+   ### 💥 Breaking Changes
+   - `POST /auth/login` now returns `access_token` instead of `token`
+   ```
+
+4. Suggest semantic version bump:
+   - `BREAKING CHANGE` → major bump (1.x.x → 2.0.0)
+   - `feat:` → minor bump (1.2.x → 1.3.0)
+   - `fix:`/`perf:` only → patch bump (1.2.3 → 1.2.4)
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "commit-message"

@@ -247,8 +247,13 @@ class TestUpdateCommand:
     def test_update_dry_run(self, runner, tmp_dir):
         result = runner.invoke(main, ["update", "--output-dir", tmp_dir, "--dry-run"])
         assert result.exit_code == 0
-        # Either shows dry-run message or "up to date" when nothing to do
-        assert "Dry run" in result.output or "dry run" in result.output or "up to date" in result.output
+        # Either shows dry-run message, "up to date", or "No AI configs found" suggestion
+        assert (
+            "Dry run" in result.output
+            or "dry run" in result.output
+            or "up to date" in result.output
+            or "No AI configs found" in result.output
+        )
 
     def test_update_dry_run_with_tool(self, runner, tmp_dir):
         result = runner.invoke(

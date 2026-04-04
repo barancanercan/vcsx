@@ -305,6 +305,55 @@ def update(output_dir, dry_run, tool, auto):
     # Determine which tools to add
     tools_to_add = list(tool) if tool else []
 
+    # --- Tech-stack-based suggestions when project has no AI configs yet ---
+    tech_suggestions: list[str] = []
+    if not present and not tools_to_add:
+        from vcsx.core.scanner import scan_project
+
+        stack = scan_project(str(target))
+        lang = (stack.get("language") or "").lower()
+        framework = (stack.get("framework") or "").lower()
+        project_type = (stack.get("project_type") or "web").lower()
+
+        # Suggest claude-code as primary (universal, most powerful)
+        tech_suggestions.append("claude-code")
+
+        # Suggest cursor for frontend-heavy or TypeScript projects
+        if lang in ("typescript", "javascript") or project_type in ("web", "frontend"):
+            tech_suggestions.append("cursor")
+
+        # Suggest agents-md as universal standard
+        tech_suggestions.append("agents-md")
+
+        # Suggest windsurf for mobile projects (Flutter/Dart, Swift)
+        if lang in ("dart", "swift", "kotlin") or project_type == "mobile":
+            tech_suggestions.append("windsurf")
+
+        # Suggest aider for Python/Go/Rust API projects (terminal-friendly)
+        if lang in ("python", "go", "rust") and project_type in ("api", "cli", "library"):
+            tech_suggestions.append("aider")
+
+        # Deduplicate while preserving order
+        seen: set[str] = set()
+        unique: list[str] = []
+        for s in tech_suggestions:
+            if s not in seen:
+                seen.add(s)
+                unique.append(s)
+        tech_suggestions = unique
+
+        if tech_suggestions and stack.get("language"):
+            console.print(
+                f"[cyan]Tech stack detected:[/] {lang}"
+                + (f" / {framework}" if framework else "")
+                + f" / {project_type}"
+            )
+            console.print(
+                f"[yellow]💡 Suggested tools:[/] {', '.join(tech_suggestions)}\n"
+                f"   Run [cyan]vcsx update --auto[/] to apply all, or "
+                f"[cyan]vcsx update --tool <name>[/] for specific ones.\n"
+            )
+
     # Summary table
     table = Table(title="Config Status")
     table.add_column("File / Config", style="cyan")
@@ -323,14 +372,27 @@ def update(output_dir, dry_run, tool, auto):
     if missing_files:
         console.print(f"\n[yellow]Upgrade opportunities:[/] {', '.join(missing_files)}")
 
-    if not tools_to_add and not missing_files:
+    if not tools_to_add and not missing_files and not tech_suggestions:
         console.print("\n[green]✓ Everything looks up to date![/]")
         return
+
+    if not tools_to_add and not missing_files and tech_suggestions:
+        # No existing configs and no explicit tool — use suggestions
+        if not auto:
+            console.print(
+                "\n[dim]No AI configs found. Use [cyan]--auto[/] to apply suggestions"
+                " or [cyan]--tool <name>[/] for a specific tool.[/]"
+            )
+            return
+        # --auto with fresh project: apply all suggestions
+        tools_to_add = tech_suggestions
 
     if dry_run:
         console.print("\n[dim]Dry run — no files written.[/]")
         if tools_to_add:
             console.print(f"Would add configs for: {', '.join(tools_to_add)}")
+        elif tech_suggestions:
+            console.print(f"Would add configs for (suggested): {', '.join(tech_suggestions)}")
         if missing_files:
             console.print(f"Would generate: {', '.join(missing_files)}")
         return
