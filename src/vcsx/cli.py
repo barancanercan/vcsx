@@ -1242,6 +1242,97 @@ def stats(path):
             if parts:
                 console.print(f"  [cyan]{tool}:[/] {parts}")
 
+    # --- Git commit analysis ---
+    _show_git_stats(target)
+
+
+def _show_git_stats(target: Path) -> None:
+    """Show git commit statistics for the project."""
+    import subprocess
+
+    git_dir = target / ".git"
+    if not git_dir.exists():
+        return  # Not a git repo — skip silently
+
+    try:
+        # Total commit count
+        result = subprocess.run(
+            ["git", "rev-list", "--count", "HEAD"],
+            cwd=str(target),
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode != 0:
+            return
+        total_commits = int(result.stdout.strip())
+
+        # Last 30 days commit count
+        result_30d = subprocess.run(
+            ["git", "log", "--oneline", "--after=30 days ago", "--format=%s"],
+            cwd=str(target),
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        recent_commits_raw = result_30d.stdout.strip().splitlines() if result_30d.returncode == 0 else []
+        recent_count = len(recent_commits_raw)
+
+        # Commit type breakdown (conventional commits)
+        type_counts: dict[str, int] = {}
+        for msg in recent_commits_raw:
+            msg_lower = msg.lower()
+            for ctype in ("feat", "fix", "refactor", "test", "docs", "chore", "perf", "ci"):
+                if msg_lower.startswith(f"{ctype}:") or msg_lower.startswith(f"{ctype}("):
+                    type_counts[ctype] = type_counts.get(ctype, 0) + 1
+                    break
+            else:
+                type_counts["other"] = type_counts.get("other", 0) + 1
+
+        # First commit date
+        result_first = subprocess.run(
+            ["git", "log", "--reverse", "--format=%ar", "--max-count=1"],
+            cwd=str(target),
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        first_commit = result_first.stdout.strip() if result_first.returncode == 0 else "unknown"
+
+        # Latest commit
+        result_last = subprocess.run(
+            ["git", "log", "-1", "--format=%ar — %s"],
+            cwd=str(target),
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        last_commit = result_last.stdout.strip() if result_last.returncode == 0 else "unknown"
+
+        # Display
+        console.print("\n[bold]Git Activity:[/]")
+        git_table = Table(border_style="dim", show_header=False)
+        git_table.add_column("Metric", style="dim")
+        git_table.add_column("Value", style="cyan")
+
+        git_table.add_row("Total commits", str(total_commits))
+        git_table.add_row("Last 30 days", str(recent_count))
+        git_table.add_row("First commit", first_commit)
+        git_table.add_row("Latest commit", last_commit[:80] if len(last_commit) > 80 else last_commit)
+
+        if type_counts and recent_count > 0:
+            type_summary = ", ".join(
+                f"{k}:{v}" for k, v in sorted(type_counts.items(), key=lambda x: -x[1])
+                if k != "other"
+            )
+            if type_summary:
+                git_table.add_row("Commit types (30d)", type_summary)
+
+        console.print(git_table)
+
+    except (subprocess.TimeoutExpired, FileNotFoundError, ValueError):
+        pass  # Git not available or repo issue — skip silently
+
 
 @main.command("config")
 @click.option("--set", "set_key", nargs=2, metavar="KEY VALUE", help="Set a config value")

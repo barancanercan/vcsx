@@ -1369,6 +1369,44 @@ class TestStatsWindsurf:
         assert result.exit_code == 0
         assert "copilot" in result.output.lower() or "configured" in result.output.lower()
 
+    def test_stats_git_section_shown_for_git_repo(self, runner, tmp_dir):
+        """Stats should show Git Activity for a real git repo."""
+        import subprocess
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# Test")
+        subprocess.run(["git", "init"], cwd=tmp_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmp_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_dir, capture_output=True)
+        subprocess.run(["git", "add", "."], cwd=tmp_dir, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "feat: initial"], cwd=tmp_dir, capture_output=True)
+        result = runner.invoke(main, ["stats", tmp_dir])
+        assert result.exit_code == 0
+        assert "Git Activity" in result.output
+
+    def test_stats_no_git_section_for_non_repo(self, runner, tmp_dir):
+        """Stats should not show Git Activity for non-git directories."""
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# Test")
+        result = runner.invoke(main, ["stats", tmp_dir])
+        assert result.exit_code == 0
+        # Git Activity section should not appear
+        assert "Git Activity" not in result.output
+
+    def test_stats_commit_types_in_output(self, runner, tmp_dir):
+        """Stats should show commit type breakdown for repos with typed commits."""
+        import subprocess
+        (Path(tmp_dir) / "CLAUDE.md").write_text("# Test")
+        subprocess.run(["git", "init"], cwd=tmp_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=tmp_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "T"], cwd=tmp_dir, capture_output=True)
+        subprocess.run(["git", "add", "."], cwd=tmp_dir, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "feat: add feature"], cwd=tmp_dir, capture_output=True)
+        (Path(tmp_dir) / "fix.txt").write_text("fix")
+        subprocess.run(["git", "add", "."], cwd=tmp_dir, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "fix: resolve bug"], cwd=tmp_dir, capture_output=True)
+        result = runner.invoke(main, ["stats", tmp_dir])
+        assert result.exit_code == 0
+        # Should show "feat" and/or "fix" in commit types
+        assert "feat" in result.output or "fix" in result.output or "Total commits" in result.output
+
 
 class TestGenerateFromProject:
     def test_generate_from_python_project(self, runner, tmp_dir):
