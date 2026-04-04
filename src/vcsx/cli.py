@@ -2425,6 +2425,626 @@ def generate_file(tool, file_type, project_name, lang, project_type, output_dir,
     console.print(f"\n[green]Done![/] Config files written to: {target}")
 
 
+# ─── Scaffold file templates ──────────────────────────────────────────────────
+
+_SCAFFOLD_FILES = {
+    "gitignore": "Generate a language-aware .gitignore file",
+    "dockerfile": "Generate a Dockerfile for the project",
+    "makefile": "Generate a Makefile with common dev tasks",
+    "dockercompose": "Generate a docker-compose.yml file",
+    "editorconfig": "Generate an .editorconfig file",
+    "nvmrc": "Generate a .nvmrc file (Node.js version pin)",
+    "pythonversion": "Generate a .python-version file",
+    "renovate": "Generate a renovate.json (dependency updates)",
+    "githubissue": "Generate GitHub issue templates",
+}
+
+
+@main.command("scaffold")
+@click.argument("file_type", type=click.Choice(list(_SCAFFOLD_FILES.keys())))
+@click.option(
+    "--lang",
+    "-l",
+    type=click.Choice(["python", "typescript", "javascript", "go", "rust", "java"]),
+    default=None,
+    help="Primary language (auto-detected if omitted)",
+)
+@click.option(
+    "--framework",
+    "-f",
+    default=None,
+    help="Framework (e.g. fastapi, nextjs, gin, axum)",
+)
+@click.option(
+    "--output-dir",
+    "-o",
+    type=click.Path(),
+    default=".",
+    help="Output directory (default: current)",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Print content to stdout without writing files",
+)
+def scaffold_file(file_type, lang, framework, output_dir, dry_run):
+    """Generate a single scaffold file — no full wizard needed.
+
+    \b
+    Available files:
+      gitignore     — .gitignore (language-aware)
+      dockerfile    — Dockerfile (framework-aware)
+      makefile      — Makefile with dev/test/build targets
+      dockercompose — docker-compose.yml
+      editorconfig  — .editorconfig (consistent editor settings)
+      nvmrc         — .nvmrc (Node version pin)
+      pythonversion — .python-version
+      renovate      — renovate.json (dependency automation)
+      githubissue   — GitHub issue templates
+
+    \b
+    Examples:
+        vcsx scaffold gitignore --lang python
+        vcsx scaffold dockerfile --lang python --framework fastapi
+        vcsx scaffold makefile --lang go
+        vcsx scaffold dockercompose --lang typescript --framework nextjs
+        vcsx scaffold editorconfig
+    """
+    from vcsx.core.scanner import scan_project
+
+    target = Path(output_dir).resolve()
+
+    # Auto-detect language if not specified
+    if not lang:
+        detected = scan_project(str(target))
+        lang = detected.get("language", "typescript") or "typescript"
+        if not framework:
+            framework = detected.get("framework", "") or ""
+        console.print(f"[dim]Auto-detected: {lang}{f' / {framework}' if framework else ''}[/]")
+
+    lang_lower = lang.lower()
+    fw_lower = (framework or "").lower()
+    content, filename = _generate_scaffold_content(file_type, lang_lower, fw_lower)
+
+    if dry_run:
+        console.print(f"\n[bold]# {filename}[/]\n")
+        console.print(content)
+        return
+
+    out_path = target / filename
+    if out_path.exists():
+        console.print(f"[yellow]⚠ {filename} already exists — skipping.[/]")
+        console.print("  Use [dim]--dry-run[/] to preview, or delete the file first.")
+        return
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(content, encoding="utf-8")
+    console.print(f"\n[green]✓ Created:[/] {out_path.relative_to(target)}")
+
+
+def _generate_scaffold_content(file_type: str, lang: str, framework: str) -> tuple[str, str]:
+    """Return (content, filename) for the given scaffold type."""
+
+    if file_type == "gitignore":
+        return _scaffold_gitignore_content(lang), ".gitignore"
+
+    elif file_type == "dockerfile":
+        return _scaffold_dockerfile_content(lang, framework), "Dockerfile"
+
+    elif file_type == "makefile":
+        return _scaffold_makefile_content(lang, framework), "Makefile"
+
+    elif file_type == "dockercompose":
+        return _scaffold_dockercompose_content(lang, framework), "docker-compose.yml"
+
+    elif file_type == "editorconfig":
+        return _scaffold_editorconfig_content(lang), ".editorconfig"
+
+    elif file_type == "nvmrc":
+        return "22\n", ".nvmrc"
+
+    elif file_type == "pythonversion":
+        return "3.12\n", ".python-version"
+
+    elif file_type == "renovate":
+        return _scaffold_renovate_content(lang), "renovate.json"
+
+    elif file_type == "githubissue":
+        return _scaffold_github_issue_content(), ".github/ISSUE_TEMPLATE/bug_report.md"
+
+    return "", f"{file_type}.txt"
+
+
+def _scaffold_gitignore_content(lang: str) -> str:
+    base = """# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+"""
+    lang_sections = {
+        "python": """
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+""",
+        "typescript": """
+# Node / TypeScript
+node_modules/
+dist/
+build/
+.next/
+.nuxt/
+out/
+.cache/
+*.tsbuildinfo
+coverage/
+""",
+        "javascript": """
+# Node / JavaScript
+node_modules/
+dist/
+build/
+.next/
+out/
+.cache/
+coverage/
+""",
+        "go": """
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+""",
+        "rust": """
+# Rust
+/target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+""",
+        "java": """
+# Java
+*.class
+*.jar
+*.war
+*.ear
+target/
+.gradle/
+build/
+""",
+    }
+    return base + lang_sections.get(lang, "")
+
+
+def _scaffold_dockerfile_content(lang: str, framework: str) -> str:
+    if lang == "python":
+        port = "8000"
+        if "flask" in framework:
+            port = "5000"
+        return f"""# syntax=docker/dockerfile:1
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install dependencies first (cache layer)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source
+COPY . .
+
+EXPOSE {port}
+
+# Use non-root user for security
+RUN useradd --create-home appuser && chown -R appuser /app
+USER appuser
+
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "{port}"]
+"""
+    elif lang in ("typescript", "javascript"):
+        return """# syntax=docker/dockerfile:1
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+COPY package*.json .
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+# Production image
+FROM node:22-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package*.json .
+RUN npm ci --omit=dev
+
+# Non-root user
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+
+EXPOSE 3000
+CMD ["node", "dist/index.js"]
+"""
+    elif lang == "go":
+        return """# syntax=docker/dockerfile:1
+FROM golang:1.22-alpine AS builder
+
+WORKDIR /app
+COPY go.mod go.sum .
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .
+
+# Minimal runtime image
+FROM scratch
+COPY --from=builder /app/app /app
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+EXPOSE 8080
+ENTRYPOINT ["/app"]
+"""
+    elif lang == "rust":
+        return """# syntax=docker/dockerfile:1
+FROM rust:1.78-alpine AS builder
+
+RUN apk add --no-cache musl-dev
+WORKDIR /app
+COPY Cargo.toml Cargo.lock .
+RUN mkdir src && echo 'fn main(){}' > src/main.rs
+RUN cargo build --release && rm -f target/release/deps/app*
+
+COPY src ./src
+RUN cargo build --release
+
+# Minimal runtime
+FROM alpine:3.19
+RUN apk add --no-cache ca-certificates
+COPY --from=builder /app/target/release/app /usr/local/bin/app
+
+EXPOSE 3000
+ENTRYPOINT ["app"]
+"""
+    else:
+        return """FROM ubuntu:22.04
+WORKDIR /app
+COPY . .
+EXPOSE 8080
+CMD ["./app"]
+"""
+
+
+def _scaffold_makefile_content(lang: str, framework: str) -> str:
+    if lang == "python":
+        return """.PHONY: install dev test lint format type-check clean
+
+install:
+\tpip install -r requirements.txt
+
+dev:
+\tuvicorn main:app --reload
+
+test:
+\tpytest tests/ -v
+
+test-cov:
+\tpytest tests/ --cov=src --cov-report=term-missing
+
+lint:
+\truff check .
+
+format:
+\truff format .
+
+type-check:
+\tpyright src/ || mypy src/
+
+clean:
+\tfind . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+\trm -rf .pytest_cache .ruff_cache .mypy_cache htmlcov .coverage
+
+check: format lint type-check test
+\t@echo "All checks passed!"
+"""
+    elif lang in ("typescript", "javascript"):
+        pkg = "npm"
+        return f""".PHONY: install dev build test lint format type-check clean
+
+install:
+\t{pkg} install
+
+dev:
+\t{pkg} run dev
+
+build:
+\t{pkg} run build
+
+test:
+\t{pkg} test
+
+test-watch:
+\tnpx vitest
+
+lint:
+\t{pkg} run lint
+
+format:
+\tnpx prettier --write .
+
+type-check:
+\tnpx tsc --noEmit
+
+clean:
+\trm -rf dist build .next node_modules/.cache coverage
+
+check: format lint type-check test
+\t@echo "All checks passed!"
+"""
+    elif lang == "go":
+        return """.PHONY: build test lint format vet clean run
+
+build:
+\tgo build -o bin/app ./...
+
+run:
+\tgo run .
+
+test:
+\tgo test -race -v ./...
+
+test-cov:
+\tgo test -race -coverprofile=coverage.out ./...
+\tgo tool cover -html=coverage.out -o coverage.html
+
+lint:
+\tgolangci-lint run
+
+format:
+\tgofmt -w .
+\tgoimports -w .
+
+vet:
+\tgo vet ./...
+
+tidy:
+\tgo mod tidy
+
+clean:
+\trm -rf bin/ coverage.out coverage.html
+
+check: format vet lint test
+\t@echo "All checks passed!"
+"""
+    elif lang == "rust":
+        return """.PHONY: build release test lint format clean
+
+build:
+\tcargo build
+
+release:
+\tcargo build --release
+
+run:
+\tcargo run
+
+test:
+\tcargo test
+
+test-all:
+\tcargo test --all-features
+
+lint:
+\tcargo clippy -- -D warnings
+
+format:
+\tcargo fmt
+
+format-check:
+\tcargo fmt --all -- --check
+
+audit:
+\tcargo audit
+
+clean:
+\tcargo clean
+
+check: format-check lint test
+\t@echo "All checks passed!"
+"""
+    else:
+        return """.PHONY: build test clean
+
+build:
+\t@echo "Add build command"
+
+test:
+\t@echo "Add test command"
+
+clean:
+\t@echo "Add clean command"
+"""
+
+
+def _scaffold_dockercompose_content(lang: str, framework: str) -> str:
+    port = "3000"
+    if lang == "python":
+        port = "8000" if "flask" not in framework else "5000"
+    elif lang == "go":
+        port = "8080"
+
+    return f"""services:
+  app:
+    build: .
+    ports:
+      - "{port}:{port}"
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - /app/node_modules  # Prevent host node_modules override
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${{POSTGRES_DB:-appdb}}
+      POSTGRES_USER: ${{POSTGRES_USER:-appuser}}
+      POSTGRES_PASSWORD: ${{POSTGRES_PASSWORD:-changeme}}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${{POSTGRES_USER:-appuser}}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+"""
+
+
+def _scaffold_editorconfig_content(lang: str) -> str:
+    indent_size = "4" if lang in ("python", "java", "rust") else "2"
+    use_tabs = "false"
+    if lang == "go":
+        use_tabs = "true"
+        indent_size = "4"
+
+    return f"""# EditorConfig — https://editorconfig.org
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = {"tab" if use_tabs == "true" else "space"}
+indent_size = {indent_size}
+
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = off
+
+[*.{{json,yaml,yml,toml}}]
+indent_size = 2
+
+[Makefile]
+indent_style = tab
+
+[*.{{sh,bash}}]
+indent_size = 2
+"""
+
+
+def _scaffold_renovate_content(lang: str) -> str:
+    import json as _json
+
+    config: dict = {
+        "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+        "extends": ["config:recommended"],
+        "schedule": ["before 6am on Monday"],
+        "timezone": "UTC",
+        "prConcurrentLimit": 10,
+        "prHourlyLimit": 2,
+        "automerge": False,
+        "labels": ["dependencies"],
+        "packageRules": [
+            {
+                "matchUpdateTypes": ["minor", "patch"],
+                "matchDepTypes": ["devDependencies"],
+                "automerge": True,
+                "description": "Auto-merge minor/patch dev dep updates",
+            }
+        ],
+    }
+    if lang in ("typescript", "javascript"):
+        config["packageRules"].append({
+            "matchPackagePatterns": ["^@types/"],
+            "automerge": True,
+            "description": "Auto-merge @types updates",
+        })
+    return _json.dumps(config, indent=2) + "\n"
+
+
+def _scaffold_github_issue_content() -> str:
+    return """---
+name: Bug Report
+about: Report a bug or unexpected behavior
+title: "[BUG] "
+labels: bug
+assignees: ''
+---
+
+## Description
+A clear description of what the bug is.
+
+## Steps to Reproduce
+1. Go to '...'
+2. Run '...'
+3. See error
+
+## Expected Behavior
+What you expected to happen.
+
+## Actual Behavior
+What actually happened. Include error messages and stack traces.
+
+## Environment
+- OS: [e.g. macOS 14, Ubuntu 22.04]
+- Version: [e.g. 1.2.3]
+- Language runtime: [e.g. Python 3.12, Node 20]
+
+## Additional Context
+Any other context, screenshots, or logs.
+"""
+
+
 @main.command("validate")
 @click.argument("path", default=".", type=click.Path(exists=True))
 def validate_config(path):

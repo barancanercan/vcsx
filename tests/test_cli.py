@@ -1785,3 +1785,103 @@ class TestInstallCommand:
         result = runner.invoke(main, ["install", "exe"])
         assert result.exit_code == 0
         assert "barancanercan/vcsx" in result.output
+
+
+class TestScaffoldCommand:
+    def test_scaffold_gitignore_python(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "gitignore", "--lang", "python", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / ".gitignore").exists()
+        content = (Path(tmp_dir) / ".gitignore").read_text()
+        assert "__pycache__" in content
+        assert ".venv" in content or "venv" in content
+
+    def test_scaffold_gitignore_typescript(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "gitignore", "--lang", "typescript", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / ".gitignore").read_text()
+        assert "node_modules" in content
+
+    def test_scaffold_gitignore_go(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "gitignore", "--lang", "go", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / ".gitignore").read_text()
+        assert "vendor" in content or "*.exe" in content
+
+    def test_scaffold_dockerfile_python(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "dockerfile", "--lang", "python", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / "Dockerfile").exists()
+        content = (Path(tmp_dir) / "Dockerfile").read_text()
+        assert "python" in content.lower()
+        assert "EXPOSE" in content
+
+    def test_scaffold_dockerfile_typescript(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "dockerfile", "--lang", "typescript", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "Dockerfile").read_text()
+        assert "node" in content.lower()
+        assert "AS builder" in content  # Multi-stage
+
+    def test_scaffold_dockerfile_go(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "dockerfile", "--lang", "go", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "Dockerfile").read_text()
+        assert "golang" in content.lower()
+        assert "scratch" in content  # Minimal runtime
+
+    def test_scaffold_makefile_python(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "makefile", "--lang", "python", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "Makefile").read_text()
+        assert "pytest" in content
+        assert "ruff" in content
+
+    def test_scaffold_makefile_go(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "makefile", "--lang", "go", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "Makefile").read_text()
+        assert "go build" in content
+        assert "go test" in content
+
+    def test_scaffold_editorconfig(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "editorconfig", "--lang", "python", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / ".editorconfig").read_text()
+        assert "root = true" in content
+        assert "indent_size" in content
+
+    def test_scaffold_dry_run(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "gitignore", "--lang", "python", "--dry-run", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "gitignore" in result.output.lower()
+        # File should NOT be created
+        assert not (Path(tmp_dir) / ".gitignore").exists()
+
+    def test_scaffold_skips_existing(self, runner, tmp_dir):
+        (Path(tmp_dir) / ".gitignore").write_text("EXISTING")
+        result = runner.invoke(main, ["scaffold", "gitignore", "--lang", "python", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        assert "already exists" in result.output
+        # Should NOT overwrite
+        assert (Path(tmp_dir) / ".gitignore").read_text() == "EXISTING"
+
+    def test_scaffold_renovate(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "renovate", "--lang", "typescript", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        import json
+        data = json.loads((Path(tmp_dir) / "renovate.json").read_text())
+        assert "$schema" in data
+        assert "extends" in data
+
+    def test_scaffold_nvmrc(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "nvmrc", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / ".nvmrc").exists()
+
+    def test_scaffold_dockercompose(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "dockercompose", "--lang", "python", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "docker-compose.yml").read_text()
+        assert "services:" in content
+        assert "postgres" in content.lower() or "db:" in content
