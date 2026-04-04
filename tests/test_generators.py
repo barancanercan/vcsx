@@ -229,6 +229,41 @@ class TestClaudeCodeGenerator:
         assert (Path(tmp_dir) / "pyproject.toml").exists()
         assert (Path(tmp_dir) / "requirements.txt").exists()
         assert (Path(tmp_dir) / ".pre-commit-config.yaml").exists()
+        assert (Path(tmp_dir) / "CONTRIBUTING.md").exists()
+        assert (Path(tmp_dir) / "CHANGELOG.md").exists()
+
+    def test_contributing_md_content(self, ctx, tmp_dir):
+        gen = ClaudeCodeGenerator()
+        gen.generate_scaffold(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "CONTRIBUTING.md").read_text()
+        assert "Getting Started" in content
+        assert "Pull Request" in content
+        assert "conventional commits" in content.lower() or "feat" in content
+        assert "test-project" in content
+
+    def test_contributing_md_python_commands(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="pyproj", language="python", lang="en")
+        ClaudeCodeGenerator().generate_scaffold(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "CONTRIBUTING.md").read_text()
+        assert "pip install" in content or "ruff" in content
+
+    def test_changelog_md_content(self, ctx, tmp_dir):
+        gen = ClaudeCodeGenerator()
+        gen.generate_scaffold(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "CHANGELOG.md").read_text()
+        assert "Unreleased" in content
+        assert "Keep a Changelog" in content
+        assert "Semantic Versioning" in content
+        assert "Added" in content
+        assert "Fixed" in content
+
+    def test_changelog_not_overwritten(self, ctx, tmp_dir):
+        """CHANGELOG.md should not be overwritten if it already exists."""
+        existing = (Path(tmp_dir) / "CHANGELOG.md")
+        existing.write_text("EXISTING CONTENT", encoding="utf-8")
+        ClaudeCodeGenerator().generate_scaffold(ctx, tmp_dir)
+        assert existing.read_text() == "EXISTING CONTENT"
 
     def test_precommit_python_content(self, ctx, tmp_dir):
         gen = ClaudeCodeGenerator()
