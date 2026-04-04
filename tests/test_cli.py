@@ -101,6 +101,7 @@ class TestCheckCommand:
     def test_check_with_claude_code(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["check", tmp_dir])
@@ -128,6 +129,7 @@ class TestInitAllToolsFast:
 
     def test_init_all_tools_scan(self, runner, tmp_dir):
         import tempfile, json as json_mod
+
         with tempfile.TemporaryDirectory() as src_dir:
             (Path(src_dir) / "requirements.txt").write_text("fastapi\n")
             result = runner.invoke(
@@ -153,6 +155,7 @@ class TestCheckWithClaude:
         """Test check with claude-code configured but missing extras."""
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_config(ctx, tmp_dir)  # only config, not all
         result = runner.invoke(main, ["check", tmp_dir])
@@ -161,6 +164,7 @@ class TestCheckWithClaude:
     def test_check_shows_agents_md_suggestion(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["check", tmp_dir])
@@ -171,6 +175,7 @@ class TestExportWithBuildDirs:
     def test_export_skips_build_dirs(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         # Create build dirs that should be skipped
@@ -196,6 +201,7 @@ class TestInitScanMode:
 
     def test_scan_detects_typescript_project(self, runner, tmp_dir):
         import json
+
         pkg = {"name": "my-app", "dependencies": {"react": "^18.0.0"}}
         (Path(tmp_dir) / "package.json").write_text(json.dumps(pkg))
         result = runner.invoke(
@@ -277,8 +283,16 @@ class TestNewCommand:
         result = runner.invoke(
             main,
             [
-                "new", "my-api", "--lang", "python", "--type", "api",
-                "--tool", "claude-code", "--output-dir", tmp_dir,
+                "new",
+                "my-api",
+                "--lang",
+                "python",
+                "--type",
+                "api",
+                "--tool",
+                "claude-code",
+                "--output-dir",
+                tmp_dir,
             ],
         )
         assert result.exit_code == 0
@@ -288,9 +302,16 @@ class TestNewCommand:
         result = runner.invoke(
             main,
             [
-                "new", "my-multi", "--lang", "python",
-                "--tool", "claude-code", "--tool", "gemini",
-                "--output-dir", tmp_dir,
+                "new",
+                "my-multi",
+                "--lang",
+                "python",
+                "--tool",
+                "claude-code",
+                "--tool",
+                "gemini",
+                "--output-dir",
+                tmp_dir,
             ],
         )
         assert result.exit_code == 0
@@ -331,8 +352,16 @@ class TestNewCommand:
         result = runner.invoke(
             main,
             [
-                "new", "my-web", "--lang", "typescript", "--type", "web",
-                "--tool", "cursor", "--output-dir", tmp_dir,
+                "new",
+                "my-web",
+                "--lang",
+                "typescript",
+                "--type",
+                "web",
+                "--tool",
+                "cursor",
+                "--output-dir",
+                tmp_dir,
             ],
         )
         assert result.exit_code == 0
@@ -363,9 +392,11 @@ class TestConfigCommandExtended:
 class TestCompareCommandExtended:
     def test_compare_shows_only_in_b(self, runner, tmp_dir):
         import tempfile
+
         with tempfile.TemporaryDirectory() as tmp_dir2:
             from vcsx.core.context import ProjectContext
             from vcsx.generators.gemini import GeminiGenerator
+
             ctx = ProjectContext(project_name="b")
             GeminiGenerator().generate_all(ctx, tmp_dir2)
             result = runner.invoke(main, ["compare", tmp_dir, tmp_dir2])
@@ -374,6 +405,7 @@ class TestCompareCommandExtended:
 
     def test_compare_with_windsurf(self, runner, tmp_dir):
         import tempfile
+
         with tempfile.TemporaryDirectory() as tmp_dir2:
             (Path(tmp_dir) / ".windsurfrules").write_text("# rules")
             result = runner.invoke(main, ["compare", tmp_dir, tmp_dir2])
@@ -385,6 +417,7 @@ class TestSearchCommandExtended:
     def test_search_skill_type_filter(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["search", "deploy", tmp_dir, "--type", "skill"])
@@ -393,6 +426,7 @@ class TestSearchCommandExtended:
     def test_search_hook_type_filter(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["search", "secret", tmp_dir, "--type", "hook"])
@@ -401,6 +435,7 @@ class TestSearchCommandExtended:
     def test_search_agent_type_filter(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["search", "security", tmp_dir, "--type", "agent"])
@@ -411,6 +446,7 @@ class TestConfigCorruptFile:
     def test_config_with_corrupted_file(self, runner):
         """Test config loads gracefully with corrupted JSON."""
         import os
+
         config_file = __import__("pathlib").Path.home() / ".vcsx" / "config.json"
         original = None
         try:
@@ -459,6 +495,7 @@ class TestValidateGeminiAgents:
     def test_validate_gemini_md(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.gemini import GeminiGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         GeminiGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["validate", tmp_dir])
@@ -468,6 +505,7 @@ class TestValidateGeminiAgents:
     def test_validate_agents_md(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         ctx = ProjectContext(project_name="test", language="python", test_framework="pytest")
         AgentsMdGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["validate", tmp_dir])
@@ -492,6 +530,7 @@ class TestGeminiGlobalCommandExtended:
     def test_gemini_global_already_exists(self, runner, tmp_dir):
         """Test that existing file blocks creation without --force."""
         import tempfile
+
         gemini_dir = Path(tmp_dir) / ".gemini"
         gemini_dir.mkdir()
         (gemini_dir / "GEMINI.md").write_text("# Existing")
@@ -518,6 +557,7 @@ class TestValidateWarnings:
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         ctx = ProjectContext(project_name="clean", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         AgentsMdGenerator().generate_all(ctx, tmp_dir)
@@ -561,6 +601,7 @@ class TestAuditCommand:
     def test_audit_with_claude_code(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["audit", tmp_dir])
@@ -583,10 +624,12 @@ class TestAuditCommand:
 class TestCompareCommand:
     def test_compare_two_dirs(self, runner, tmp_dir):
         import tempfile
+
         with tempfile.TemporaryDirectory() as tmp_dir2:
             # Setup project A
             from vcsx.core.context import ProjectContext
             from vcsx.generators.gemini import GeminiGenerator
+
             ctx = ProjectContext(project_name="a")
             GeminiGenerator().generate_all(ctx, tmp_dir)
             result = runner.invoke(main, ["compare", tmp_dir, tmp_dir2])
@@ -608,6 +651,7 @@ class TestSearchCommand:
     def test_search_finds_in_skills(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["search", "security", tmp_dir])
@@ -617,6 +661,7 @@ class TestSearchCommand:
     def test_search_with_type_filter(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["search", "commit", tmp_dir, "--type", "skill"])
@@ -657,6 +702,7 @@ class TestValidateCommand:
         # Generate valid configs
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python", project_type="api")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["validate", tmp_dir])
@@ -667,6 +713,7 @@ class TestExportCommand:
     def test_export_creates_zip(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         zip_path = Path(tmp_dir) / "test-export.zip"
@@ -682,6 +729,7 @@ class TestExportCommand:
     def test_export_shows_file_count(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.gemini import GeminiGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         GeminiGenerator().generate_all(ctx, tmp_dir)
         zip_path = Path(tmp_dir) / "out.zip"
@@ -702,7 +750,16 @@ class TestGenerateCommand:
     def test_generate_agents_md(self, runner, tmp_dir):
         result = runner.invoke(
             main,
-            ["generate", "agents-md", "--project-name", "my-lib", "--lang", "python", "--output-dir", tmp_dir],
+            [
+                "generate",
+                "agents-md",
+                "--project-name",
+                "my-lib",
+                "--lang",
+                "python",
+                "--output-dir",
+                tmp_dir,
+            ],
         )
         assert result.exit_code == 0
         assert (Path(tmp_dir) / "AGENTS.md").exists()
@@ -710,7 +767,16 @@ class TestGenerateCommand:
     def test_generate_claude_code(self, runner, tmp_dir):
         result = runner.invoke(
             main,
-            ["generate", "claude-code", "--project-name", "my-app", "--lang", "typescript", "--output-dir", tmp_dir],
+            [
+                "generate",
+                "claude-code",
+                "--project-name",
+                "my-app",
+                "--lang",
+                "typescript",
+                "--output-dir",
+                tmp_dir,
+            ],
         )
         assert result.exit_code == 0
         assert (Path(tmp_dir) / "CLAUDE.md").exists()
@@ -752,6 +818,7 @@ class TestCheckMinScore:
     def test_check_min_score_passes(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["check", tmp_dir, "--min-score", "0"])
@@ -765,6 +832,7 @@ class TestCheckMinScore:
     def test_check_min_score_100_passes_with_claude(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         # claude-code at 100% but only 1 tool → overall might be low
@@ -777,6 +845,7 @@ class TestCheckCommandExtended:
         result = runner.invoke(main, ["check", tmp_dir, "--json"])
         assert result.exit_code == 0
         import json
+
         data = json.loads(result.output)
         assert data["tools_configured"] == 0
         assert data["overall_score"] == 0
@@ -785,6 +854,7 @@ class TestCheckCommandExtended:
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
         from vcsx.generators.gemini import GeminiGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         GeminiGenerator().generate_all(ctx, tmp_dir)
@@ -813,20 +883,25 @@ class TestExportCommandExtended:
     def test_export_include_all(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         zip_path = Path(tmp_dir) / "all.zip"
-        result = runner.invoke(main, ["export", tmp_dir, "--output", str(zip_path), "--include-all"])
+        result = runner.invoke(
+            main, ["export", tmp_dir, "--output", str(zip_path), "--include-all"]
+        )
         assert result.exit_code == 0
         assert zip_path.exists()
 
     def test_export_default_filename(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.gemini import GeminiGenerator
+
         ctx = ProjectContext(project_name="test")
         GeminiGenerator().generate_all(ctx, tmp_dir)
         # Run from tmp_dir so zip is created there
         import os
+
         old_cwd = os.getcwd()
         os.chdir(tmp_dir)
         try:
@@ -840,8 +915,9 @@ class TestAuditJsonOutput:
     def _parse_json_output(self, output: str) -> dict:
         """Extract JSON from audit output (may have leading non-JSON lines)."""
         import json
+
         # Find first { in output
-        idx = output.find('{')
+        idx = output.find("{")
         if idx >= 0:
             return json.loads(output[idx:])
         return {}
@@ -856,6 +932,7 @@ class TestAuditJsonOutput:
     def test_audit_json_with_claude_code(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["audit", tmp_dir, "--json"])
@@ -995,6 +1072,7 @@ class TestStatsCommandExtended:
     def test_stats_with_gemini(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.gemini import GeminiGenerator
+
         ctx = ProjectContext(project_name="test")
         GeminiGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["stats", tmp_dir])
@@ -1003,6 +1081,7 @@ class TestStatsCommandExtended:
     def test_stats_cursor_counts_rules(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.cursor import CursorGenerator
+
         ctx = ProjectContext(project_name="test", language="python", project_type="api")
         CursorGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["stats", tmp_dir])
@@ -1085,6 +1164,7 @@ class TestAuditEnvSecurity:
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         ctx = ProjectContext(project_name="clean", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         AgentsMdGenerator().generate_all(ctx, tmp_dir)
@@ -1097,6 +1177,7 @@ class TestStatsClaudeDetails:
     def test_stats_shows_claude_skill_count(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python", project_type="api")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["stats", tmp_dir])
@@ -1106,6 +1187,7 @@ class TestStatsClaudeDetails:
     def test_stats_shows_breakdown(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["stats", tmp_dir])
@@ -1172,6 +1254,7 @@ class TestQualityCommand:
     def test_quality_with_claude_code(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python", project_type="api")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["quality", tmp_dir])
@@ -1203,6 +1286,7 @@ class TestStatusCommand:
     def test_status_with_claude_code(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python", project_type="api")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["status", tmp_dir])
@@ -1227,6 +1311,7 @@ class TestStatusCommand:
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         AgentsMdGenerator().generate_all(ctx, tmp_dir)
@@ -1247,6 +1332,7 @@ class TestStatusCommand:
     def test_status_with_cursor_and_rules(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.cursor import CursorGenerator
+
         ctx = ProjectContext(project_name="test", language="python", project_type="api")
         CursorGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["status", tmp_dir])
@@ -1271,6 +1357,7 @@ class TestMigrateClaudeCodeExtended:
     def test_migrate_claude_code_already_complete(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["migrate", "claude-code", "--dir", tmp_dir])
@@ -1318,6 +1405,7 @@ class TestCheckRecommendations:
     def test_check_shows_recommendations(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         # Claude code without AGENTS.md
         ctx = ProjectContext(project_name="test", language="python")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
@@ -1333,6 +1421,7 @@ class TestCheckRecommendations:
         from vcsx.generators.claude_code import ClaudeCodeGenerator
         from vcsx.generators.cursor import CursorGenerator
         from vcsx.generators.gemini import GeminiGenerator
+
         ctx = ProjectContext(project_name="test", language="python", project_type="api")
         ClaudeCodeGenerator().generate_all(ctx, tmp_dir)
         CursorGenerator().generate_all(ctx, tmp_dir)
@@ -1353,9 +1442,11 @@ class TestUpdateAutoWindsurf:
 class TestCompareIdenticalFiles:
     def test_compare_identical_configs(self, runner, tmp_dir):
         import tempfile
+
         with tempfile.TemporaryDirectory() as tmp2:
             from vcsx.core.context import ProjectContext
             from vcsx.generators.gemini import GeminiGenerator
+
             ctx = ProjectContext(project_name="test")
             GeminiGenerator().generate_all(ctx, tmp_dir)
             GeminiGenerator().generate_all(ctx, tmp2)
@@ -1368,6 +1459,7 @@ class TestStatsWindsurf:
     def test_stats_windsurf_rules(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.windsurf import WindsurfGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         WindsurfGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["stats", tmp_dir])
@@ -1376,6 +1468,7 @@ class TestStatsWindsurf:
     def test_stats_copilot_scoped(self, runner, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.copilot import CopilotGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         CopilotGenerator().generate_all(ctx, tmp_dir)
         result = runner.invoke(main, ["stats", tmp_dir])
@@ -1385,9 +1478,12 @@ class TestStatsWindsurf:
     def test_stats_git_section_shown_for_git_repo(self, runner, tmp_dir):
         """Stats should show Git Activity for a real git repo."""
         import subprocess
+
         (Path(tmp_dir) / "CLAUDE.md").write_text("# Test")
         subprocess.run(["git", "init"], cwd=tmp_dir, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmp_dir, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@test.com"], cwd=tmp_dir, capture_output=True
+        )
         subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_dir, capture_output=True)
         subprocess.run(["git", "add", "."], cwd=tmp_dir, capture_output=True)
         subprocess.run(["git", "commit", "-m", "feat: initial"], cwd=tmp_dir, capture_output=True)
@@ -1406,15 +1502,20 @@ class TestStatsWindsurf:
     def test_stats_commit_types_in_output(self, runner, tmp_dir):
         """Stats should show commit type breakdown for repos with typed commits."""
         import subprocess
+
         (Path(tmp_dir) / "CLAUDE.md").write_text("# Test")
         subprocess.run(["git", "init"], cwd=tmp_dir, capture_output=True)
         subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=tmp_dir, capture_output=True)
         subprocess.run(["git", "config", "user.name", "T"], cwd=tmp_dir, capture_output=True)
         subprocess.run(["git", "add", "."], cwd=tmp_dir, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "feat: add feature"], cwd=tmp_dir, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "feat: add feature"], cwd=tmp_dir, capture_output=True
+        )
         (Path(tmp_dir) / "fix.txt").write_text("fix")
         subprocess.run(["git", "add", "."], cwd=tmp_dir, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "fix: resolve bug"], cwd=tmp_dir, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "fix: resolve bug"], cwd=tmp_dir, capture_output=True
+        )
         result = runner.invoke(main, ["stats", tmp_dir])
         assert result.exit_code == 0
         # Should show "feat" and/or "fix" in commit types
@@ -1424,6 +1525,7 @@ class TestStatsWindsurf:
 class TestGenerateFromProject:
     def test_generate_from_python_project(self, runner, tmp_dir):
         import tempfile, json
+
         with tempfile.TemporaryDirectory() as src_dir:
             # Create a Python project
             (Path(src_dir) / "requirements.txt").write_text("fastapi\npytest\n")
@@ -1436,6 +1538,7 @@ class TestGenerateFromProject:
 
     def test_generate_from_typescript_project(self, runner, tmp_dir):
         import tempfile, json as json_mod
+
         with tempfile.TemporaryDirectory() as src_dir:
             pkg = {"name": "my-app", "dependencies": {"react": "^18.0.0"}}
             (Path(src_dir) / "package.json").write_text(json_mod.dumps(pkg))
@@ -1458,7 +1561,17 @@ class TestGenerateCommandExtended:
 
     def test_generate_cursor(self, runner, tmp_dir):
         result = runner.invoke(
-            main, ["generate", "cursor", "--project-name", "test", "--lang", "python", "--output-dir", tmp_dir]
+            main,
+            [
+                "generate",
+                "cursor",
+                "--project-name",
+                "test",
+                "--lang",
+                "python",
+                "--output-dir",
+                tmp_dir,
+            ],
         )
         assert result.exit_code == 0
         assert (Path(tmp_dir) / ".cursorrules").exists()
@@ -1515,7 +1628,9 @@ class TestChangelogCommand:
     def test_changelog_unknown_version(self, runner):
         result = runner.invoke(main, ["changelog", "--version", "0.0.0"])
         assert result.exit_code == 0
-        assert "not found" in result.output.lower() or result.output == "" or "0.0.0" in result.output
+        assert (
+            "not found" in result.output.lower() or result.output == "" or "0.0.0" in result.output
+        )
 
 
 class TestPresetsCommand:
@@ -1597,7 +1712,18 @@ class TestNewProjectExtended:
     def test_new_go_project(self, runner, tmp_dir):
         result = runner.invoke(
             main,
-            ["new", "my-go-api", "--lang", "go", "--type", "api", "--tool", "agents-md", "--output-dir", tmp_dir],
+            [
+                "new",
+                "my-go-api",
+                "--lang",
+                "go",
+                "--type",
+                "api",
+                "--tool",
+                "agents-md",
+                "--output-dir",
+                tmp_dir,
+            ],
         )
         assert result.exit_code == 0
         assert (Path(tmp_dir) / "my-go-api").exists()
@@ -1605,7 +1731,18 @@ class TestNewProjectExtended:
     def test_new_rust_project(self, runner, tmp_dir):
         result = runner.invoke(
             main,
-            ["new", "my-rust-cli", "--lang", "rust", "--type", "cli", "--tool", "gemini", "--output-dir", tmp_dir],
+            [
+                "new",
+                "my-rust-cli",
+                "--lang",
+                "rust",
+                "--type",
+                "cli",
+                "--tool",
+                "gemini",
+                "--output-dir",
+                tmp_dir,
+            ],
         )
         assert result.exit_code == 0
         assert (Path(tmp_dir) / "my-rust-cli").exists()

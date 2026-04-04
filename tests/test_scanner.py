@@ -63,7 +63,11 @@ class TestScanProjectPython:
 
 class TestScanProjectTypeScript:
     def test_detects_typescript_from_package_json(self, tmp_dir):
-        pkg = {"name": "my-app", "dependencies": {"react": "^18.0.0"}, "devDependencies": {"typescript": "^5.0.0"}}
+        pkg = {
+            "name": "my-app",
+            "dependencies": {"react": "^18.0.0"},
+            "devDependencies": {"typescript": "^5.0.0"},
+        }
         (Path(tmp_dir) / "package.json").write_text(json.dumps(pkg))
         result = scan_project(tmp_dir)
         assert result["language"] == "typescript"
@@ -414,6 +418,7 @@ class TestScanEdgeCases:
     def test_package_json_defaults_npm(self, tmp_dir):
         """No lock file → defaults to npm."""
         import json
+
         pkg = {"name": "my-app", "dependencies": {}}
         (Path(tmp_dir) / "package.json").write_text(json.dumps(pkg))
         result = scan_project(tmp_dir)
@@ -421,9 +426,7 @@ class TestScanEdgeCases:
 
     def test_scan_pyproject_no_name(self, tmp_dir):
         """pyproject.toml without name field."""
-        (Path(tmp_dir) / "pyproject.toml").write_text(
-            "[build-system]\nrequires = ['setuptools']\n"
-        )
+        (Path(tmp_dir) / "pyproject.toml").write_text("[build-system]\nrequires = ['setuptools']\n")
         result = scan_project(tmp_dir)
         assert result["language"] == "python"
         # project_name should fall back to directory name
@@ -431,8 +434,7 @@ class TestScanEdgeCases:
 
     def test_scan_pyproject_with_framework(self, tmp_dir):
         (Path(tmp_dir) / "pyproject.toml").write_text(
-            '[project]\nname = "my-app"\n[project.dependencies]\n'
-            'fastapi = "*"\npytest = "*"\n'
+            '[project]\nname = "my-app"\n[project.dependencies]\nfastapi = "*"\npytest = "*"\n'
         )
         result = scan_project(tmp_dir)
         assert result["framework"] == "FastAPI"
@@ -473,9 +475,7 @@ class TestScanKotlin:
         assert result["language"] == "kotlin"
 
     def test_detects_kotlin_from_settings_gradle_kts(self, tmp_dir):
-        (Path(tmp_dir) / "settings.gradle.kts").write_text(
-            'rootProject.name = "my-kotlin-app"\n'
-        )
+        (Path(tmp_dir) / "settings.gradle.kts").write_text('rootProject.name = "my-kotlin-app"\n')
         result = scan_project(tmp_dir)
         assert result["language"] == "kotlin"
 
@@ -523,7 +523,7 @@ class TestScanKotlin:
 class TestScanSwift:
     def test_detects_swift_from_package_swift(self, tmp_dir):
         (Path(tmp_dir) / "Package.swift").write_text(
-            '// swift-tools-version:5.9\nimport PackageDescription\n'
+            "// swift-tools-version:5.9\nimport PackageDescription\n"
             'let package = Package(\n    name: "MyLib",\n)\n'
         )
         result = scan_project(tmp_dir)
@@ -546,9 +546,7 @@ class TestScanSwift:
         assert result["project_type"] == "api"
 
     def test_swift_xctest_framework(self, tmp_dir):
-        (Path(tmp_dir) / "Package.swift").write_text(
-            'let package = Package(name: "my-lib")\n'
-        )
+        (Path(tmp_dir) / "Package.swift").write_text('let package = Package(name: "my-lib")\n')
         result = scan_project(tmp_dir)
         assert result["test_framework"] == "XCTest"
 
@@ -626,33 +624,27 @@ class TestScanRuby:
         assert result["project_type"] == "web"
 
     def test_detects_sinatra_framework(self, tmp_dir):
-        (Path(tmp_dir) / "Gemfile").write_text(
-            'source "https://rubygems.org"\ngem "sinatra"\n'
-        )
+        (Path(tmp_dir) / "Gemfile").write_text('source "https://rubygems.org"\ngem "sinatra"\n')
         result = scan_project(tmp_dir)
         assert result["framework"] == "Sinatra"
 
     def test_detects_rspec_test_framework(self, tmp_dir):
-        (Path(tmp_dir) / "Gemfile").write_text(
-            'source "https://rubygems.org"\ngem "rspec"\n'
-        )
+        (Path(tmp_dir) / "Gemfile").write_text('source "https://rubygems.org"\ngem "rspec"\n')
         result = scan_project(tmp_dir)
         assert result["test_framework"] == "RSpec"
 
     def test_detects_minitest(self, tmp_dir):
-        (Path(tmp_dir) / "Gemfile").write_text(
-            'source "https://rubygems.org"\ngem "minitest"\n'
-        )
+        (Path(tmp_dir) / "Gemfile").write_text('source "https://rubygems.org"\ngem "minitest"\n')
         result = scan_project(tmp_dir)
         assert result["test_framework"] == "Minitest"
 
     def test_detects_ruby_from_gemspec(self, tmp_dir):
         (Path(tmp_dir) / "my_gem.gemspec").write_text(
-            'Gem::Specification.new do |s|\n'
+            "Gem::Specification.new do |s|\n"
             '  s.name = "my_gem"\n'
             '  s.summary = "A test gem"\n'
             '  s.add_development_dependency "rspec"\n'
-            'end\n'
+            "end\n"
         )
         result = scan_project(tmp_dir)
         assert result["language"] == "ruby"
@@ -660,16 +652,12 @@ class TestScanRuby:
     def test_extracts_ruby_gem_name_from_gemspec(self, tmp_dir):
         (Path(tmp_dir) / "Gemfile").write_text('source "https://rubygems.org"\n')
         (Path(tmp_dir) / "my_awesome_gem.gemspec").write_text(
-            'Gem::Specification.new do |s|\n'
-            '  s.name = "my_awesome_gem"\n'
-            'end\n'
+            'Gem::Specification.new do |s|\n  s.name = "my_awesome_gem"\nend\n'
         )
         result = scan_project(tmp_dir)
         assert result["project_name"] == "my_awesome_gem"
 
     def test_ruby_no_framework(self, tmp_dir):
-        (Path(tmp_dir) / "Gemfile").write_text(
-            'source "https://rubygems.org"\ngem "rake"\n'
-        )
+        (Path(tmp_dir) / "Gemfile").write_text('source "https://rubygems.org"\ngem "rake"\n')
         result = scan_project(tmp_dir)
         assert result["framework"] == ""

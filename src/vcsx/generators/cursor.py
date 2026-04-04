@@ -443,13 +443,16 @@ def _rule_performance_mdc(rules_dir: Path, ctx: ProjectContext) -> str:
         ],
     }
 
-    tips = lang_tips.get(lang, [
-        "Profile before optimizing — measure, don't guess.",
-        "Avoid premature optimization.",
-        "Cache expensive computations.",
-        "Minimize I/O in hot paths.",
-        "Use lazy loading for large resources.",
-    ])
+    tips = lang_tips.get(
+        lang,
+        [
+            "Profile before optimizing — measure, don't guess.",
+            "Avoid premature optimization.",
+            "Cache expensive computations.",
+            "Minimize I/O in hot paths.",
+            "Use lazy loading for large resources.",
+        ],
+    )
 
     tips_md = "\n".join(f"- {t}" for t in tips)
     lang_display = ctx.language or "any language"

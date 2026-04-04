@@ -9,6 +9,7 @@ from vcsx.discovery import run_discovery  # noqa: E402
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def make_console():
     """Return a MagicMock that mimics rich.console.Console."""
     return MagicMock()
@@ -25,32 +26,32 @@ def _patch_prompt(answers: list):
 
 BASIC_PROMPT_ANSWERS = [
     # Phase 0
-    "cursor",           # ai_tool
-    "linux",            # platform
+    "cursor",  # ai_tool
+    "linux",  # platform
     # Phase 1
     "Build a web app",  # purpose
     "Too much manual work",  # problem
-    "my-project",       # project_name
+    "my-project",  # project_name
     "A cool description",  # description
-    "python fastapi",   # tech_stack
-    "web",              # project_type
+    "python fastapi",  # tech_stack
+    "web",  # project_type
     # Phase 2
     "As a user I want...",  # user_stories
     "App works correctly",  # success_criteria
     "feature1, feature2",  # mvp_features
-    "developers",       # target_users
+    "developers",  # target_users
     # Phase 3
-    "vercel",           # hosting
+    "vercel",  # hosting
     # auth_needed → Confirm (False)
-    "none",             # external_services
+    "none",  # external_services
     # monorepo → Confirm (False)
     # Phase 4
-    "unit",             # test_level
-    "pytest",           # test_framework
+    "unit",  # test_level
+    "pytest",  # test_framework
     # ci_cd → Confirm (False)
-    "black",            # code_style
-    "black",            # formatter
-    "ruff",             # linter
+    "black",  # code_style
+    "black",  # formatter
+    "ruff",  # linter
 ]
 
 BASIC_CONFIRM_ANSWERS = [False, False, False]  # auth_needed, monorepo, ci_cd
@@ -170,6 +171,7 @@ class TestRunDiscoveryBasic:
 # "all" tools shortcut
 # ---------------------------------------------------------------------------
 
+
 def _make_all_tools_answers():
     answers = list(BASIC_PROMPT_ANSWERS)
     answers[0] = "all"  # Replace ai_tool answer
@@ -183,6 +185,7 @@ class TestAllToolsShortcut:
 
     def test_ai_tools_list_populated(self):
         from vcsx.generators.registry import ALL_TOOLS
+
         ctx = _run_with_mocks(_make_all_tools_answers(), BASIC_CONFIRM_ANSWERS)
         assert ctx.ai_tools_list == list(ALL_TOOLS)
 
@@ -194,6 +197,7 @@ class TestAllToolsShortcut:
 # ---------------------------------------------------------------------------
 # Comma-separated tools
 # ---------------------------------------------------------------------------
+
 
 def _make_csv_tools_answers(csv_input):
     answers = list(BASIC_PROMPT_ANSWERS)
@@ -249,6 +253,7 @@ class TestCsvTools:
 # Unknown tool fallback
 # ---------------------------------------------------------------------------
 
+
 class TestUnknownToolFallback:
     def test_unknown_tool_falls_back_to_detected(self):
         """When input is invalid tool and detect returns 'cursor', cursor becomes default."""
@@ -270,29 +275,29 @@ class TestUnknownToolFallback:
 # ---------------------------------------------------------------------------
 
 AUTH_PROMPT_ANSWERS = [
-    "cursor",           # ai_tool
-    "linux",            # platform
-    "purpose",          # purpose
-    "problem",          # problem
-    "proj",             # project_name
-    "desc",             # description
-    "python",           # tech_stack
-    "web",              # project_type
-    "stories",          # user_stories
-    "criteria",         # success_criteria
-    "mvp",              # mvp_features
-    "users",            # target_users
-    "aws",              # hosting
+    "cursor",  # ai_tool
+    "linux",  # platform
+    "purpose",  # purpose
+    "problem",  # problem
+    "proj",  # project_name
+    "desc",  # description
+    "python",  # tech_stack
+    "web",  # project_type
+    "stories",  # user_stories
+    "criteria",  # success_criteria
+    "mvp",  # mvp_features
+    "users",  # target_users
+    "aws",  # hosting
     # auth_needed → True (Confirm)
-    "jwt",              # auth_method  ← inserted because auth_needed=True
-    "stripe",           # external_services
+    "jwt",  # auth_method  ← inserted because auth_needed=True
+    "stripe",  # external_services
     # monorepo → False (Confirm)
-    "unit",             # test_level
-    "pytest",           # test_framework
+    "unit",  # test_level
+    "pytest",  # test_framework
     # ci_cd → False (Confirm)
-    "pep8",             # code_style
-    "black",            # formatter
-    "ruff",             # linter
+    "pep8",  # code_style
+    "black",  # formatter
+    "ruff",  # linter
 ]
 
 AUTH_CONFIRM_ANSWERS = [True, False, False]  # auth_needed=True, monorepo=False, ci_cd=False
@@ -313,32 +318,32 @@ class TestAuthBranch:
 # ---------------------------------------------------------------------------
 
 CC_PROMPT_ANSWERS = [
-    "claude-code",      # ai_tool
-    "linux",            # platform
-    "purpose",          # purpose
-    "problem",          # problem
-    "proj",             # project_name
-    "desc",             # description
-    "python",           # tech_stack
-    "web",              # project_type
-    "stories",          # user_stories
-    "criteria",         # success_criteria
-    "mvp",              # mvp_features
-    "users",            # target_users
-    "vercel",           # hosting
+    "claude-code",  # ai_tool
+    "linux",  # platform
+    "purpose",  # purpose
+    "problem",  # problem
+    "proj",  # project_name
+    "desc",  # description
+    "python",  # tech_stack
+    "web",  # project_type
+    "stories",  # user_stories
+    "criteria",  # success_criteria
+    "mvp",  # mvp_features
+    "users",  # target_users
+    "vercel",  # hosting
     # auth_needed → False (Confirm)
-    "none",             # external_services
+    "none",  # external_services
     # monorepo → False (Confirm)
-    "unit",             # test_level
-    "pytest",           # test_framework
+    "unit",  # test_level
+    "pytest",  # test_framework
     # ci_cd → False (Confirm)
-    "pep8",             # code_style
-    "black",            # formatter
-    "ruff",             # linter
+    "pep8",  # code_style
+    "black",  # formatter
+    "ruff",  # linter
     # Phase 5 (Claude Code only)
-    "run tests",        # recurring_tasks
-    "rm -rf",           # forbidden_actions
-    "auto-format",      # automations
+    "run tests",  # recurring_tasks
+    "rm -rf",  # forbidden_actions
+    "auto-format",  # automations
 ]
 
 CC_CONFIRM_ANSWERS = [False, False, False]
@@ -365,6 +370,7 @@ class TestClaudeCodePhase:
 # ---------------------------------------------------------------------------
 # detect_ai_tool integration (auto-detected default)
 # ---------------------------------------------------------------------------
+
 
 class TestDetectedAiTool:
     def test_detected_tool_used_as_default(self):
@@ -407,19 +413,31 @@ class TestDetectedAiTool:
 # Test level = "none" (skip test_framework question)
 # ---------------------------------------------------------------------------
 
+
 def _make_no_test_answers():
     """Build answer list with test_level = 'none' (skips test_framework)."""
     return [
-        "cursor", "linux",
-        "purpose", "problem", "proj", "desc", "python", "web",
-        "stories", "criteria", "mvp", "users",
+        "cursor",
+        "linux",
+        "purpose",
+        "problem",
+        "proj",
+        "desc",
+        "python",
+        "web",
+        "stories",
+        "criteria",
+        "mvp",
+        "users",
         "vercel",
         # auth_needed → False
         "none",
         # monorepo → False
-        "none",        # test_level = "none" — no test_framework asked
+        "none",  # test_level = "none" — no test_framework asked
         # ci_cd → False
-        "pep8", "black", "ruff",
+        "pep8",
+        "black",
+        "ruff",
     ]
 
 
@@ -433,6 +451,7 @@ class TestNoTestLevel:
 # ---------------------------------------------------------------------------
 # ci_cd = True
 # ---------------------------------------------------------------------------
+
 
 def _make_cicd_answers():
     return list(BASIC_PROMPT_ANSWERS)
@@ -448,6 +467,7 @@ class TestCiCd:
 # Monorepo = True
 # ---------------------------------------------------------------------------
 
+
 class TestMonorepo:
     def test_monorepo_true(self):
         ctx = _run_with_mocks(BASIC_PROMPT_ANSWERS, [False, True, False])
@@ -457,6 +477,7 @@ class TestMonorepo:
 # ---------------------------------------------------------------------------
 # Console print calls (smoke-test that console is used)
 # ---------------------------------------------------------------------------
+
 
 class TestConsoleUsed:
     def test_console_print_called(self):
@@ -479,6 +500,7 @@ class TestConsoleUsed:
 # ---------------------------------------------------------------------------
 # MVP features and target users
 # ---------------------------------------------------------------------------
+
 
 class TestMvpAndTargetUsers:
     def test_mvp_features_set(self):

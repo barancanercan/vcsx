@@ -81,6 +81,7 @@ class TestValidatorsExtended:
 
     def test_validate_tech_stack_parses(self):
         from vcsx.core.validators import validate_tech_stack
+
         result = validate_tech_stack("Python, FastAPI, PostgreSQL")
         assert "Python" in result
         assert "FastAPI" in result
@@ -88,10 +89,12 @@ class TestValidatorsExtended:
 
     def test_validate_tech_stack_empty(self):
         from vcsx.core.validators import validate_tech_stack
+
         assert validate_tech_stack("") == []
 
     def test_validate_features_parses(self):
         from vcsx.core.validators import validate_features
+
         result = validate_features("auth, CRUD, dashboard")
         assert len(result) == 3
         assert "auth" in result

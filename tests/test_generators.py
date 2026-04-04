@@ -47,28 +47,38 @@ class TestClaudeCodeGeneratorExtended:
 
     def test_api_agent_for_api_project(self, tmp_dir):
         ctx = ProjectContext(
-            project_name="api-proj", language="python", project_type="api",
-            test_level="unit", test_framework="pytest",
+            project_name="api-proj",
+            language="python",
+            project_type="api",
+            test_level="unit",
+            test_framework="pytest",
         )
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         gen = ClaudeCodeGenerator()
         agents = gen.generate_agents(ctx, tmp_dir)
         assert "api-designer" in agents
 
     def test_data_analyst_for_data_pipeline(self, tmp_dir):
         ctx = ProjectContext(
-            project_name="pipeline", language="python", project_type="data-pipeline",
+            project_name="pipeline",
+            language="python",
+            project_type="data-pipeline",
         )
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         gen = ClaudeCodeGenerator()
         agents = gen.generate_agents(ctx, tmp_dir)
         assert "data-analyst" in agents
 
     def test_scaffold_typescript(self, tmp_dir):
         ctx = ProjectContext(
-            project_name="ts-app", language="typescript", project_type="web",
+            project_name="ts-app",
+            language="typescript",
+            project_type="web",
         )
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         gen = ClaudeCodeGenerator()
         result = gen.generate_scaffold(ctx, tmp_dir)
         assert "package.json" in result
@@ -77,6 +87,7 @@ class TestClaudeCodeGeneratorExtended:
     def test_scaffold_go(self, tmp_dir):
         ctx = ProjectContext(project_name="go-app", language="go")
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         gen = ClaudeCodeGenerator()
         result = gen.generate_scaffold(ctx, tmp_dir)
         assert "go.mod" in result
@@ -84,16 +95,22 @@ class TestClaudeCodeGeneratorExtended:
     def test_no_test_writer_for_none_level(self, tmp_dir):
         ctx = ProjectContext(project_name="app", language="python", test_level="none")
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         gen = ClaudeCodeGenerator()
         agents = gen.generate_agents(ctx, tmp_dir)
         assert "test-writer" not in agents
 
     def test_hooks_windows_ps1(self, tmp_dir):
         ctx = ProjectContext(
-            project_name="win-app", language="typescript", platform="windows-powershell",
-            formatter="prettier", linter="eslint", test_framework="vitest",
+            project_name="win-app",
+            language="typescript",
+            platform="windows-powershell",
+            formatter="prettier",
+            linter="eslint",
+            test_framework="vitest",
         )
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         gen = ClaudeCodeGenerator()
         settings = gen.generate_hooks(ctx, tmp_dir)
         hooks_dir = Path(tmp_dir) / ".claude" / "hooks"
@@ -105,6 +122,7 @@ class TestClaudeCodeGeneratorExtended:
             project_name="pipeline", language="python", project_type="data-pipeline"
         )
         from vcsx.generators.claude_code import ClaudeCodeGenerator
+
         gen = ClaudeCodeGenerator()
         gen.generate_scaffold(ctx, tmp_dir)
         content = (Path(tmp_dir) / ".claudeignore").read_text()
@@ -112,10 +130,12 @@ class TestClaudeCodeGeneratorExtended:
 
     def test_script_header_ps1(self):
         from vcsx.generators.claude_code import _get_script_header
+
         assert "pwsh" in _get_script_header(".ps1")
 
     def test_script_header_sh(self):
         from vcsx.generators.claude_code import _get_script_header
+
         assert "bash" in _get_script_header(".sh")
 
 
@@ -153,16 +173,22 @@ class TestClaudeCodeGenerator:
 
     def test_architecture_review_python_specific(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="pyproj", language="python", lang="en")
         ClaudeCodeGenerator().generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".claude" / "skills" / "architecture-review" / "SKILL.md").read_text()
+        content = (
+            Path(tmp_dir) / ".claude" / "skills" / "architecture-review" / "SKILL.md"
+        ).read_text()
         assert "Python-Specific" in content or "src layout" in content
 
     def test_architecture_review_typescript_specific(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="tsproj", language="typescript", lang="en")
         ClaudeCodeGenerator().generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".claude" / "skills" / "architecture-review" / "SKILL.md").read_text()
+        content = (
+            Path(tmp_dir) / ".claude" / "skills" / "architecture-review" / "SKILL.md"
+        ).read_text()
         assert "TypeScript" in content or "bundle" in content
 
     def test_feature_spec_skill_file(self, ctx, tmp_dir):
@@ -217,7 +243,11 @@ class TestClaudeCodeGenerator:
         assert agent_file.exists()
         content = agent_file.read_text()
         assert "dependency" in content.lower()
-        assert "vulnerability" in content.lower() or "vulnerabil" in content.lower() or "audit" in content.lower()
+        assert (
+            "vulnerability" in content.lower()
+            or "vulnerabil" in content.lower()
+            or "audit" in content.lower()
+        )
 
     def test_performance_profiler_agent_file_created(self, ctx, tmp_dir):
         gen = ClaudeCodeGenerator()
@@ -226,10 +256,15 @@ class TestClaudeCodeGenerator:
         assert agent_file.exists()
         content = agent_file.read_text()
         assert "profile" in content.lower() or "profil" in content.lower()
-        assert "bottleneck" in content.lower() or "hotspot" in content.lower() or "optimize" in content.lower()
+        assert (
+            "bottleneck" in content.lower()
+            or "hotspot" in content.lower()
+            or "optimize" in content.lower()
+        )
 
     def test_dependency_auditor_python_language(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="pyproject", language="python", lang="en")
         gen = ClaudeCodeGenerator()
         gen.generate_agents(ctx, tmp_dir)
@@ -239,6 +274,7 @@ class TestClaudeCodeGenerator:
 
     def test_dependency_auditor_typescript_language(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="tsproject", language="typescript", lang="en")
         gen = ClaudeCodeGenerator()
         gen.generate_agents(ctx, tmp_dir)
@@ -248,6 +284,7 @@ class TestClaudeCodeGenerator:
 
     def test_performance_profiler_go_language(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="goproject", language="go", lang="en")
         gen = ClaudeCodeGenerator()
         gen.generate_agents(ctx, tmp_dir)
@@ -257,6 +294,7 @@ class TestClaudeCodeGenerator:
 
     def test_performance_profiler_rust_language(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="rustproject", language="rust", lang="en")
         gen = ClaudeCodeGenerator()
         gen.generate_agents(ctx, tmp_dir)
@@ -287,6 +325,7 @@ class TestClaudeCodeGenerator:
 
     def test_contributing_md_python_commands(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="pyproj", language="python", lang="en")
         ClaudeCodeGenerator().generate_scaffold(ctx, tmp_dir)
         content = (Path(tmp_dir) / "CONTRIBUTING.md").read_text()
@@ -304,7 +343,7 @@ class TestClaudeCodeGenerator:
 
     def test_changelog_not_overwritten(self, ctx, tmp_dir):
         """CHANGELOG.md should not be overwritten if it already exists."""
-        existing = (Path(tmp_dir) / "CHANGELOG.md")
+        existing = Path(tmp_dir) / "CHANGELOG.md"
         existing.write_text("EXISTING CONTENT", encoding="utf-8")
         ClaudeCodeGenerator().generate_scaffold(ctx, tmp_dir)
         assert existing.read_text() == "EXISTING CONTENT"
@@ -320,6 +359,7 @@ class TestClaudeCodeGenerator:
 
     def test_precommit_typescript(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="tsproj", language="typescript", lang="en")
         gen = ClaudeCodeGenerator()
         gen.generate_scaffold(ctx, tmp_dir)
@@ -328,6 +368,7 @@ class TestClaudeCodeGenerator:
 
     def test_precommit_go(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="goproj", language="go", lang="en")
         gen = ClaudeCodeGenerator()
         gen.generate_scaffold(ctx, tmp_dir)
@@ -336,6 +377,7 @@ class TestClaudeCodeGenerator:
 
     def test_precommit_rust(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="rustproj", language="rust", lang="en")
         gen = ClaudeCodeGenerator()
         gen.generate_scaffold(ctx, tmp_dir)
@@ -345,6 +387,7 @@ class TestClaudeCodeGenerator:
 
     def test_precommit_base_hooks_always_present(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         # Even unknown language gets base hooks
         ctx = ProjectContext(project_name="proj", language="", lang="en")
         gen = ClaudeCodeGenerator()
@@ -369,6 +412,7 @@ class TestCursorLegacyFunctions:
 
     def test_legacy_commit_message(self, tmp_dir):
         from vcsx.generators.cursor import _rule_commit_message
+
         rules_dir = Path(tmp_dir)
         result = _rule_commit_message(rules_dir)
         assert result == "commit-message"
@@ -376,18 +420,21 @@ class TestCursorLegacyFunctions:
 
     def test_legacy_pr_review(self, tmp_dir):
         from vcsx.generators.cursor import _rule_pr_review
+
         rules_dir = Path(tmp_dir)
         result = _rule_pr_review(rules_dir)
         assert result == "pr-review"
 
     def test_legacy_test_patterns(self, ctx, tmp_dir):
         from vcsx.generators.cursor import _rule_test_patterns
+
         rules_dir = Path(tmp_dir)
         result = _rule_test_patterns(rules_dir, ctx)
         assert result == "test-patterns"
 
     def test_legacy_api_conventions(self, tmp_dir):
         from vcsx.generators.cursor import _rule_api_conventions
+
         rules_dir = Path(tmp_dir)
         result = _rule_api_conventions(rules_dir)
         assert result == "api-conventions"
@@ -422,7 +469,9 @@ class TestCursorGeneratorFullCoverage:
 
     def test_cursor_config_web_project(self, tmp_dir):
         ctx = ProjectContext(
-            project_name="web-app", language="typescript", project_type="web",
+            project_name="web-app",
+            language="typescript",
+            project_type="web",
             description="A web application",
         )
         gen = CursorGenerator()
@@ -521,7 +570,9 @@ class TestCopilotGeneratorExtended:
         ctx = ProjectContext(project_name="py-app", language="python")
         gen = CopilotGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".github" / "instructions" / "code-style.instructions.md").read_text()
+        content = (
+            Path(tmp_dir) / ".github" / "instructions" / "code-style.instructions.md"
+        ).read_text()
         assert "*.py" in content
 
     def test_copilot_agents_returns_list(self, ctx, tmp_dir):
@@ -550,6 +601,7 @@ class TestCopilotGeneratorExtended:
 
     def test_copilot_ci_python(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="pypkg", language="python", lang="en")
         gen = CopilotGenerator()
         gen.generate_agents(ctx, tmp_dir)
@@ -559,6 +611,7 @@ class TestCopilotGeneratorExtended:
 
     def test_copilot_ci_typescript(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="tspkg", language="typescript", lang="en")
         gen = CopilotGenerator()
         gen.generate_agents(ctx, tmp_dir)
@@ -568,6 +621,7 @@ class TestCopilotGeneratorExtended:
 
     def test_copilot_ci_go(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="gopkg", language="go", lang="en")
         gen = CopilotGenerator()
         gen.generate_agents(ctx, tmp_dir)
@@ -577,6 +631,7 @@ class TestCopilotGeneratorExtended:
 
     def test_copilot_ci_rust(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="rustpkg", language="rust", lang="en")
         gen = CopilotGenerator()
         gen.generate_agents(ctx, tmp_dir)
@@ -586,6 +641,7 @@ class TestCopilotGeneratorExtended:
 
     def test_copilot_dependabot_npm_for_ts(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="tspkg", language="typescript", lang="en")
         gen = CopilotGenerator()
         gen.generate_agents(ctx, tmp_dir)
@@ -609,16 +665,19 @@ class TestCopilotGenerator:
 class TestRegistryExtended:
     def test_get_tools_by_category_ai_editors(self):
         from vcsx.generators.registry import get_tools_by_category
+
         tools = get_tools_by_category("ai_editors")
         assert "claude-code" in tools
         assert "cursor" in tools
 
     def test_get_tools_by_category_unknown(self):
         from vcsx.generators.registry import get_tools_by_category
+
         assert get_tools_by_category("nonexistent") == []
 
     def test_codex_scaffold_web_project(self, tmp_dir):
         from vcsx.generators.codex import CodexGenerator
+
         ctx = ProjectContext(project_name="my-web", language="typescript", project_type="web")
         gen = CodexGenerator()
         result = gen.generate_scaffold(ctx, tmp_dir)
@@ -626,6 +685,7 @@ class TestRegistryExtended:
 
     def test_codex_scaffold_cli_project(self, tmp_dir):
         from vcsx.generators.codex import CodexGenerator
+
         ctx = ProjectContext(project_name="my-cli", language="python", project_type="cli")
         gen = CodexGenerator()
         result = gen.generate_scaffold(ctx, tmp_dir)
@@ -633,21 +693,25 @@ class TestRegistryExtended:
 
     def test_aider_test_cmd_vitest(self):
         from vcsx.generators.aider import _get_test_cmd
+
         ctx = ProjectContext(test_framework="vitest")
         assert "vitest" in _get_test_cmd(ctx)
 
     def test_aider_test_cmd_rust(self):
         from vcsx.generators.aider import _get_test_cmd
+
         ctx = ProjectContext(language="rust")
         assert "cargo test" in _get_test_cmd(ctx)
 
     def test_aider_test_cmd_fallback(self):
         from vcsx.generators.aider import _get_test_cmd
+
         ctx = ProjectContext(language="javascript", test_framework="mocha")
         assert "npm test" in _get_test_cmd(ctx)
 
     def test_bolt_django_port(self, tmp_dir):
         from vcsx.generators.bolt import _get_default_port
+
         ctx = ProjectContext(language="python", framework="Django")
         # Django is python, so python check runs first → 8000
         port = _get_default_port(ctx)
@@ -682,6 +746,7 @@ class TestGeminiGeneratorExtended:
 
     def test_gemini_with_purpose_problem(self, tmp_dir):
         from vcsx.generators.gemini import GeminiGenerator
+
         ctx = ProjectContext(
             project_name="my-app",
             purpose="Automate workflows",
@@ -696,6 +761,7 @@ class TestGeminiGeneratorExtended:
 
     def test_gemini_project_type_web(self, tmp_dir):
         from vcsx.generators.gemini import GeminiGenerator
+
         ctx = ProjectContext(project_name="web-app", project_type="web", language="typescript")
         gen = GeminiGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -704,6 +770,7 @@ class TestGeminiGeneratorExtended:
 
     def test_gemini_project_type_cli(self, tmp_dir):
         from vcsx.generators.gemini import GeminiGenerator
+
         ctx = ProjectContext(project_name="my-cli", project_type="cli", language="python")
         gen = GeminiGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -712,6 +779,7 @@ class TestGeminiGeneratorExtended:
 
     def test_gemini_project_type_library(self, tmp_dir):
         from vcsx.generators.gemini import GeminiGenerator
+
         ctx = ProjectContext(project_name="my-lib", project_type="library", language="python")
         gen = GeminiGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -720,6 +788,7 @@ class TestGeminiGeneratorExtended:
 
     def test_gemini_ignore_patterns_java(self, tmp_dir):
         from vcsx.generators.gemini import GeminiGenerator
+
         ctx = ProjectContext(project_name="java-app", language="java")
         gen = GeminiGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -728,6 +797,7 @@ class TestGeminiGeneratorExtended:
 
     def test_gemini_ignore_patterns_rust(self, tmp_dir):
         from vcsx.generators.gemini import GeminiGenerator
+
         ctx = ProjectContext(project_name="rust-app", language="rust")
         gen = GeminiGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -738,6 +808,7 @@ class TestGeminiGeneratorExtended:
 class TestGeminiGenerator:
     def test_generate_config(self, ctx, tmp_dir):
         from vcsx.generators.gemini import GeminiGenerator
+
         gen = GeminiGenerator()
         assert gen.name == "gemini"
         path = gen.generate_config(ctx, tmp_dir)
@@ -748,6 +819,7 @@ class TestGeminiGenerator:
 
     def test_data_pipeline_guidance(self, tmp_dir):
         from vcsx.generators.gemini import GeminiGenerator
+
         ctx = ProjectContext(
             project_name="scraper",
             project_type="data-pipeline",
@@ -763,6 +835,7 @@ class TestGeminiGenerator:
 class TestAgentsMdFullCoverage:
     def test_agents_md_rust_commands(self, tmp_dir):
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         ctx = ProjectContext(project_name="rust-app", language="rust")
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -771,6 +844,7 @@ class TestAgentsMdFullCoverage:
 
     def test_agents_md_go_commands(self, tmp_dir):
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         ctx = ProjectContext(project_name="go-app", language="go")
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -779,6 +853,7 @@ class TestAgentsMdFullCoverage:
 
     def test_agents_md_with_code_style(self, tmp_dir):
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         ctx = ProjectContext(
             project_name="styled",
             language="python",
@@ -791,6 +866,7 @@ class TestAgentsMdFullCoverage:
 
     def test_agents_md_with_external_services(self, tmp_dir):
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         ctx = ProjectContext(
             project_name="svc",
             language="python",
@@ -803,6 +879,7 @@ class TestAgentsMdFullCoverage:
 
     def test_agents_md_generic_fallback_commands(self, tmp_dir):
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         ctx = ProjectContext(
             project_name="generic",
             language="cobol",
@@ -817,6 +894,7 @@ class TestAgentsMdFullCoverage:
 
     def test_agents_md_no_commands_fallback(self, tmp_dir):
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         ctx = ProjectContext(project_name="minimal", language="cobol")
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -825,6 +903,7 @@ class TestAgentsMdFullCoverage:
 
     def test_agents_md_with_hosting(self, tmp_dir):
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         ctx = ProjectContext(
             project_name="hosted",
             language="python",
@@ -848,6 +927,7 @@ class TestAgentsMdExtended:
             language="python",
         )
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
         content = (Path(tmp_dir) / "AGENTS.md").read_text()
@@ -863,6 +943,7 @@ class TestAgentsMdExtended:
             linter="ruff check",
         )
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
         content = (Path(tmp_dir) / "AGENTS.md").read_text()
@@ -876,6 +957,7 @@ class TestAgentsMdExtended:
             tech_stack="pnpm, react",
         )
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
         content = (Path(tmp_dir) / "AGENTS.md").read_text()
@@ -889,6 +971,7 @@ class TestAgentsMdExtended:
             auth_method="JWT",
         )
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
         content = (Path(tmp_dir) / "AGENTS.md").read_text()
@@ -901,6 +984,7 @@ class TestAgentsMdExtended:
             project_type="data-pipeline",
         )
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
         content = (Path(tmp_dir) / "AGENTS.md").read_text()
@@ -910,6 +994,7 @@ class TestAgentsMdExtended:
 class TestAgentsMdGenerator:
     def test_generate_config(self, ctx, tmp_dir):
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         gen = AgentsMdGenerator()
         assert gen.name == "agents-md"
         path = gen.generate_config(ctx, tmp_dir)
@@ -921,6 +1006,7 @@ class TestAgentsMdGenerator:
 
     def test_forbidden_actions(self, tmp_dir):
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         ctx = ProjectContext(
             project_name="proj",
             language="python",
@@ -933,6 +1019,7 @@ class TestAgentsMdGenerator:
 
     def test_working_guide_python(self, tmp_dir):
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         ctx = ProjectContext(project_name="pypkg", language="python", lang="en")
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -943,6 +1030,7 @@ class TestAgentsMdGenerator:
 
     def test_working_guide_typescript(self, tmp_dir):
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         ctx = ProjectContext(project_name="tspkg", language="typescript", lang="en")
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -952,6 +1040,7 @@ class TestAgentsMdGenerator:
 
     def test_working_guide_go(self, tmp_dir):
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         ctx = ProjectContext(project_name="gopkg", language="go", lang="en")
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -961,6 +1050,7 @@ class TestAgentsMdGenerator:
 
     def test_working_guide_rust(self, tmp_dir):
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         ctx = ProjectContext(project_name="rustpkg", language="rust", lang="en")
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -970,8 +1060,10 @@ class TestAgentsMdGenerator:
 
     def test_working_guide_api_tips(self, tmp_dir):
         from vcsx.generators.agents_md import AgentsMdGenerator
-        ctx = ProjectContext(project_name="apipkg", language="python",
-                             project_type="api", lang="en")
+
+        ctx = ProjectContext(
+            project_name="apipkg", language="python", project_type="api", lang="en"
+        )
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
         content = (Path(tmp_dir) / "AGENTS.md").read_text()
@@ -980,6 +1072,7 @@ class TestAgentsMdGenerator:
 
     def test_commit_style_section(self, tmp_dir):
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         ctx = ProjectContext(project_name="proj", language="python", lang="en")
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -1030,6 +1123,7 @@ class TestRegistryUpdated:
 class TestWindsurfNewFormat:
     def test_windsurf_rules_dir_created(self, ctx, tmp_dir):
         from vcsx.generators.windsurf import WindsurfGenerator
+
         gen = WindsurfGenerator()
         gen.generate_config(ctx, tmp_dir)
         rules_dir = Path(tmp_dir) / ".windsurf" / "rules"
@@ -1040,6 +1134,7 @@ class TestWindsurfNewFormat:
 
     def test_api_rules_generated(self, ctx, tmp_dir):
         from vcsx.generators.windsurf import WindsurfGenerator
+
         gen = WindsurfGenerator()
         gen.generate_config(ctx, tmp_dir)
         api_rules = Path(tmp_dir) / ".windsurf" / "rules" / "api-conventions.md"
@@ -1059,13 +1154,16 @@ class TestCopilotScopedInstructions:
     def test_applyto_frontmatter(self, ctx, tmp_dir):
         gen = CopilotGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".github" / "instructions" / "security.instructions.md").read_text()
+        content = (
+            Path(tmp_dir) / ".github" / "instructions" / "security.instructions.md"
+        ).read_text()
         assert "applyTo" in content
 
 
 class TestAiderReadFiles:
     def test_aider_read_files_go(self, tmp_dir):
         from vcsx.generators.aider import AiderGenerator
+
         ctx = ProjectContext(language="go", project_name="go-proj")
         gen = AiderGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -1074,11 +1172,13 @@ class TestAiderReadFiles:
 
     def test_aider_empty_read_files(self):
         from vcsx.generators.aider import _format_read_files
+
         result = _format_read_files([])
         assert result == ""
 
     def test_windsurf_data_pipeline_rules(self, tmp_dir):
         from vcsx.generators.windsurf import WindsurfGenerator
+
         ctx = ProjectContext(
             project_name="pipeline",
             language="python",
@@ -1191,6 +1291,7 @@ class TestBoltPortDetection:
 
     def test_port_react_vite(self, tmp_dir):
         from vcsx.generators.bolt import BoltGenerator
+
         ctx = ProjectContext(project_name="app", language="typescript", framework="React")
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -1199,6 +1300,7 @@ class TestBoltPortDetection:
 
     def test_port_flask(self, tmp_dir):
         from vcsx.generators.bolt import _get_default_port
+
         ctx = ProjectContext(project_name="app", language="python", framework="Flask")
         # Flask is python, python check comes first → 8000 (acceptable)
         port = _get_default_port(ctx)
@@ -1206,6 +1308,7 @@ class TestBoltPortDetection:
 
     def test_port_go(self, tmp_dir):
         from vcsx.generators.bolt import BoltGenerator
+
         ctx = ProjectContext(project_name="app", language="go")
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -1214,6 +1317,7 @@ class TestBoltPortDetection:
 
     def test_port_rust(self, tmp_dir):
         from vcsx.generators.bolt import BoltGenerator
+
         ctx = ProjectContext(project_name="app", language="rust")
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -1222,6 +1326,7 @@ class TestBoltPortDetection:
 
     def test_port_vue(self, tmp_dir):
         from vcsx.generators.bolt import BoltGenerator
+
         ctx = ProjectContext(project_name="app", language="typescript", framework="Vue")
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -1230,6 +1335,7 @@ class TestBoltPortDetection:
 
     def test_env_vars_web_project(self, tmp_dir):
         from vcsx.generators.bolt import BoltGenerator
+
         ctx = ProjectContext(project_name="app", language="typescript", project_type="web")
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -1238,6 +1344,7 @@ class TestBoltPortDetection:
 
     def test_env_vars_with_hosting(self, tmp_dir):
         from vcsx.generators.bolt import BoltGenerator
+
         ctx = ProjectContext(project_name="app", language="python", hosting="Railway")
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -1250,6 +1357,7 @@ class TestBoltGeneratorExtended:
 
     def test_workspace_json_has_system_prompt(self, ctx, tmp_dir):
         from vcsx.generators.bolt import BoltGenerator
+
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
         data = json.loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
@@ -1258,6 +1366,7 @@ class TestBoltGeneratorExtended:
 
     def test_workspace_json_has_env_vars(self, ctx, tmp_dir):
         from vcsx.generators.bolt import BoltGenerator
+
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
         data = json.loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
@@ -1266,6 +1375,7 @@ class TestBoltGeneratorExtended:
 
     def test_workspace_json_port(self, tmp_dir):
         from vcsx.generators.bolt import BoltGenerator
+
         ctx = ProjectContext(project_name="api", language="python", framework="FastAPI")
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -1274,6 +1384,7 @@ class TestBoltGeneratorExtended:
 
     def test_workspace_json_nextjs_port(self, tmp_dir):
         from vcsx.generators.bolt import BoltGenerator
+
         ctx = ProjectContext(project_name="app", language="typescript", framework="Next.js")
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -1282,6 +1393,7 @@ class TestBoltGeneratorExtended:
 
     def test_prompts_md_has_all_sections(self, ctx, tmp_dir):
         from vcsx.generators.bolt import BoltGenerator
+
         gen = BoltGenerator()
         gen.generate_skills(ctx, tmp_dir)
         content = (Path(tmp_dir) / ".bolt" / "prompts.md").read_text()
@@ -1293,6 +1405,7 @@ class TestBoltGeneratorExtended:
 
     def test_bolt_model_name(self, ctx, tmp_dir):
         from vcsx.generators.bolt import BoltGenerator
+
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
         content = (Path(tmp_dir) / ".bolt" / "workspace.json").read_text()
@@ -1300,6 +1413,7 @@ class TestBoltGeneratorExtended:
 
     def test_auth_needed_adds_jwt_secret(self, tmp_dir):
         from vcsx.generators.bolt import BoltGenerator
+
         ctx = ProjectContext(
             project_name="auth-app", language="python", auth_needed=True, auth_method="JWT"
         )
@@ -1410,6 +1524,7 @@ class TestZedGenerator:
 
     def test_tasks_python_extras(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="pyproj", language="python", lang="en")
         gen = ZedGenerator()
         gen.generate_agents(ctx, tmp_dir)
@@ -1420,6 +1535,7 @@ class TestZedGenerator:
 
     def test_tasks_typescript_extras(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="tsproj", language="typescript", lang="en")
         gen = ZedGenerator()
         gen.generate_agents(ctx, tmp_dir)
@@ -1430,6 +1546,7 @@ class TestZedGenerator:
 
     def test_tasks_go_extras(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="goproj", language="go", lang="en")
         gen = ZedGenerator()
         gen.generate_agents(ctx, tmp_dir)
@@ -1439,6 +1556,7 @@ class TestZedGenerator:
 
     def test_tasks_rust_extras(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="rustproj", language="rust", lang="en")
         gen = ZedGenerator()
         gen.generate_agents(ctx, tmp_dir)
@@ -1448,6 +1566,7 @@ class TestZedGenerator:
 
     def test_keybindings_python_context(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(project_name="pyproj", language="python", lang="en")
         gen = ZedGenerator()
         gen.generate_agents(ctx, tmp_dir)
@@ -1468,33 +1587,39 @@ class TestCodexLegacyHelpers:
 
     def test_get_build_cmd_typescript(self):
         from vcsx.generators.codex import _get_build_cmd
+
         ctx = ProjectContext(language="typescript")
         assert "npm run build" in _get_build_cmd(ctx)
 
     def test_get_build_cmd_go(self):
         from vcsx.generators.codex import _get_build_cmd
+
         ctx = ProjectContext(language="go")
         assert "go build" in _get_build_cmd(ctx)
 
     def test_get_test_cmd_none_level(self):
         from vcsx.generators.codex import _get_test_cmd
+
         ctx = ProjectContext(language="python", test_level="none")
         assert "No tests" in _get_test_cmd(ctx)
 
     def test_get_style_rules_typescript(self):
         from vcsx.generators.codex import _get_style_rules
+
         ctx = ProjectContext(language="typescript")
         rules = _get_style_rules(ctx)
         assert any("TypeScript" in r or "const" in r for r in rules)
 
     def test_get_style_rules_go(self):
         from vcsx.generators.codex import _get_style_rules
+
         ctx = ProjectContext(language="go")
         rules = _get_style_rules(ctx)
         assert any("gofmt" in r for r in rules)
 
     def test_scaffold_gitignore(self, tmp_dir):
         from vcsx.generators.codex import _scaffold_gitignore
+
         ctx = ProjectContext(project_name="test", language="python")
         result = _scaffold_gitignore(tmp_dir, ctx)
         assert result == ".gitignore"
@@ -1502,6 +1627,7 @@ class TestCodexLegacyHelpers:
 
     def test_scaffold_readme(self, tmp_dir):
         from vcsx.generators.codex import _scaffold_readme
+
         ctx = ProjectContext(project_name="my-proj", language="python")
         result = _scaffold_readme(tmp_dir, ctx)
         assert result == "README.md"
@@ -1525,6 +1651,7 @@ class TestCopilotPurposeProblem:
 class TestCodexGeneratorFullCoverage:
     def test_codex_with_purpose_problem(self, tmp_dir):
         from vcsx.generators.codex import CodexGenerator
+
         ctx = ProjectContext(
             project_name="my-api",
             language="python",
@@ -1538,6 +1665,7 @@ class TestCodexGeneratorFullCoverage:
 
     def test_codex_scaffold_api_dirs(self, tmp_dir):
         from vcsx.generators.codex import CodexGenerator
+
         ctx = ProjectContext(project_name="my-api", language="python", project_type="api")
         gen = CodexGenerator()
         result = gen.generate_scaffold(ctx, tmp_dir)
@@ -1545,6 +1673,7 @@ class TestCodexGeneratorFullCoverage:
 
     def test_codex_config_has_rules(self, tmp_dir):
         from vcsx.generators.codex import CodexGenerator
+
         ctx = ProjectContext(project_name="test", language="go")
         gen = CodexGenerator()
         content = gen.generate_config(ctx, tmp_dir)
@@ -1552,6 +1681,7 @@ class TestCodexGeneratorFullCoverage:
 
     def test_codex_agents_returns_list(self, ctx, tmp_dir):
         from vcsx.generators.codex import CodexGenerator
+
         gen = CodexGenerator()
         result = gen.generate_agents(ctx, tmp_dir)
         assert isinstance(result, list)
@@ -1562,6 +1692,7 @@ class TestCodexGeneratorExtended:
 
     def test_codex_scaffold_typescript(self, tmp_dir):
         from vcsx.generators.codex import CodexGenerator
+
         ctx = ProjectContext(
             project_name="my-ts-app",
             language="typescript",
@@ -1575,6 +1706,7 @@ class TestCodexGeneratorExtended:
 
     def test_codex_scaffold_python(self, tmp_dir):
         from vcsx.generators.codex import CodexGenerator
+
         ctx = ProjectContext(project_name="my-py", language="python")
         gen = CodexGenerator()
         result = gen.generate_scaffold(ctx, tmp_dir)
@@ -1582,6 +1714,7 @@ class TestCodexGeneratorExtended:
 
     def test_codex_scaffold_go(self, tmp_dir):
         from vcsx.generators.codex import CodexGenerator
+
         ctx = ProjectContext(project_name="my-go", language="go")
         gen = CodexGenerator()
         result = gen.generate_scaffold(ctx, tmp_dir)
@@ -1590,6 +1723,7 @@ class TestCodexGeneratorExtended:
 
     def test_codex_config_content(self, ctx, tmp_dir):
         from vcsx.generators.codex import CodexGenerator
+
         gen = CodexGenerator()
         content = gen.generate_config(ctx, tmp_dir)
         assert "test-project" in content
@@ -1597,12 +1731,14 @@ class TestCodexGeneratorExtended:
 
     def test_codex_hooks_returns_dict(self, ctx, tmp_dir):
         from vcsx.generators.codex import CodexGenerator
+
         gen = CodexGenerator()
         result = gen.generate_hooks(ctx, tmp_dir)
         assert isinstance(result, dict)
 
     def test_codex_has_rules_section(self, tmp_dir):
         from vcsx.generators.codex import CodexGenerator
+
         ctx = ProjectContext(project_name="no-test", language="python")
         gen = CodexGenerator()
         content = gen.generate_config(ctx, tmp_dir)
@@ -1623,6 +1759,7 @@ class TestMultiToolInit:
     def test_all_generators_no_conflict(self, ctx, tmp_dir):
         """All 10 generators should be able to run on the same directory."""
         from vcsx.generators.registry import get_all_generators
+
         gens = get_all_generators()
         for gen in gens:
             # Should not raise
@@ -1631,12 +1768,14 @@ class TestMultiToolInit:
     def test_generator_output_files_unique(self):
         """Each generator should produce unique primary config files."""
         from vcsx.generators.registry import get_all_generators
+
         all_primary_files = set()
         for gen in get_all_generators():
             # Just check no generator claims identical file sets
             files = tuple(sorted(gen.output_files))
-            assert files not in all_primary_files or gen.name in ("agents-md", "gemini"), \
+            assert files not in all_primary_files or gen.name in ("agents-md", "gemini"), (
                 f"Generator {gen.name} has non-unique output files"
+            )
             all_primary_files.add(files)
 
 
@@ -1645,99 +1784,118 @@ class TestSharedHelpersFullCoverage:
 
     def test_setup_cmd_python_with_pyproject(self):
         from vcsx.generators._shared import get_setup_cmd
+
         ctx = ProjectContext(language="python", tech_stack="pyproject, fastapi")
         assert ".[dev]" in get_setup_cmd(ctx)
 
     def test_setup_cmd_python_with_uv(self):
         from vcsx.generators._shared import get_setup_cmd
+
         ctx = ProjectContext(language="python", tech_stack="uv, ruff")
         assert ".[dev]" in get_setup_cmd(ctx)
 
     def test_setup_cmd_typescript_yarn(self):
         from vcsx.generators._shared import get_setup_cmd
+
         ctx = ProjectContext(language="typescript", tech_stack="yarn, react")
         assert "yarn install" == get_setup_cmd(ctx)
 
     def test_setup_cmd_javascript_pnpm(self):
         from vcsx.generators._shared import get_setup_cmd
+
         ctx = ProjectContext(language="javascript", tech_stack="pnpm, vue")
         assert "pnpm install" == get_setup_cmd(ctx)
 
     def test_build_cmd_javascript(self):
         from vcsx.generators._shared import get_build_cmd
+
         ctx = ProjectContext(language="javascript", tech_stack="pnpm, vue")
         assert "build" in get_build_cmd(ctx)
 
     def test_build_cmd_java(self):
         from vcsx.generators._shared import get_build_cmd
+
         ctx = ProjectContext(language="java")
         assert "mvn" in get_build_cmd(ctx)
 
     def test_dev_cmd_pnpm_typescript(self):
         from vcsx.generators._shared import get_dev_cmd
+
         ctx = ProjectContext(language="typescript", tech_stack="pnpm, next")
         assert "pnpm run dev" == get_dev_cmd(ctx)
 
     def test_dev_cmd_go(self):
         from vcsx.generators._shared import get_dev_cmd
+
         ctx = ProjectContext(language="go")
         assert "go run" in get_dev_cmd(ctx)
 
     def test_dev_cmd_rust(self):
         from vcsx.generators._shared import get_dev_cmd
+
         ctx = ProjectContext(language="rust")
         assert "cargo run" == get_dev_cmd(ctx)
 
     def test_dev_cmd_fallback(self):
         from vcsx.generators._shared import get_dev_cmd
+
         ctx = ProjectContext(language="cobol")
         assert "npm run dev" == get_dev_cmd(ctx)
 
     def test_test_cmd_jest(self):
         from vcsx.generators._shared import get_test_cmd
+
         ctx = ProjectContext(test_framework="jest")
         assert "jest" in get_test_cmd(ctx)
 
     def test_test_cmd_java_fallback(self):
         from vcsx.generators._shared import get_test_cmd
+
         ctx = ProjectContext(language="java")
         assert "mvn test" == get_test_cmd(ctx)
 
     def test_test_cmd_none_level(self):
         from vcsx.generators._shared import get_test_cmd
+
         ctx = ProjectContext(test_level="none")
         assert "No tests" in get_test_cmd(ctx)
 
     def test_style_rules_rust(self):
         from vcsx.generators._shared import get_style_rules
+
         ctx = ProjectContext(language="rust")
         rules = get_style_rules(ctx)
         assert any("rustfmt" in r for r in rules)
 
     def test_style_rules_java(self):
         from vcsx.generators._shared import get_style_rules
+
         ctx = ProjectContext(language="java")
         rules = get_style_rules(ctx)
         assert any("camelCase" in r for r in rules)
 
     def test_style_rules_unknown_lang(self):
         from vcsx.generators._shared import get_style_rules
+
         ctx = ProjectContext(language="cobol")
         rules = get_style_rules(ctx)
         assert len(rules) > 0
 
     def test_lint_cmd_inferred_typescript(self):
         from vcsx.generators._shared import get_lint_cmd
+
         ctx = ProjectContext(language="typescript")
         assert "eslint" in get_lint_cmd(ctx)
 
     def test_format_cmd_inferred_python(self):
         from vcsx.generators._shared import get_format_cmd
+
         ctx = ProjectContext(language="python")
         assert "ruff" in get_format_cmd(ctx)
 
     def test_commands_block_go(self):
         from vcsx.generators._shared import get_commands_block
+
         ctx = ProjectContext(language="go")
         block = get_commands_block(ctx)
         assert "go" in block
@@ -1748,64 +1906,76 @@ class TestSharedHelpersExtended:
 
     def test_setup_cmd_rust(self):
         from vcsx.generators._shared import get_setup_cmd
+
         ctx = ProjectContext(language="rust")
         assert "cargo" in get_setup_cmd(ctx)
 
     def test_setup_cmd_java(self):
         from vcsx.generators._shared import get_setup_cmd
+
         ctx = ProjectContext(language="java")
         assert "mvn" in get_setup_cmd(ctx)
 
     def test_build_cmd_rust(self):
         from vcsx.generators._shared import get_build_cmd
+
         ctx = ProjectContext(language="rust")
         assert "cargo" in get_build_cmd(ctx)
 
     def test_build_cmd_go(self):
         from vcsx.generators._shared import get_build_cmd
+
         ctx = ProjectContext(language="go")
         assert "go build" in get_build_cmd(ctx)
 
     def test_dev_cmd_django(self):
         from vcsx.generators._shared import get_dev_cmd
+
         ctx = ProjectContext(language="python", framework="Django")
         assert "manage.py" in get_dev_cmd(ctx)
 
     def test_dev_cmd_flask(self):
         from vcsx.generators._shared import get_dev_cmd
+
         ctx = ProjectContext(language="python", framework="Flask")
         assert "flask" in get_dev_cmd(ctx)
 
     def test_style_rules_typescript(self):
         from vcsx.generators._shared import get_style_rules
+
         ctx = ProjectContext(language="typescript")
         rules = get_style_rules(ctx)
         assert any("const" in r for r in rules)
 
     def test_style_rules_go(self):
         from vcsx.generators._shared import get_style_rules
+
         ctx = ProjectContext(language="go")
         rules = get_style_rules(ctx)
         assert any("gofmt" in r for r in rules)
 
     def test_style_rules_data_pipeline(self):
         from vcsx.generators._shared import get_style_rules
+
         ctx = ProjectContext(language="python", project_type="data-pipeline")
         rules = get_style_rules(ctx)
         assert any("chunk" in r.lower() for r in rules)
 
     def test_lint_cmd_uses_ctx_linter(self):
         from vcsx.generators._shared import get_lint_cmd
+
         ctx = ProjectContext(linter="custom-linter")
         assert get_lint_cmd(ctx) == "custom-linter"
 
     def test_format_cmd_uses_ctx_formatter(self):
         from vcsx.generators._shared import get_format_cmd
+
         ctx = ProjectContext(formatter="custom-formatter")
         assert get_format_cmd(ctx) == "custom-formatter"
 
     def test_test_cmd_no_framework_fallback(self):
         from vcsx.generators._shared import get_test_cmd
+
         ctx = ProjectContext(language="rust")
         assert "cargo test" in get_test_cmd(ctx)
 
@@ -1815,41 +1985,49 @@ class TestSharedHelpers:
 
     def test_setup_cmd_python(self):
         from vcsx.generators._shared import get_setup_cmd
+
         ctx = ProjectContext(language="python")
         assert "pip install" in get_setup_cmd(ctx)
 
     def test_setup_cmd_typescript(self):
         from vcsx.generators._shared import get_setup_cmd
+
         ctx = ProjectContext(language="typescript")
         assert "npm install" in get_setup_cmd(ctx)
 
     def test_setup_cmd_go(self):
         from vcsx.generators._shared import get_setup_cmd
+
         ctx = ProjectContext(language="go")
         assert "go mod tidy" == get_setup_cmd(ctx)
 
     def test_setup_cmd_pnpm(self):
         from vcsx.generators._shared import get_setup_cmd
+
         ctx = ProjectContext(language="typescript", tech_stack="pnpm, react")
         assert "pnpm install" == get_setup_cmd(ctx)
 
     def test_test_cmd_python(self):
         from vcsx.generators._shared import get_test_cmd
+
         ctx = ProjectContext(language="python")
         assert "pytest" == get_test_cmd(ctx)
 
     def test_test_cmd_vitest(self):
         from vcsx.generators._shared import get_test_cmd
+
         ctx = ProjectContext(test_framework="vitest")
         assert "vitest" in get_test_cmd(ctx)
 
     def test_test_cmd_go(self):
         from vcsx.generators._shared import get_test_cmd
+
         ctx = ProjectContext(language="go")
         assert "go test" in get_test_cmd(ctx)
 
     def test_style_rules_python(self):
         from vcsx.generators._shared import get_style_rules
+
         ctx = ProjectContext(language="python")
         rules = get_style_rules(ctx)
         assert any("PEP 8" in r for r in rules)
@@ -1857,12 +2035,14 @@ class TestSharedHelpers:
 
     def test_style_rules_api_additions(self):
         from vcsx.generators._shared import get_style_rules
+
         ctx = ProjectContext(language="python", project_type="api")
         rules = get_style_rules(ctx)
         assert any("HTTP status" in r for r in rules)
 
     def test_commands_block_format(self):
         from vcsx.generators._shared import get_commands_block
+
         ctx = ProjectContext(language="python", test_framework="pytest")
         block = get_commands_block(ctx)
         assert "```bash" in block
@@ -1871,11 +2051,13 @@ class TestSharedHelpers:
 
     def test_dev_cmd_fastapi(self):
         from vcsx.generators._shared import get_dev_cmd
+
         ctx = ProjectContext(language="python", framework="FastAPI")
         assert "uvicorn" in get_dev_cmd(ctx)
 
     def test_dev_cmd_typescript(self):
         from vcsx.generators._shared import get_dev_cmd
+
         ctx = ProjectContext(language="typescript")
         assert "npm run dev" in get_dev_cmd(ctx)
 
@@ -1886,6 +2068,7 @@ class TestNewProjectScaffold:
     def test_scaffold_python_api(self, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.core.inference import infer_formatter, infer_linter, infer_test_framework
+
         ctx = ProjectContext(
             project_name="my-api",
             project_type="api",
@@ -1903,6 +2086,7 @@ class TestNewProjectScaffold:
 
     def test_scaffold_typescript_web(self, tmp_dir):
         from vcsx.core.context import ProjectContext
+
         ctx = ProjectContext(
             project_name="my-app",
             project_type="web",
@@ -1918,6 +2102,7 @@ class TestNewProjectScaffold:
     def test_multi_tool_scaffold(self, tmp_dir):
         from vcsx.core.context import ProjectContext
         from vcsx.generators.gemini import GeminiGenerator
+
         ctx = ProjectContext(
             project_name="my-project",
             project_type="api",
@@ -1968,6 +2153,7 @@ class TestDoctorDetection:
         """Gemini and AGENTS.md can coexist in same project."""
         from vcsx.generators.gemini import GeminiGenerator
         from vcsx.generators.agents_md import AgentsMdGenerator
+
         GeminiGenerator().generate_all(ctx, tmp_dir)
         AgentsMdGenerator().generate_all(ctx, tmp_dir)
         assert (Path(tmp_dir) / "GEMINI.md").exists()
@@ -1979,6 +2165,7 @@ class TestWindsurfGoRustLanguages:
 
     def test_go_rules_file_generated(self, tmp_dir):
         from vcsx.generators.windsurf import WindsurfGenerator
+
         ctx = ProjectContext(project_name="go-app", language="go")
         gen = WindsurfGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -1987,6 +2174,7 @@ class TestWindsurfGoRustLanguages:
 
     def test_go_rules_content(self, tmp_dir):
         from vcsx.generators.windsurf import WindsurfGenerator
+
         ctx = ProjectContext(project_name="go-app", language="go")
         gen = WindsurfGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -1998,6 +2186,7 @@ class TestWindsurfGoRustLanguages:
 
     def test_rust_rules_file_generated(self, tmp_dir):
         from vcsx.generators.windsurf import WindsurfGenerator
+
         ctx = ProjectContext(project_name="rust-app", language="rust")
         gen = WindsurfGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -2006,6 +2195,7 @@ class TestWindsurfGoRustLanguages:
 
     def test_rust_rules_content(self, tmp_dir):
         from vcsx.generators.windsurf import WindsurfGenerator
+
         ctx = ProjectContext(project_name="rust-app", language="rust")
         gen = WindsurfGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -2017,6 +2207,7 @@ class TestWindsurfGoRustLanguages:
 
     def test_go_no_rust_rules(self, tmp_dir):
         from vcsx.generators.windsurf import WindsurfGenerator
+
         ctx = ProjectContext(project_name="go-app", language="go")
         gen = WindsurfGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -2025,6 +2216,7 @@ class TestWindsurfGoRustLanguages:
 
     def test_rust_no_go_rules(self, tmp_dir):
         from vcsx.generators.windsurf import WindsurfGenerator
+
         ctx = ProjectContext(project_name="rust-app", language="rust")
         gen = WindsurfGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -2033,6 +2225,7 @@ class TestWindsurfGoRustLanguages:
 
     def test_go_core_conventions_uses_gofmt(self, tmp_dir):
         from vcsx.generators.windsurf import WindsurfGenerator
+
         ctx = ProjectContext(project_name="go-app", language="go")
         gen = WindsurfGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -2041,6 +2234,7 @@ class TestWindsurfGoRustLanguages:
 
     def test_rust_core_conventions_uses_cargo_fmt(self, tmp_dir):
         from vcsx.generators.windsurf import WindsurfGenerator
+
         ctx = ProjectContext(project_name="rust-app", language="rust")
         gen = WindsurfGenerator()
         gen.generate_config(ctx, tmp_dir)
@@ -2049,43 +2243,51 @@ class TestWindsurfGoRustLanguages:
 
     def test_go_test_cmd(self, tmp_dir):
         from vcsx.generators.windsurf import _get_test_cmd
+
         ctx = ProjectContext(project_name="go-app", language="go")
         assert "go test" in _get_test_cmd(ctx)
 
     def test_rust_test_cmd(self, tmp_dir):
         from vcsx.generators.windsurf import _get_test_cmd
+
         ctx = ProjectContext(project_name="rust-app", language="rust")
         assert "cargo test" in _get_test_cmd(ctx)
 
     def test_go_build_cmd(self, tmp_dir):
         from vcsx.generators.windsurf import _get_build_cmd
+
         ctx = ProjectContext(project_name="go-app", language="go")
         assert "go build" in _get_build_cmd(ctx)
 
     def test_rust_build_cmd(self, tmp_dir):
         from vcsx.generators.windsurf import _get_build_cmd
+
         ctx = ProjectContext(project_name="rust-app", language="rust")
         assert "cargo build" in _get_build_cmd(ctx)
 
     def test_go_style_rules(self, tmp_dir):
         from vcsx.generators.windsurf import _get_style_rules
+
         ctx = ProjectContext(project_name="go-app", language="go")
         rules = _get_style_rules(ctx)
         assert any("gofmt" in r.lower() or "go" in r.lower() for r in rules)
 
     def test_rust_style_rules(self, tmp_dir):
         from vcsx.generators.windsurf import _get_style_rules
+
         ctx = ProjectContext(project_name="rust-app", language="rust")
         rules = _get_style_rules(ctx)
         assert any("rustfmt" in r.lower() or "clippy" in r.lower() for r in rules)
 
     def test_go_ext(self, tmp_dir):
         from vcsx.generators.windsurf import _get_ext
+
         ctx = ProjectContext(project_name="go-app", language="go")
         assert _get_ext(ctx) == "go"
 
     def test_rust_ext(self, tmp_dir):
         from vcsx.generators.windsurf import _get_ext
+
         ctx = ProjectContext(project_name="rust-app", language="rust")
         assert _get_ext(ctx) == "rs"
 
@@ -2095,6 +2297,7 @@ class TestAiderContextEnriched:
 
     def test_context_has_lint_cmd(self, tmp_dir):
         from vcsx.generators.aider import AiderGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
@@ -2103,6 +2306,7 @@ class TestAiderContextEnriched:
 
     def test_context_has_format_cmd(self, tmp_dir):
         from vcsx.generators.aider import AiderGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
@@ -2111,6 +2315,7 @@ class TestAiderContextEnriched:
 
     def test_context_has_file_structure(self, tmp_dir):
         from vcsx.generators.aider import AiderGenerator
+
         ctx = ProjectContext(project_name="myapp", language="python")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
@@ -2120,6 +2325,7 @@ class TestAiderContextEnriched:
 
     def test_context_has_architecture_overview(self, tmp_dir):
         from vcsx.generators.aider import AiderGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
@@ -2128,6 +2334,7 @@ class TestAiderContextEnriched:
 
     def test_context_has_key_decisions(self, tmp_dir):
         from vcsx.generators.aider import AiderGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
@@ -2136,6 +2343,7 @@ class TestAiderContextEnriched:
 
     def test_context_has_gotchas(self, tmp_dir):
         from vcsx.generators.aider import AiderGenerator
+
         ctx = ProjectContext(project_name="test", language="python")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
@@ -2144,6 +2352,7 @@ class TestAiderContextEnriched:
 
     def test_go_context_gotchas(self, tmp_dir):
         from vcsx.generators.aider import AiderGenerator
+
         ctx = ProjectContext(project_name="go-app", language="go")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
@@ -2152,6 +2361,7 @@ class TestAiderContextEnriched:
 
     def test_rust_context_gotchas(self, tmp_dir):
         from vcsx.generators.aider import AiderGenerator
+
         ctx = ProjectContext(project_name="rust-app", language="rust")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
@@ -2160,6 +2370,7 @@ class TestAiderContextEnriched:
 
     def test_go_context_file_structure(self, tmp_dir):
         from vcsx.generators.aider import AiderGenerator
+
         ctx = ProjectContext(project_name="go-app", language="go")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
@@ -2169,6 +2380,7 @@ class TestAiderContextEnriched:
 
     def test_rust_context_file_structure(self, tmp_dir):
         from vcsx.generators.aider import AiderGenerator
+
         ctx = ProjectContext(project_name="rust-app", language="rust")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
@@ -2178,35 +2390,42 @@ class TestAiderContextEnriched:
 
     def test_go_lint_cmd(self, tmp_dir):
         from vcsx.generators.aider import _get_lint_cmd
+
         ctx = ProjectContext(project_name="go-app", language="go")
         assert "golangci-lint" in _get_lint_cmd(ctx)
 
     def test_rust_lint_cmd(self, tmp_dir):
         from vcsx.generators.aider import _get_lint_cmd
+
         ctx = ProjectContext(project_name="rust-app", language="rust")
         assert "clippy" in _get_lint_cmd(ctx)
 
     def test_python_lint_cmd(self, tmp_dir):
         from vcsx.generators.aider import _get_lint_cmd
+
         ctx = ProjectContext(project_name="app", language="python")
         assert "ruff" in _get_lint_cmd(ctx)
 
     def test_go_format_cmd(self, tmp_dir):
         from vcsx.generators.aider import _get_format_cmd
+
         ctx = ProjectContext(project_name="go-app", language="go")
         assert "gofmt" in _get_format_cmd(ctx)
 
     def test_rust_format_cmd(self, tmp_dir):
         from vcsx.generators.aider import _get_format_cmd
+
         ctx = ProjectContext(project_name="rust-app", language="rust")
         assert "cargo fmt" in _get_format_cmd(ctx)
 
     def test_custom_linter_respected(self, tmp_dir):
         from vcsx.generators.aider import _get_lint_cmd
+
         ctx = ProjectContext(project_name="app", language="go", linter="my-linter")
         assert _get_lint_cmd(ctx) == "my-linter"
 
     def test_custom_formatter_respected(self, tmp_dir):
         from vcsx.generators.aider import _get_format_cmd
+
         ctx = ProjectContext(project_name="app", language="rust", formatter="my-fmt")
         assert _get_format_cmd(ctx) == "my-fmt"

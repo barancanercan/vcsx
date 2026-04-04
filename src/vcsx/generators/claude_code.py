@@ -4585,7 +4585,8 @@ def _scaffold_precommit_config(output_dir: str, ctx: ProjectContext) -> str:
         additional_dependencies: ["types-requests", "types-PyYAML"]
         args: ["--ignore-missing-imports"]"""
 
-        test_hook = f"""
+        test_hook = (
+            f"""
   - repo: local
     hooks:
       - id: pytest-fast
@@ -4594,7 +4595,10 @@ def _scaffold_precommit_config(output_dir: str, ctx: ProjectContext) -> str:
         language: system
         pass_filenames: false
         always_run: false
-        stages: [pre-push]""" if test_cmd or lang == "python" else ""
+        stages: [pre-push]"""
+            if test_cmd or lang == "python"
+            else ""
+        )
 
     elif lang in ("typescript", "javascript"):
         lang_hooks = """

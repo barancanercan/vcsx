@@ -14,6 +14,7 @@ from vcsx.plugins import (
 
 # --- Fixtures / helpers ---
 
+
 class ConcretePlugin(Plugin):
     """Minimal concrete plugin for testing."""
 
@@ -48,6 +49,7 @@ class ConcretePlugin(Plugin):
 
 # --- PluginMetadata ---
 
+
 class TestPluginMetadata:
     def test_defaults(self):
         meta = PluginMetadata(name="foo")
@@ -75,6 +77,7 @@ class TestPluginMetadata:
 
 
 # --- Plugin base ---
+
 
 class TestPlugin:
     def test_initial_state(self):
@@ -112,6 +115,7 @@ class TestPlugin:
 
 
 # --- PluginRegistry ---
+
 
 class TestPluginRegistry:
     def test_register_and_get(self):
@@ -168,6 +172,7 @@ class TestPluginRegistry:
 
 # --- Hooks ---
 
+
 class TestHooks:
     def test_add_and_trigger_hook(self):
         registry = PluginRegistry()
@@ -217,6 +222,7 @@ class TestHooks:
 
 # --- Global registry ---
 
+
 class TestGlobalRegistry:
     def test_get_registry_returns_same_instance(self):
         r1 = get_registry()
@@ -229,12 +235,14 @@ class TestGlobalRegistry:
 
 # --- load_default_plugins ---
 
+
 class TestLoadDefaultPlugins:
     def test_runs_without_error(self):
         load_default_plugins()  # should not raise
 
 
 # --- discover_plugins ---
+
 
 class TestDiscoverPlugins:
     def test_returns_list(self):

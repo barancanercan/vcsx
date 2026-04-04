@@ -264,88 +264,104 @@ ensure_final_newline = true
 
         # Add watch mode if applicable
         if "vitest" in test:
-            tasks.append({
-                "label": "Test: watch",
-                "command": "npx vitest",
-                "allow_concurrent_runs": False,
-                "reveal": "always",
-            })
+            tasks.append(
+                {
+                    "label": "Test: watch",
+                    "command": "npx vitest",
+                    "allow_concurrent_runs": False,
+                    "reveal": "always",
+                }
+            )
         elif lang == "python":
-            tasks.append({
-                "label": "Test: watch (ptw)",
-                "command": "ptw -- -q",
-                "allow_concurrent_runs": False,
-                "reveal": "always",
-            })
+            tasks.append(
+                {
+                    "label": "Test: watch (ptw)",
+                    "command": "ptw -- -q",
+                    "allow_concurrent_runs": False,
+                    "reveal": "always",
+                }
+            )
 
         # Add language-specific extras
         if lang == "python":
-            tasks.extend([
-                {
-                    "label": "Coverage report",
-                    "command": "pytest --cov=src --cov-report=term-missing -q",
-                    "allow_concurrent_runs": False,
-                    "reveal": "always",
-                },
-                {
-                    "label": "Type check",
-                    "command": "pyright src/" if ctx.linter and "ruff" in ctx.linter else "mypy src/",
-                    "allow_concurrent_runs": False,
-                    "reveal": "on_problem",
-                },
-            ])
+            tasks.extend(
+                [
+                    {
+                        "label": "Coverage report",
+                        "command": "pytest --cov=src --cov-report=term-missing -q",
+                        "allow_concurrent_runs": False,
+                        "reveal": "always",
+                    },
+                    {
+                        "label": "Type check",
+                        "command": "pyright src/"
+                        if ctx.linter and "ruff" in ctx.linter
+                        else "mypy src/",
+                        "allow_concurrent_runs": False,
+                        "reveal": "on_problem",
+                    },
+                ]
+            )
         elif lang in ("typescript", "javascript"):
-            tasks.extend([
-                {
-                    "label": "Type check",
-                    "command": "npx tsc --noEmit",
-                    "allow_concurrent_runs": False,
-                    "reveal": "on_problem",
-                },
-                {
-                    "label": "Coverage report",
-                    "command": "npx vitest run --coverage",
-                    "allow_concurrent_runs": False,
-                    "reveal": "always",
-                },
-            ])
+            tasks.extend(
+                [
+                    {
+                        "label": "Type check",
+                        "command": "npx tsc --noEmit",
+                        "allow_concurrent_runs": False,
+                        "reveal": "on_problem",
+                    },
+                    {
+                        "label": "Coverage report",
+                        "command": "npx vitest run --coverage",
+                        "allow_concurrent_runs": False,
+                        "reveal": "always",
+                    },
+                ]
+            )
         elif lang == "go":
-            tasks.extend([
-                {
-                    "label": "Vet",
-                    "command": "go vet ./...",
-                    "allow_concurrent_runs": False,
-                    "reveal": "on_problem",
-                },
-                {
-                    "label": "Test: race",
-                    "command": "go test -race ./...",
-                    "allow_concurrent_runs": False,
-                    "reveal": "always",
-                },
-            ])
+            tasks.extend(
+                [
+                    {
+                        "label": "Vet",
+                        "command": "go vet ./...",
+                        "allow_concurrent_runs": False,
+                        "reveal": "on_problem",
+                    },
+                    {
+                        "label": "Test: race",
+                        "command": "go test -race ./...",
+                        "allow_concurrent_runs": False,
+                        "reveal": "always",
+                    },
+                ]
+            )
         elif lang == "rust":
-            tasks.extend([
-                {
-                    "label": "Clippy",
-                    "command": "cargo clippy -- -D warnings",
-                    "allow_concurrent_runs": False,
-                    "reveal": "on_problem",
-                },
-                {
-                    "label": "Test: release",
-                    "command": "cargo test --release",
-                    "allow_concurrent_runs": False,
-                    "reveal": "always",
-                },
-            ])
+            tasks.extend(
+                [
+                    {
+                        "label": "Clippy",
+                        "command": "cargo clippy -- -D warnings",
+                        "allow_concurrent_runs": False,
+                        "reveal": "on_problem",
+                    },
+                    {
+                        "label": "Test: release",
+                        "command": "cargo test --release",
+                        "allow_concurrent_runs": False,
+                        "reveal": "always",
+                    },
+                ]
+            )
 
         tasks_content = json.dumps(tasks, indent=2)
         (zed_dir / "tasks.json").write_text(tasks_content, encoding="utf-8")
 
         # Generate keybindings.json — project-level custom keybindings
         keybindings = _generate_keybindings(ctx)
-        (zed_dir / "keybindings.json").write_text(json.dumps(keybindings, indent=2), encoding="utf-8")
+        (zed_dir / "keybindings.json").write_text(
+            json.dumps(keybindings, indent=2), encoding="utf-8"
+        )
 
         return ["tasks.json", "keybindings.json"]
 
@@ -399,32 +415,38 @@ def _generate_keybindings(ctx: ProjectContext) -> list[dict]:
 
     # Language-server specific actions
     if lang == "python":
-        bindings.append({
-            "context": "Editor && language == Python",
-            "bindings": {
-                "ctrl-shift-i": "editor::Rename",
-                "f12": "editor::GoToDefinition",
-                "alt-f12": "editor::GoToTypeDefinition",
-            },
-        })
+        bindings.append(
+            {
+                "context": "Editor && language == Python",
+                "bindings": {
+                    "ctrl-shift-i": "editor::Rename",
+                    "f12": "editor::GoToDefinition",
+                    "alt-f12": "editor::GoToTypeDefinition",
+                },
+            }
+        )
     elif lang in ("typescript", "javascript"):
-        bindings.append({
-            "context": "Editor && (language == TypeScript || language == JavaScript)",
-            "bindings": {
-                "ctrl-shift-i": "editor::Rename",
-                "f12": "editor::GoToDefinition",
-                "alt-f12": "editor::GoToTypeDefinition",
-                "ctrl-shift-o": "editor::ToggleOutline",
-            },
-        })
+        bindings.append(
+            {
+                "context": "Editor && (language == TypeScript || language == JavaScript)",
+                "bindings": {
+                    "ctrl-shift-i": "editor::Rename",
+                    "f12": "editor::GoToDefinition",
+                    "alt-f12": "editor::GoToTypeDefinition",
+                    "ctrl-shift-o": "editor::ToggleOutline",
+                },
+            }
+        )
     elif lang == "rust":
-        bindings.append({
-            "context": "Editor && language == Rust",
-            "bindings": {
-                "ctrl-shift-i": "editor::Rename",
-                "f12": "editor::GoToDefinition",
-                "ctrl-alt-r": "task::Spawn",
-            },
-        })
+        bindings.append(
+            {
+                "context": "Editor && language == Rust",
+                "bindings": {
+                    "ctrl-shift-i": "editor::Rename",
+                    "f12": "editor::GoToDefinition",
+                    "ctrl-alt-r": "task::Spawn",
+                },
+            }
+        )
 
     return bindings

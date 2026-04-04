@@ -1145,7 +1145,9 @@ def export_configs(path, output, include_all, fmt):
 
         if output:
             out_path = Path(output)
-            out_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+            out_path.write_text(
+                json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
             console.print(f"\n[green]✓ Exported {len(collected)} files → {out_path}[/]")
         else:
             console.print(json.dumps(manifest, indent=2, ensure_ascii=False))
@@ -1328,7 +1330,9 @@ def _show_git_stats(target: Path) -> None:
             text=True,
             timeout=5,
         )
-        recent_commits_raw = result_30d.stdout.strip().splitlines() if result_30d.returncode == 0 else []
+        recent_commits_raw = (
+            result_30d.stdout.strip().splitlines() if result_30d.returncode == 0 else []
+        )
         recent_count = len(recent_commits_raw)
 
         # Commit type breakdown (conventional commits)
@@ -1371,11 +1375,14 @@ def _show_git_stats(target: Path) -> None:
         git_table.add_row("Total commits", str(total_commits))
         git_table.add_row("Last 30 days", str(recent_count))
         git_table.add_row("First commit", first_commit)
-        git_table.add_row("Latest commit", last_commit[:80] if len(last_commit) > 80 else last_commit)
+        git_table.add_row(
+            "Latest commit", last_commit[:80] if len(last_commit) > 80 else last_commit
+        )
 
         if type_counts and recent_count > 0:
             type_summary = ", ".join(
-                f"{k}:{v}" for k, v in sorted(type_counts.items(), key=lambda x: -x[1])
+                f"{k}:{v}"
+                for k, v in sorted(type_counts.items(), key=lambda x: -x[1])
                 if k != "other"
             )
             if type_summary:
@@ -1862,13 +1869,18 @@ def show_version():
 
     changelog_path = Path(_vcsx_mod.__file__).parent.parent.parent / "CHANGELOG.md"
     if not changelog_path.exists():
-        for candidate in [Path("CHANGELOG.md"), Path(__file__).parent.parent.parent / "CHANGELOG.md"]:
+        for candidate in [
+            Path("CHANGELOG.md"),
+            Path(__file__).parent.parent.parent / "CHANGELOG.md",
+        ]:
             if candidate.exists():
                 changelog_path = candidate
                 break
 
     if not changelog_path.exists():
-        console.print("[dim]Changelog not found. See: https://github.com/barancanercan/vcsx/releases[/]")
+        console.print(
+            "[dim]Changelog not found. See: https://github.com/barancanercan/vcsx/releases[/]"
+        )
         return
 
     content = changelog_path.read_text(encoding="utf-8")

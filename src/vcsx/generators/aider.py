@@ -313,10 +313,13 @@ def _get_file_structure(ctx: ProjectContext) -> str:
 └── README.md""",
     }
 
-    template = structures.get(lang, """\
+    template = structures.get(
+        lang,
+        """\
 ├── src/
 ├── tests/
-└── (config files)""")
+└── (config files)""",
+    )
     return template.replace("{name}", ctx.project_name or "app")
 
 
@@ -349,10 +352,13 @@ This is a Python {project_type} project.
 - Config: environment variables via `.env` / `pydantic-settings`""",
     }
 
-    return overviews.get(lang, f"""\
+    return overviews.get(
+        lang,
+        f"""\
 This is a {project_type} project using {ctx.language or "the configured language"}.
 - Framework: {framework}
-- Follow existing patterns in the codebase.""")
+- Follow existing patterns in the codebase.""",
+    )
 
 
 def _get_key_decisions(ctx: ProjectContext) -> str:
@@ -378,10 +384,13 @@ def _get_key_decisions(ctx: ProjectContext) -> str:
 - **Pydantic for validation**: all external data validated at the boundary""",
     }
 
-    return decisions.get(lang, """\
+    return decisions.get(
+        lang,
+        """\
 - Follow existing patterns in the codebase
 - Document non-obvious decisions inline
-- Keep dependencies minimal""")
+- Keep dependencies minimal""",
+    )
 
 
 def _get_gotchas(ctx: ProjectContext) -> str:
@@ -411,10 +420,13 @@ def _get_gotchas(ctx: ProjectContext) -> str:
 - `ruff` replaces both `flake8` and `isort` — don't run both""",
     }
 
-    return gotchas.get(lang, """\
+    return gotchas.get(
+        lang,
+        """\
 - Check existing issues before starting new work
 - Run tests before committing
-- Review diff before pushing""")
+- Review diff before pushing""",
+    )
 
 
 def _get_language_dont_do(lang: str) -> str:

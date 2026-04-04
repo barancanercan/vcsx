@@ -172,6 +172,7 @@ class TestDetectInstalledAiTools:
     def test_detects_claude(self):
         def which_side(bin_name):
             return "/usr/bin/claude" if bin_name == "claude" else None
+
         with mock.patch("shutil.which", side_effect=which_side):
             result = detect_installed_ai_tools()
             assert "claude-code" in result

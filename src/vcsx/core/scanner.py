@@ -305,7 +305,7 @@ def _scan_package_swift(root: Path, result: dict) -> None:
 
             # Extract package name
             for line in content.splitlines():
-                if 'name:' in line and '"' in line:
+                if "name:" in line and '"' in line:
                     parts = line.split('"')
                     if len(parts) >= 2:
                         result["project_name"] = parts[1]

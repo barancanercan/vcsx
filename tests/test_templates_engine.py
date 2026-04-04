@@ -48,7 +48,9 @@ class TestRenderTemplate:
 
 class TestRenderTemplateFile:
     def test_basic_file_render(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False, encoding="utf-8") as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        ) as f:
             f.write("Project: {{name}}\nLang: {{lang}}")
             path = f.name
         try:
@@ -58,7 +60,9 @@ class TestRenderTemplateFile:
             os.unlink(path)
 
     def test_missing_variable_in_file(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False, encoding="utf-8") as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        ) as f:
             f.write("Hello {{missing}}")
             path = f.name
         try:
