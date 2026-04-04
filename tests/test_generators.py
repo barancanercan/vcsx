@@ -1141,6 +1141,81 @@ class TestZedGenerator:
     def test_output_files_property(self):
         gen = ZedGenerator()
         assert ".zed/settings.json" in gen.output_files
+        assert ".zed/keybindings.json" in gen.output_files
+
+    def test_tasks_json_created(self, ctx, tmp_dir):
+        gen = ZedGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        tasks_path = Path(tmp_dir) / ".zed" / "tasks.json"
+        assert tasks_path.exists()
+        data = json.loads(tasks_path.read_text())
+        assert isinstance(data, list)
+        labels = [t["label"] for t in data]
+        assert "Build" in labels
+        assert "Test: all" in labels
+        assert "Lint" in labels
+
+    def test_keybindings_json_created(self, ctx, tmp_dir):
+        gen = ZedGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        kb_path = Path(tmp_dir) / ".zed" / "keybindings.json"
+        assert kb_path.exists()
+        data = json.loads(kb_path.read_text())
+        assert isinstance(data, list)
+
+    def test_tasks_python_extras(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="pyproj", language="python", lang="en")
+        gen = ZedGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        data = json.loads((Path(tmp_dir) / ".zed" / "tasks.json").read_text())
+        labels = [t["label"] for t in data]
+        assert "Coverage report" in labels
+        assert "Type check" in labels
+
+    def test_tasks_typescript_extras(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="tsproj", language="typescript", lang="en")
+        gen = ZedGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        data = json.loads((Path(tmp_dir) / ".zed" / "tasks.json").read_text())
+        labels = [t["label"] for t in data]
+        assert "Type check" in labels
+        assert "Coverage report" in labels
+
+    def test_tasks_go_extras(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="goproj", language="go", lang="en")
+        gen = ZedGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        data = json.loads((Path(tmp_dir) / ".zed" / "tasks.json").read_text())
+        labels = [t["label"] for t in data]
+        assert "Vet" in labels
+
+    def test_tasks_rust_extras(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="rustproj", language="rust", lang="en")
+        gen = ZedGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        data = json.loads((Path(tmp_dir) / ".zed" / "tasks.json").read_text())
+        labels = [t["label"] for t in data]
+        assert "Clippy" in labels
+
+    def test_keybindings_python_context(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="pyproj", language="python", lang="en")
+        gen = ZedGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        data = json.loads((Path(tmp_dir) / ".zed" / "keybindings.json").read_text())
+        contexts = [kb.get("context", "") for kb in data]
+        assert any("Python" in c for c in contexts)
+
+    def test_tasks_allow_concurrent_field(self, ctx, tmp_dir):
+        gen = ZedGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        data = json.loads((Path(tmp_dir) / ".zed" / "tasks.json").read_text())
+        for task in data:
+            assert "allow_concurrent_runs" in task
 
 
 class TestCodexLegacyHelpers:
