@@ -77,9 +77,9 @@ class WindsurfGenerator(BaseGenerator):
         rules_dir.mkdir(parents=True, exist_ok=True)
 
         lang = (ctx.language or "").lower()
-        fmt = ctx.formatter or ("ruff format" if lang == "python" else "prettier")
-        lint = ctx.linter or ("ruff check" if lang == "python" else "eslint")
-        test_fw = ctx.test_framework or ("pytest" if lang == "python" else "vitest")
+        fmt = ctx.formatter or _default_formatter(lang)
+        lint = ctx.linter or _default_linter(lang)
+        test_fw = ctx.test_framework or _default_test_fw(lang)
 
         # Core conventions rule (always apply)
         (rules_dir / "core-conventions.md").write_text(
@@ -239,6 +239,130 @@ description: REST API design conventions — applied to route/controller files
                 encoding="utf-8",
             )
 
+        # Go-specific conventions
+        if lang == "go":
+            (rules_dir / "go-conventions.md").write_text(
+                f"""---
+alwaysApply: true
+description: Go language conventions — always applied for Go projects
+---
+
+# Go Conventions — {ctx.project_name}
+
+## Formatting & Linting
+- Run `gofmt -w .` before every commit — no exceptions.
+- Run `golangci-lint run` and fix ALL warnings before merging.
+- Use `goimports` to manage imports (groups: stdlib, external, internal).
+
+## Testing
+- Use `go test ./...` to run all tests.
+- Table-driven tests are preferred: `[]struct{{ name, input, want }}`
+- Test files: `*_test.go` in the same package.
+- Use `t.Helper()` in assertion helpers.
+- Benchmark critical paths with `func BenchmarkX(b *testing.B)`.
+
+## Code Style
+- `gofmt` defines style — don't fight it.
+- Exported names must have doc comments: `// FuncName does...`
+- Error strings: lowercase, no punctuation (`"invalid input"` not `"Invalid input."`)
+- Return errors, don't panic (except truly unrecoverable situations).
+- Use named return values sparingly — only when they clarify intent.
+
+## Error Handling
+- Always check returned errors — never `_` an error silently.
+- Wrap errors with context: `fmt.Errorf("parsing config: %w", err)`
+- Define sentinel errors as `var ErrX = errors.New("...")` in package scope.
+
+## Project Layout
+```
+{ctx.project_name}/
+├── cmd/           # Main applications (one dir per binary)
+├── internal/      # Private packages (not importable externally)
+├── pkg/           # Public library packages
+├── go.mod
+└── go.sum
+```
+
+## Performance
+- Prefer `[]byte` over `string` for heavy manipulation.
+- Use `sync.Pool` for frequently allocated temporary objects.
+- Profile before optimizing: `go tool pprof`.
+
+## Concurrency
+- Document goroutine ownership and lifetime.
+- Always cancel contexts when done — use `defer cancel()`.
+- Protect shared state with `sync.Mutex` or channels, not global vars.
+""",
+                encoding="utf-8",
+            )
+
+        # Rust-specific conventions
+        if lang == "rust":
+            (rules_dir / "rust-conventions.md").write_text(
+                f"""---
+alwaysApply: true
+description: Rust language conventions — always applied for Rust projects
+---
+
+# Rust Conventions — {ctx.project_name}
+
+## Formatting & Linting
+- Run `rustfmt` (via `cargo fmt`) before every commit.
+- Run `cargo clippy -- -D warnings` and fix ALL warnings before merging.
+- Enable `#![deny(warnings)]` in lib.rs for library crates.
+
+## Testing
+- Use `cargo test` to run all tests.
+- Unit tests: in the same file, inside `#[cfg(test)] mod tests {{ ... }}`.
+- Integration tests: in `tests/` directory at crate root.
+- Use `#[should_panic(expected = "...")]` for panic tests.
+- Doc tests count — keep examples in `/// # Examples` accurate.
+
+## Error Handling
+- Use `Result<T, E>` for fallible operations — no `unwrap()` in library code.
+- Define domain errors with `thiserror`: `#[derive(Debug, thiserror::Error)]`
+- Use `?` for propagation; add context with `.context("...")` (anyhow) or `.map_err`.
+- `panic!` only for programming errors (invariant violations), never for user input.
+- `unwrap()` / `expect()` are acceptable in tests and main(), not in library code.
+
+## Ownership & Borrowing
+- Prefer borrowing (`&T`, `&mut T`) over cloning unless ownership transfer is needed.
+- Use `Cow<str>` when a function may or may not need to own data.
+- Avoid `unsafe` unless absolutely necessary — document every `unsafe` block.
+
+## Code Style
+- Follow Rust API Guidelines: https://rust-lang.github.io/api-guidelines/
+- Public items must have doc comments (`///`).
+- Use `#[derive(Debug, Clone, PartialEq)]` liberally for data types.
+- Prefer iterators and combinators over manual loops.
+- Name lifetimes descriptively when non-trivial: `'conn` not `'a`.
+
+## Project Layout
+```
+{ctx.project_name}/
+├── src/
+│   ├── lib.rs      # Library root (if library crate)
+│   ├── main.rs     # Binary entry point (if binary crate)
+│   └── ...
+├── tests/          # Integration tests
+├── benches/        # Benchmarks (criterion)
+├── Cargo.toml
+└── Cargo.lock      # Commit for binaries, .gitignore for libraries
+```
+
+## Performance
+- Use `cargo bench` (criterion) for micro-benchmarks.
+- Prefer `Vec` + index over linked lists.
+- Avoid unnecessary allocations in hot paths — profile with `perf` or `flamegraph`.
+
+## Dependencies
+- Audit dependencies: `cargo audit`.
+- Minimize dependency count — prefer std where possible.
+- Pin versions in `Cargo.lock` for binaries; use ranges in libraries.
+""",
+                encoding="utf-8",
+            )
+
         # Data pipeline conventions
         if ctx.project_type in ("data-pipeline", "ml-model"):
             (rules_dir / "data-conventions.md").write_text(
@@ -374,13 +498,44 @@ This is a {ctx.project_type} project using {ctx.tech_stack}.
         return []
 
 
+def _default_formatter(lang: str) -> str:
+    return {
+        "python": "ruff format",
+        "go": "gofmt",
+        "rust": "cargo fmt",
+        "typescript": "prettier",
+        "javascript": "prettier",
+    }.get(lang, "prettier")
+
+
+def _default_linter(lang: str) -> str:
+    return {
+        "python": "ruff check",
+        "go": "golangci-lint run",
+        "rust": "cargo clippy -- -D warnings",
+        "typescript": "eslint",
+        "javascript": "eslint",
+    }.get(lang, "eslint")
+
+
+def _default_test_fw(lang: str) -> str:
+    return {
+        "python": "pytest",
+        "go": "go test",
+        "rust": "cargo test",
+        "typescript": "vitest",
+        "javascript": "vitest",
+    }.get(lang, "vitest")
+
+
 def _get_setup_cmd(ctx: ProjectContext) -> str:
     return {
         "typescript": "npm install",
         "javascript": "npm install",
         "python": "pip install -r requirements.txt",
         "go": "go mod tidy",
-    }.get(ctx.language, "npm install")
+        "rust": "cargo build",
+    }.get((ctx.language or "").lower(), "npm install")
 
 
 def _get_build_cmd(ctx: ProjectContext) -> str:
@@ -389,16 +544,24 @@ def _get_build_cmd(ctx: ProjectContext) -> str:
         "javascript": "npm run build",
         "python": "python -m compileall src/",
         "go": "go build ./...",
-    }.get(ctx.language, "npm run build")
+        "rust": "cargo build --release",
+    }.get((ctx.language or "").lower(), "npm run build")
 
 
 def _get_test_cmd(ctx: ProjectContext) -> str:
-    return {
-        "vitest": "npx vitest run",
-        "jest": "npx jest",
-        "pytest": "pytest",
-        "go test": "go test ./...",
-    }.get(ctx.test_framework or "pytest", "npm test")
+    fw = (ctx.test_framework or "").lower()
+    lang = (ctx.language or "").lower()
+    if fw == "vitest":
+        return "npx vitest run"
+    if fw == "jest":
+        return "npx jest"
+    if fw == "pytest" or (not fw and lang == "python"):
+        return "pytest"
+    if fw in ("go test", "go") or (not fw and lang == "go"):
+        return "go test ./..."
+    if fw == "cargo test" or (not fw and lang == "rust"):
+        return "cargo test"
+    return "npm test"
 
 
 def _get_style_rules(ctx: ProjectContext) -> list[str]:
@@ -415,8 +578,22 @@ def _get_style_rules(ctx: ProjectContext) -> list[str]:
             "snake_case for variables",
             "Docstrings for public functions",
         ],
+        "go": [
+            "Format with gofmt — no manual style overrides",
+            "Exported names must have doc comments",
+            "Error strings: lowercase, no punctuation",
+            "Return errors; avoid panic in library code",
+            "Use table-driven tests",
+        ],
+        "rust": [
+            "Format with rustfmt (cargo fmt) — non-negotiable",
+            "Run clippy with -D warnings before every commit",
+            "Prefer borrowing over cloning",
+            "No unwrap() in library code — use Result<T,E>",
+            "Document public items with /// doc comments",
+        ],
     }
-    return rules.get(ctx.language, ["Follow language idioms"])
+    return rules.get((ctx.language or "").lower(), ["Follow language idioms"])
 
 
 def _get_ext(ctx: ProjectContext) -> str:
@@ -425,5 +602,6 @@ def _get_ext(ctx: ProjectContext) -> str:
         "javascript": "js",
         "python": "py",
         "go": "go",
+        "rust": "rs",
     }
-    return exts.get(ctx.language, "*")
+    return exts.get((ctx.language or "").lower(), "*")

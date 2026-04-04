@@ -106,6 +106,7 @@ show-diffs: false
 
     def generate_skills(self, ctx: ProjectContext, output_dir: str) -> list[str]:
         """Generate .aider.context.md — always-loaded project context."""
+        lang = (ctx.language or "").lower()
         content = f"""# {ctx.project_name} — Aider Project Context
 
 > This file is automatically loaded by Aider as project context.
@@ -124,7 +125,7 @@ show-diffs: false
 - **Testing**: {ctx.test_framework or "None"}
 - **Hosting**: {ctx.hosting or "TBD"}
 
-## Commands
+## Common Commands
 ```bash
 # Setup
 {_get_setup_cmd(ctx)}
@@ -134,24 +135,41 @@ show-diffs: false
 
 # Test
 {_get_test_cmd(ctx)}
+
+# Lint
+{_get_lint_cmd(ctx)}
+
+# Format
+{_get_format_cmd(ctx)}
 ```
+
+## File Structure
+```
+{ctx.project_name}/
+{_get_file_structure(ctx)}
+```
+
+## Architecture Overview
+{_get_architecture_overview(ctx)}
+
+## Key Decisions
+{_get_key_decisions(ctx)}
+
+## Gotchas & Pitfalls
+{_get_gotchas(ctx)}
 
 ## Code Conventions
 - Follow conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`
 - Never commit secrets, API keys, or `.env` files
 - Write tests for new functionality
 - Keep commits atomic — one logical change per commit
-
-## Architecture
-The project is organized as a `{ctx.project_type}` application.
-{"Primary language: " + ctx.language if ctx.language else ""}
-{"Framework: " + ctx.framework if ctx.framework else ""}
+- Run formatter + linter before every commit
 
 ## What NOT to Do
 - Do not run `git push --force`
 - Do not modify production database migrations
 - Do not install global packages without updating requirements
-"""
+{_get_language_dont_do(lang)}"""
         (Path(output_dir) / ".aider.context.md").write_text(content, encoding="utf-8")
         return [".aider.context.md"]
 
@@ -226,3 +244,194 @@ def _format_read_files(files: list[str]) -> str:
     for f in files:
         lines.append(f"  - {f}")
     return "\n".join(lines) + "\n"
+
+
+def _get_lint_cmd(ctx: ProjectContext) -> str:
+    lang = (ctx.language or "").lower()
+    if ctx.linter:
+        return ctx.linter
+    return {
+        "python": "ruff check .",
+        "go": "golangci-lint run",
+        "rust": "cargo clippy -- -D warnings",
+        "typescript": "eslint src/",
+        "javascript": "eslint src/",
+    }.get(lang, "eslint src/")
+
+
+def _get_format_cmd(ctx: ProjectContext) -> str:
+    lang = (ctx.language or "").lower()
+    if ctx.formatter:
+        return ctx.formatter
+    return {
+        "python": "ruff format .",
+        "go": "gofmt -w .",
+        "rust": "cargo fmt",
+        "typescript": "prettier --write src/",
+        "javascript": "prettier --write src/",
+    }.get(lang, "prettier --write src/")
+
+
+def _get_file_structure(ctx: ProjectContext) -> str:
+    lang = (ctx.language or "").lower()
+
+    structures = {
+        "go": """\
+├── cmd/
+│   └── {name}/
+│       └── main.go
+├── internal/
+│   └── (private packages)
+├── pkg/
+│   └── (public packages)
+├── go.mod
+└── go.sum""",
+        "rust": """\
+├── src/
+│   ├── main.rs         # Binary entry point
+│   ├── lib.rs          # Library root (if dual crate)
+│   └── (modules)
+├── tests/              # Integration tests
+├── benches/            # Benchmarks
+├── Cargo.toml
+└── Cargo.lock""",
+        "python": """\
+├── src/
+│   └── {name}/
+│       ├── __init__.py
+│       └── (modules)
+├── tests/
+├── pyproject.toml
+└── README.md""",
+        "typescript": """\
+├── src/
+│   ├── index.ts
+│   └── (modules)
+├── tests/
+├── package.json
+├── tsconfig.json
+└── README.md""",
+    }
+
+    template = structures.get(lang, """\
+├── src/
+├── tests/
+└── (config files)""")
+    return template.replace("{name}", ctx.project_name or "app")
+
+
+def _get_architecture_overview(ctx: ProjectContext) -> str:
+    lang = (ctx.language or "").lower()
+    project_type = ctx.project_type or "application"
+    framework = ctx.framework or "none"
+
+    overviews = {
+        "go": f"""\
+This is a Go {project_type} project.
+- Entry point: `cmd/` directory (one sub-dir per binary)
+- Internal packages in `internal/` (not importable by external projects)
+- Public library packages in `pkg/`
+- Framework: {framework}
+- Error handling: explicit `error` returns, no panics in library code
+- Concurrency: goroutines + channels; all shared state protected""",
+        "rust": f"""\
+This is a Rust {project_type} project.
+- Entry point: `src/main.rs` (binary) or `src/lib.rs` (library)
+- Error handling: `Result<T, E>` throughout; `thiserror` for custom errors
+- Memory model: ownership + borrowing — avoid unnecessary clones
+- Async: tokio runtime (if async features present)
+- Framework: {framework}""",
+        "python": f"""\
+This is a Python {project_type} project.
+- Package layout: `src/{ctx.project_name or "app"}/` (src layout)
+- Framework: {framework}
+- Type hints used throughout; validate with mypy/pyright
+- Config: environment variables via `.env` / `pydantic-settings`""",
+    }
+
+    return overviews.get(lang, f"""\
+This is a {project_type} project using {ctx.language or "the configured language"}.
+- Framework: {framework}
+- Follow existing patterns in the codebase.""")
+
+
+def _get_key_decisions(ctx: ProjectContext) -> str:
+    lang = (ctx.language or "").lower()
+
+    decisions = {
+        "go": """\
+- **Standard library first**: use stdlib before reaching for external packages
+- **Explicit error handling**: all errors checked and wrapped with context
+- **Interface-based design**: accept interfaces, return concrete types
+- **Table-driven tests**: preferred pattern for comprehensive test coverage
+- **No global state**: dependencies injected via function parameters or structs""",
+        "rust": """\
+- **Zero-cost abstractions**: prefer iterators and traits over manual loops
+- **Error hierarchy**: `thiserror` for library errors, `anyhow` for binaries
+- **Fearless concurrency**: prefer message passing (channels) over shared memory
+- **Cargo features**: use feature flags for optional functionality
+- **No unwrap in library code**: all error paths explicitly handled""",
+        "python": """\
+- **Src layout**: code in `src/` to prevent import confusion during development
+- **Type hints everywhere**: enables better tooling and catches bugs early
+- **Dependency injection**: avoid module-level singletons; pass dependencies explicitly
+- **Pydantic for validation**: all external data validated at the boundary""",
+    }
+
+    return decisions.get(lang, """\
+- Follow existing patterns in the codebase
+- Document non-obvious decisions inline
+- Keep dependencies minimal""")
+
+
+def _get_gotchas(ctx: ProjectContext) -> str:
+    lang = (ctx.language or "").lower()
+
+    gotchas = {
+        "go": """\
+- `defer` in loops creates all defers before any run — be careful with file handles
+- Goroutine leaks: always cancel contexts and close channels
+- Shadowing `:=` in nested scopes can silently create new variables
+- `nil` maps can be read but not written to — initialize with `make(map[K]V)`
+- `range` copies values — use index or pointer for mutation
+- `http.DefaultClient` has no timeout — always set one explicitly""",
+        "rust": """\
+- Borrow checker: you cannot have mutable and immutable refs simultaneously
+- `String` vs `&str`: `String` owns data; `&str` is a borrowed slice
+- `clone()` is explicit — suspicious if overused in hot paths
+- Trait objects (`dyn Trait`) have runtime cost; generics are zero-cost
+- `unwrap()` panics at runtime — use `?` or `match` in production code
+- Lifetimes in structs: lifetime of struct ≤ lifetime of borrowed field
+- Async: `.await` only works inside `async fn`; don't block in async context""",
+        "python": """\
+- Mutable default arguments: `def f(x=[])` shares the list across calls — use `None`
+- Late binding closures in lambdas/loops: capture variable, not value
+- `__init__.py` imports affect package import time — keep them minimal
+- `pytest` fixture scope: module-scoped fixtures shared between tests (side effects!)
+- `ruff` replaces both `flake8` and `isort` — don't run both""",
+    }
+
+    return gotchas.get(lang, """\
+- Check existing issues before starting new work
+- Run tests before committing
+- Review diff before pushing""")
+
+
+def _get_language_dont_do(lang: str) -> str:
+    dont_dos = {
+        "go": """\
+- Do not use `panic` for expected error cases
+- Do not ignore errors with `_`
+- Do not use `init()` for complex initialization
+- Do not commit `vendor/` unless explicitly required""",
+        "rust": """\
+- Do not use `unwrap()` or `expect()` in library crate code
+- Do not use `unsafe` without a detailed comment explaining why
+- Do not commit `Cargo.lock` deletions for binary crates
+- Do not ignore clippy warnings — they exist for good reasons""",
+        "python": """\
+- Do not use bare `except:` — always specify the exception type
+- Do not use `os.system()` — use `subprocess.run()` with check=True
+- Do not mutate function default arguments""",
+    }
+    return dont_dos.get(lang, "")

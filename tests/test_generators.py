@@ -1596,3 +1596,241 @@ class TestDoctorDetection:
         AgentsMdGenerator().generate_all(ctx, tmp_dir)
         assert (Path(tmp_dir) / "GEMINI.md").exists()
         assert (Path(tmp_dir) / "AGENTS.md").exists()
+
+
+class TestWindsurfGoRustLanguages:
+    """Tests for Go and Rust language support in WindsurfGenerator."""
+
+    def test_go_rules_file_generated(self, tmp_dir):
+        from vcsx.generators.windsurf import WindsurfGenerator
+        ctx = ProjectContext(project_name="go-app", language="go")
+        gen = WindsurfGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        rules_dir = Path(tmp_dir) / ".windsurf" / "rules"
+        assert (rules_dir / "go-conventions.md").exists()
+
+    def test_go_rules_content(self, tmp_dir):
+        from vcsx.generators.windsurf import WindsurfGenerator
+        ctx = ProjectContext(project_name="go-app", language="go")
+        gen = WindsurfGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".windsurf" / "rules" / "go-conventions.md").read_text()
+        assert "gofmt" in content
+        assert "golangci-lint" in content
+        assert "go test" in content
+        assert "alwaysApply: true" in content
+
+    def test_rust_rules_file_generated(self, tmp_dir):
+        from vcsx.generators.windsurf import WindsurfGenerator
+        ctx = ProjectContext(project_name="rust-app", language="rust")
+        gen = WindsurfGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        rules_dir = Path(tmp_dir) / ".windsurf" / "rules"
+        assert (rules_dir / "rust-conventions.md").exists()
+
+    def test_rust_rules_content(self, tmp_dir):
+        from vcsx.generators.windsurf import WindsurfGenerator
+        ctx = ProjectContext(project_name="rust-app", language="rust")
+        gen = WindsurfGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".windsurf" / "rules" / "rust-conventions.md").read_text()
+        assert "rustfmt" in content
+        assert "clippy" in content
+        assert "cargo test" in content
+        assert "alwaysApply: true" in content
+
+    def test_go_no_rust_rules(self, tmp_dir):
+        from vcsx.generators.windsurf import WindsurfGenerator
+        ctx = ProjectContext(project_name="go-app", language="go")
+        gen = WindsurfGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        rules_dir = Path(tmp_dir) / ".windsurf" / "rules"
+        assert not (rules_dir / "rust-conventions.md").exists()
+
+    def test_rust_no_go_rules(self, tmp_dir):
+        from vcsx.generators.windsurf import WindsurfGenerator
+        ctx = ProjectContext(project_name="rust-app", language="rust")
+        gen = WindsurfGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        rules_dir = Path(tmp_dir) / ".windsurf" / "rules"
+        assert not (rules_dir / "go-conventions.md").exists()
+
+    def test_go_core_conventions_uses_gofmt(self, tmp_dir):
+        from vcsx.generators.windsurf import WindsurfGenerator
+        ctx = ProjectContext(project_name="go-app", language="go")
+        gen = WindsurfGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".windsurf" / "rules" / "core-conventions.md").read_text()
+        assert "gofmt" in content
+
+    def test_rust_core_conventions_uses_cargo_fmt(self, tmp_dir):
+        from vcsx.generators.windsurf import WindsurfGenerator
+        ctx = ProjectContext(project_name="rust-app", language="rust")
+        gen = WindsurfGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".windsurf" / "rules" / "core-conventions.md").read_text()
+        assert "cargo fmt" in content
+
+    def test_go_test_cmd(self, tmp_dir):
+        from vcsx.generators.windsurf import _get_test_cmd
+        ctx = ProjectContext(project_name="go-app", language="go")
+        assert "go test" in _get_test_cmd(ctx)
+
+    def test_rust_test_cmd(self, tmp_dir):
+        from vcsx.generators.windsurf import _get_test_cmd
+        ctx = ProjectContext(project_name="rust-app", language="rust")
+        assert "cargo test" in _get_test_cmd(ctx)
+
+    def test_go_build_cmd(self, tmp_dir):
+        from vcsx.generators.windsurf import _get_build_cmd
+        ctx = ProjectContext(project_name="go-app", language="go")
+        assert "go build" in _get_build_cmd(ctx)
+
+    def test_rust_build_cmd(self, tmp_dir):
+        from vcsx.generators.windsurf import _get_build_cmd
+        ctx = ProjectContext(project_name="rust-app", language="rust")
+        assert "cargo build" in _get_build_cmd(ctx)
+
+    def test_go_style_rules(self, tmp_dir):
+        from vcsx.generators.windsurf import _get_style_rules
+        ctx = ProjectContext(project_name="go-app", language="go")
+        rules = _get_style_rules(ctx)
+        assert any("gofmt" in r.lower() or "go" in r.lower() for r in rules)
+
+    def test_rust_style_rules(self, tmp_dir):
+        from vcsx.generators.windsurf import _get_style_rules
+        ctx = ProjectContext(project_name="rust-app", language="rust")
+        rules = _get_style_rules(ctx)
+        assert any("rustfmt" in r.lower() or "clippy" in r.lower() for r in rules)
+
+    def test_go_ext(self, tmp_dir):
+        from vcsx.generators.windsurf import _get_ext
+        ctx = ProjectContext(project_name="go-app", language="go")
+        assert _get_ext(ctx) == "go"
+
+    def test_rust_ext(self, tmp_dir):
+        from vcsx.generators.windsurf import _get_ext
+        ctx = ProjectContext(project_name="rust-app", language="rust")
+        assert _get_ext(ctx) == "rs"
+
+
+class TestAiderContextEnriched:
+    """Tests for enriched .aider.context.md template."""
+
+    def test_context_has_lint_cmd(self, tmp_dir):
+        from vcsx.generators.aider import AiderGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        gen = AiderGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        assert "ruff check" in content or "lint" in content.lower()
+
+    def test_context_has_format_cmd(self, tmp_dir):
+        from vcsx.generators.aider import AiderGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        gen = AiderGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        assert "ruff format" in content or "format" in content.lower()
+
+    def test_context_has_file_structure(self, tmp_dir):
+        from vcsx.generators.aider import AiderGenerator
+        ctx = ProjectContext(project_name="myapp", language="python")
+        gen = AiderGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        assert "File Structure" in content
+        assert "src/" in content
+
+    def test_context_has_architecture_overview(self, tmp_dir):
+        from vcsx.generators.aider import AiderGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        gen = AiderGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        assert "Architecture" in content
+
+    def test_context_has_key_decisions(self, tmp_dir):
+        from vcsx.generators.aider import AiderGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        gen = AiderGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        assert "Key Decisions" in content
+
+    def test_context_has_gotchas(self, tmp_dir):
+        from vcsx.generators.aider import AiderGenerator
+        ctx = ProjectContext(project_name="test", language="python")
+        gen = AiderGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        assert "Gotcha" in content
+
+    def test_go_context_gotchas(self, tmp_dir):
+        from vcsx.generators.aider import AiderGenerator
+        ctx = ProjectContext(project_name="go-app", language="go")
+        gen = AiderGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        assert "goroutine" in content.lower() or "defer" in content.lower()
+
+    def test_rust_context_gotchas(self, tmp_dir):
+        from vcsx.generators.aider import AiderGenerator
+        ctx = ProjectContext(project_name="rust-app", language="rust")
+        gen = AiderGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        assert "borrow" in content.lower() or "unwrap" in content.lower()
+
+    def test_go_context_file_structure(self, tmp_dir):
+        from vcsx.generators.aider import AiderGenerator
+        ctx = ProjectContext(project_name="go-app", language="go")
+        gen = AiderGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        assert "cmd/" in content
+        assert "internal/" in content
+
+    def test_rust_context_file_structure(self, tmp_dir):
+        from vcsx.generators.aider import AiderGenerator
+        ctx = ProjectContext(project_name="rust-app", language="rust")
+        gen = AiderGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        assert "Cargo.toml" in content
+        assert "src/" in content
+
+    def test_go_lint_cmd(self, tmp_dir):
+        from vcsx.generators.aider import _get_lint_cmd
+        ctx = ProjectContext(project_name="go-app", language="go")
+        assert "golangci-lint" in _get_lint_cmd(ctx)
+
+    def test_rust_lint_cmd(self, tmp_dir):
+        from vcsx.generators.aider import _get_lint_cmd
+        ctx = ProjectContext(project_name="rust-app", language="rust")
+        assert "clippy" in _get_lint_cmd(ctx)
+
+    def test_python_lint_cmd(self, tmp_dir):
+        from vcsx.generators.aider import _get_lint_cmd
+        ctx = ProjectContext(project_name="app", language="python")
+        assert "ruff" in _get_lint_cmd(ctx)
+
+    def test_go_format_cmd(self, tmp_dir):
+        from vcsx.generators.aider import _get_format_cmd
+        ctx = ProjectContext(project_name="go-app", language="go")
+        assert "gofmt" in _get_format_cmd(ctx)
+
+    def test_rust_format_cmd(self, tmp_dir):
+        from vcsx.generators.aider import _get_format_cmd
+        ctx = ProjectContext(project_name="rust-app", language="rust")
+        assert "cargo fmt" in _get_format_cmd(ctx)
+
+    def test_custom_linter_respected(self, tmp_dir):
+        from vcsx.generators.aider import _get_lint_cmd
+        ctx = ProjectContext(project_name="app", language="go", linter="my-linter")
+        assert _get_lint_cmd(ctx) == "my-linter"
+
+    def test_custom_formatter_respected(self, tmp_dir):
+        from vcsx.generators.aider import _get_format_cmd
+        ctx = ProjectContext(project_name="app", language="rust", formatter="my-fmt")
+        assert _get_format_cmd(ctx) == "my-fmt"
