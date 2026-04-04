@@ -160,6 +160,43 @@ class TestClaudeCodeGenerator:
         assert "test-patterns" in skills
         assert "architecture-review" in skills
         assert "feature-spec" in skills
+        assert "incident-response" in skills
+        assert "api-versioning" in skills
+
+    def test_incident_response_skill_file(self, ctx, tmp_dir):
+        gen = ClaudeCodeGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        skill_file = Path(tmp_dir) / ".claude" / "skills" / "incident-response" / "SKILL.md"
+        assert skill_file.exists()
+        content = skill_file.read_text()
+        assert "name: incident-response" in content
+        assert "Post-Incident" in content or "post-mortem" in content.lower()
+        assert "P0" in content or "severity" in content.lower()
+
+    def test_incident_response_python_diagnostics(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="pypkg", language="python", lang="en")
+        ClaudeCodeGenerator().generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".claude" / "skills" / "incident-response" / "SKILL.md").read_text()
+        assert "curl" in content or "health" in content.lower()
+
+    def test_api_versioning_skill_file(self, ctx, tmp_dir):
+        gen = ClaudeCodeGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        skill_file = Path(tmp_dir) / ".claude" / "skills" / "api-versioning" / "SKILL.md"
+        assert skill_file.exists()
+        content = skill_file.read_text()
+        assert "name: api-versioning" in content
+        assert "breaking" in content.lower()
+        assert "deprecat" in content.lower()
+
+    def test_api_versioning_fastapi(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="fastapi-app", language="python",
+                             framework="fastapi", project_type="api", lang="en")
+        ClaudeCodeGenerator().generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".claude" / "skills" / "api-versioning" / "SKILL.md").read_text()
+        assert "FastAPI" in content or "APIRouter" in content
 
     def test_architecture_review_skill_file(self, ctx, tmp_dir):
         gen = ClaudeCodeGenerator()

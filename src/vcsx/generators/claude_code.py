@@ -147,6 +147,8 @@ class ClaudeCodeGenerator(BaseGenerator):
         created.append(_skill_refactor(skills_dir))
         created.append(_skill_architecture_review(skills_dir, ctx))
         created.append(_skill_feature_spec(skills_dir, ctx))
+        created.append(_skill_incident_response(skills_dir, ctx))
+        created.append(_skill_api_versioning(skills_dir, ctx))
 
         return created
 
@@ -1454,6 +1456,382 @@ After coding:
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "feature-spec"
+
+
+def _skill_incident_response(skills_dir: Path, ctx: ProjectContext) -> str:
+    d = skills_dir / "incident-response"
+    d.mkdir(parents=True, exist_ok=True)
+    lang = (ctx.language or "").lower()
+    _ = ctx.hosting  # available for future use
+
+    # Language-specific diagnostic commands
+    if lang == "python":
+        diagnostics = """```bash
+# Check recent error logs
+journalctl -u your-service -n 100 --no-pager | grep -E "ERROR|CRITICAL|Exception"
+
+# CPU / memory
+top -bn1 | head -20
+ps aux --sort=-%mem | head -10
+
+# Application health
+curl -s http://localhost:8000/health | python3 -m json.tool
+
+# Database connections (PostgreSQL)
+psql $DATABASE_URL -c "SELECT count(*), state FROM pg_stat_activity GROUP BY state;"
+
+# Check for stuck processes
+ps aux | grep python | grep -v grep
+```"""
+    elif lang in ("typescript", "javascript"):
+        diagnostics = """```bash
+# Application logs
+pm2 logs --lines 100 || journalctl -u your-app -n 100
+
+# Health check
+curl -s http://localhost:3000/health
+
+# Node process info
+ps aux | grep node
+
+# Check event loop lag (if metrics exposed)
+curl -s http://localhost:9090/metrics | grep nodejs_eventloop
+```"""
+    elif lang == "go":
+        diagnostics = """```bash
+# Application logs
+journalctl -u your-service -n 100 | grep -E "level=error|panic"
+
+# pprof (if enabled)
+go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
+
+# Goroutine dump
+curl -s http://localhost:6060/debug/pprof/goroutine?debug=1 | head -50
+
+# Memory
+curl -s http://localhost:6060/debug/pprof/heap > heap.out && go tool pprof heap.out
+```"""
+    else:
+        diagnostics = """```bash
+# Check service status
+systemctl status your-service
+
+# Recent logs
+journalctl -u your-service -n 100
+
+# Health check
+curl -s http://localhost/health
+```"""
+
+    content = f"""---
+name: incident-response
+description: Guides through production incident response — diagnose, mitigate, resolve, and document. Use when there's a production issue or on-call alert.
+disable-model-invocation: false
+---
+
+# Incident Response Skill
+
+Production incidents are stressful. Follow this process systematically.
+
+## ⚠️ First 5 Minutes — Triage
+
+### 1. Assess impact immediately
+```bash
+# Is the service down or degraded?
+curl -I https://your-app.com/health
+
+# Check error rate (if you have monitoring)
+# DataDog / Grafana / CloudWatch — look at 5xx rate
+
+# How many users affected?
+# Check: active sessions, error log volume, support tickets
+```
+
+### 2. Declare severity
+| Severity | Definition | Response Time |
+|----------|-----------|---------------|
+| P0 — Critical | Full outage, all users affected | Immediate |
+| P1 — High | Major feature broken, many users affected | < 15 min |
+| P2 — Medium | Partial degradation, workaround exists | < 1 hour |
+| P3 — Low | Minor issue, minimal impact | Next business day |
+
+### 3. Alert the team
+- P0/P1: Page on-call + notify #incidents channel immediately
+- Create incident ticket with initial assessment
+- Assign incident commander (one person owns coordination)
+
+---
+
+## 🔍 Diagnose — Find the Root Cause
+
+### System diagnostics
+{diagnostics}
+
+### Check recent deployments
+```bash
+# What changed recently?
+git log --oneline -20 --after="2 hours ago"
+git log --oneline --since="$(date -d '2 hours ago' '+%Y-%m-%d %H:%M')"
+
+# Recent config changes
+git log --oneline -- .env* *.yaml *.toml | head -10
+```
+
+### Common causes to check first
+1. **Recent deployment** — did it start after a deploy? Roll back first.
+2. **External dependency** — is the DB, Redis, or third-party API down?
+3. **Resource exhaustion** — CPU/memory/disk/connection pool full?
+4. **Cascading failure** — one slow service causing timeouts elsewhere?
+5. **Config change** — environment variable changed/missing?
+
+---
+
+## 🛑 Mitigate — Stop the Bleeding
+
+**Priority: reduce user impact NOW, even if root cause is unknown.**
+
+### Quick mitigation options
+```bash
+# Option 1: Roll back to last known good version
+git revert HEAD --no-edit
+# Deploy previous version:
+# Railway: railway rollback
+# Fly.io: fly deploy --image registry/app:previous-sha
+# Heroku: heroku rollback
+
+# Option 2: Feature flag — disable the broken feature
+# (if you have a feature flag system)
+
+# Option 3: Scale up to handle load
+# Railway: railway scale --replicas 4
+# Fly.io: fly scale count 4
+
+# Option 4: Redirect traffic
+# Update load balancer / DNS to bypass affected service
+```
+
+### Communicate during mitigation
+- Post status update every 15 minutes (even if "still investigating")
+- Use status page: statuspage.io / Atlassian Status
+- Template: "We are aware of [issue]. [X users/% of traffic] affected.
+  Engineering is actively investigating. ETA for resolution: [time or 'unknown']"
+
+---
+
+## ✅ Resolve — Fix the Root Cause
+
+Once mitigated, fix properly:
+1. Identify exact root cause with evidence
+2. Implement fix on staging first
+3. Test fix thoroughly
+4. Deploy fix
+5. Verify metrics return to normal
+
+---
+
+## 📝 Post-Incident Review (within 48h)
+
+Write a blameless post-mortem:
+
+```markdown
+## Incident Post-Mortem — [Short Title]
+
+**Date:** YYYY-MM-DD
+**Duration:** X hours Y minutes
+**Severity:** P[0-3]
+**Impact:** [# users affected, revenue impact if known]
+
+### Timeline
+| Time | Event |
+|------|-------|
+| HH:MM | Issue detected (how?) |
+| HH:MM | Team alerted |
+| HH:MM | Root cause identified |
+| HH:MM | Mitigation applied |
+| HH:MM | Full resolution |
+
+### Root Cause
+[Specific, technical description of what went wrong]
+
+### Contributing Factors
+- [Factor 1: why this was possible]
+- [Factor 2: why detection was slow]
+
+### What Went Well
+- [Thing 1 that helped]
+
+### What Went Poorly
+- [Thing 1 that slowed response]
+
+### Action Items
+| Action | Owner | Due Date |
+|--------|-------|----------|
+| Add alert for X | @person | YYYY-MM-DD |
+| Fix underlying issue Y | @person | YYYY-MM-DD |
+| Improve runbook for Z | @person | YYYY-MM-DD |
+```
+"""
+    (d / "SKILL.md").write_text(content, encoding="utf-8")
+    return "incident-response"
+
+
+def _skill_api_versioning(skills_dir: Path, ctx: ProjectContext) -> str:
+    d = skills_dir / "api-versioning"
+    d.mkdir(parents=True, exist_ok=True)
+    lang = (ctx.language or "").lower()
+    framework = (ctx.framework or "").lower()
+
+    if lang == "python" and "fastapi" in framework:
+        version_example = """```python
+# FastAPI versioning with APIRouter
+from fastapi import APIRouter
+
+router_v1 = APIRouter(prefix="/v1")
+router_v2 = APIRouter(prefix="/v2")
+
+@router_v1.get("/users/{id}")
+async def get_user_v1(id: str) -> UserV1:
+    ...
+
+@router_v2.get("/users/{id}")
+async def get_user_v2(id: str) -> UserV2:  # New fields, different shape
+    ...
+
+app.include_router(router_v1)
+app.include_router(router_v2)
+```"""
+    elif lang in ("typescript", "javascript"):
+        version_example = """```typescript
+// Express versioning
+import { Router } from 'express'
+
+const v1 = Router()
+const v2 = Router()
+
+v1.get('/users/:id', getUserV1)
+v2.get('/users/:id', getUserV2)
+
+app.use('/v1', v1)
+app.use('/v2', v2)
+```"""
+    elif lang == "go":
+        version_example = """```go
+// Go versioning with chi
+r := chi.NewRouter()
+r.Route("/v1", func(r chi.Router) {
+    r.Get("/users/{id}", getUserV1)
+})
+r.Route("/v2", func(r chi.Router) {
+    r.Get("/users/{id}", getUserV2)
+})
+```"""
+    else:
+        version_example = """```
+# Version your API with URL prefixes: /v1/, /v2/
+# Or use Accept header: Accept: application/vnd.api+json;version=2
+```"""
+
+    content = f"""---
+name: api-versioning
+description: API versioning strategies — how to evolve APIs without breaking clients. Use when adding breaking changes to an API or planning a new API version.
+---
+
+# API Versioning Strategy
+
+APIs are contracts. Breaking them breaks your clients.
+Version your API to evolve it without breaking existing integrations.
+
+## When to Create a New Version
+
+| Change Type | Example | Version Bump? |
+|-------------|---------|---------------|
+| Add optional field | New `metadata` field in response | ❌ No |
+| Add new endpoint | `GET /v1/reports` | ❌ No |
+| Make required field optional | `name` → optional | ❌ No |
+| Remove field | Remove `deprecated_field` | ✅ YES |
+| Rename field | `user_id` → `userId` | ✅ YES |
+| Change field type | `int` → `string` | ✅ YES |
+| Change authentication | API key → OAuth | ✅ YES |
+| Remove endpoint | Delete `GET /v1/old-resource` | ✅ YES |
+
+## Versioning Strategy: URL Path (Recommended)
+
+```
+/v1/users    ← stable, maintained
+/v2/users    ← new version with breaking changes
+```
+
+**Why URL path?**
+- Easy to see in logs, browser, documentation
+- Simple caching behavior
+- Easy to route at infrastructure level
+
+{version_example}
+
+## Migration Checklist (Before Breaking Change)
+
+### 1. Announce deprecation
+```
+# Add deprecation header to old endpoints
+Deprecation: true
+Sunset: {ctx.project_name or "2027"}-01-01
+Link: <https://api.example.com/v2/users>; rel="successor-version"
+```
+
+### 2. Document the migration
+- Write a migration guide: what changed and how to update
+- Show before/after examples for every breaking change
+- Include a timeline: deprecation date → sunset date
+
+### 3. Support both versions for a transition period
+- Minimum 3 months overlap (or per your SLA)
+- Monitor v1 traffic — sunset when < 1% of requests
+
+### 4. Sunset the old version
+```
+# Return 410 Gone after sunset date
+HTTP/1.1 410 Gone
+{{"error": "API v1 was sunset on 2027-01-01. Please migrate to v2."}}
+```
+
+## Versioning Checklist
+
+### New API version
+- [ ] URL prefix: `/v2/`
+- [ ] Migration guide written
+- [ ] Deprecation headers on v1 endpoints
+- [ ] Sunset date announced to API consumers
+- [ ] OpenAPI spec updated for v2
+- [ ] Authentication unchanged or migration path documented
+
+### During development
+- [ ] New endpoints always start on latest version
+- [ ] Non-breaking additions to existing version (no new version needed)
+- [ ] Breaking changes scheduled for next planned version
+
+## Response Envelope Stability
+
+Keep the envelope stable across versions — only change the data inside:
+```json
+// v1 and v2 use the same envelope structure
+{{
+  "data": {{ ... }},        ← payload changes between versions
+  "meta": {{
+    "requestId": "...",     ← always present
+    "version": "v2"         ← indicates which version served the request
+  }}
+}}
+```
+
+## Versioning Anti-Patterns
+
+❌ **Don't use dates**: `/api/2024-01-01/users` (confusing, hard to compare)
+❌ **Don't version individual fields**: `/v1/users?format=v2` (chaos)
+❌ **Don't break v1 silently**: causes outages for existing clients
+❌ **Don't version too eagerly**: prefer backward-compatible changes when possible
+"""
+    (d / "SKILL.md").write_text(content, encoding="utf-8")
+    return "api-versioning"
 
 
 def _skill_squash(skills_dir: Path) -> str:
