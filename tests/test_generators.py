@@ -806,6 +806,63 @@ class TestAgentsMdGenerator:
         content = (Path(tmp_dir) / "AGENTS.md").read_text()
         assert "kubectl delete" in content
 
+    def test_working_guide_python(self, tmp_dir):
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        ctx = ProjectContext(project_name="pypkg", language="python", lang="en")
+        gen = AgentsMdGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        assert "Working With This Codebase" in content
+        assert "pathlib" in content
+        assert "ruff" in content or "pytest" in content
+
+    def test_working_guide_typescript(self, tmp_dir):
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        ctx = ProjectContext(project_name="tspkg", language="typescript", lang="en")
+        gen = AgentsMdGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        assert "Working With This Codebase" in content
+        assert "const" in content
+
+    def test_working_guide_go(self, tmp_dir):
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        ctx = ProjectContext(project_name="gopkg", language="go", lang="en")
+        gen = AgentsMdGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        assert "Working With This Codebase" in content
+        assert "go vet" in content or "gofmt" in content
+
+    def test_working_guide_rust(self, tmp_dir):
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        ctx = ProjectContext(project_name="rustpkg", language="rust", lang="en")
+        gen = AgentsMdGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        assert "Working With This Codebase" in content
+        assert "clippy" in content
+
+    def test_working_guide_api_tips(self, tmp_dir):
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        ctx = ProjectContext(project_name="apipkg", language="python",
+                             project_type="api", lang="en")
+        gen = AgentsMdGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        assert "API-Specific" in content
+        assert "HTTP status" in content or "status code" in content
+
+    def test_commit_style_section(self, tmp_dir):
+        from vcsx.generators.agents_md import AgentsMdGenerator
+        ctx = ProjectContext(project_name="proj", language="python", lang="en")
+        gen = AgentsMdGenerator()
+        gen.generate_config(ctx, tmp_dir)
+        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        assert "Commit Style" in content
+        assert "feat:" in content
+        assert "72 chars" in content or "72" in content
+
 
 class TestClaudeIgnore:
     def test_claudeignore_generated(self, ctx, tmp_dir):
