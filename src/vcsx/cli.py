@@ -2018,6 +2018,283 @@ def list_presets(query):
     console.print("\n[dim]Use:[/] vcsx new my-project --preset <name>")
 
 
+@main.command("prompt")
+@click.argument("task", required=False)
+@click.option(
+    "--lang",
+    "-l",
+    default=None,
+    help="Primary language (auto-detected from current dir if omitted)",
+)
+@click.option(
+    "--framework",
+    "-f",
+    default=None,
+    help="Framework (e.g. fastapi, nextjs, gin)",
+)
+@click.option(
+    "--type",
+    "-t",
+    "prompt_type",
+    type=click.Choice(["feature", "bugfix", "refactor", "review", "test", "docs", "explain"]),
+    default="feature",
+    help="Type of prompt to generate",
+)
+@click.option(
+    "--copy",
+    is_flag=True,
+    help="Copy to clipboard (requires pyperclip)",
+)
+def generate_prompt(task, lang, framework, prompt_type, copy):
+    """Generate a structured AI prompt for a coding task.
+
+    Produces a ready-to-paste prompt with project context, task description,
+    and explicit instructions — reducing back-and-forth with the AI.
+
+    \b
+    Examples:
+        vcsx prompt "add JWT authentication"
+        vcsx prompt "fix race condition in worker pool" --type bugfix --lang go
+        vcsx prompt "refactor payment module" --type refactor --lang python
+        vcsx prompt "explain the auth middleware" --type explain
+        vcsx prompt "add tests for UserService" --type test --lang typescript
+    """
+    from vcsx.core.scanner import scan_project
+
+    # Auto-detect project context
+    detected = scan_project(".")
+    if not lang:
+        lang = detected.get("language", "python") or "python"
+    if not framework:
+        framework = detected.get("framework", "") or ""
+    project_name = detected.get("project_name", "this project")
+    project_type = detected.get("project_type", "application")
+    test_fw = detected.get("test_framework", "") or ""
+
+    if not task:
+        from rich.prompt import Prompt
+        task = Prompt.ask(f"What do you want to {prompt_type}")
+
+    prompt_content = _build_prompt(task, prompt_type, lang, framework, project_name, project_type, test_fw)
+
+    console.print(f"\n[bold cyan]Generated {prompt_type} prompt:[/]\n")
+    console.print(f"[dim]{'─' * 60}[/]")
+    console.print(prompt_content)
+    console.print(f"[dim]{'─' * 60}[/]")
+
+    if copy:
+        try:
+            import pyperclip
+            pyperclip.copy(prompt_content)
+            console.print("\n[green]✓ Copied to clipboard![/]")
+        except ImportError:
+            console.print("\n[yellow]Install pyperclip to use --copy: pip install pyperclip[/]")
+
+    console.print(f"\n[dim]Prompt type: {prompt_type} | Language: {lang}{f' / {framework}' if framework else ''}[/]")
+
+
+def _build_prompt(
+    task: str,
+    prompt_type: str,
+    lang: str,
+    framework: str,
+    project_name: str,
+    project_type: str,
+    test_fw: str,
+) -> str:
+    """Build a structured AI coding prompt."""
+    ctx_line = f"**Language:** {lang}" + (f" / **Framework:** {framework}" if framework else "")
+
+    if prompt_type == "feature":
+        return f"""# Task: Add New Feature
+
+## Context
+**Project:** {project_name} ({project_type})
+{ctx_line}
+
+## Feature Request
+{task}
+
+## Requirements
+Before implementing, please:
+1. Read the relevant existing code to understand current patterns
+2. Propose an implementation plan before writing any code
+3. Follow existing code style and conventions
+
+## Implementation Guidelines
+- Keep the change focused — only what's needed for this feature
+- Write tests for the new functionality using {test_fw or "the existing test framework"}
+- Handle error cases, not just the happy path
+- No hardcoded values — use constants or config
+- Format code before committing
+
+## Definition of Done
+- [ ] Feature works as described
+- [ ] Tests pass
+- [ ] No linting errors
+- [ ] Code follows existing patterns
+"""
+
+    elif prompt_type == "bugfix":
+        return f"""# Task: Fix Bug
+
+## Context
+**Project:** {project_name}
+{ctx_line}
+
+## Bug Description
+{task}
+
+## Debug Process
+Please follow these steps:
+1. Reproduce the bug — understand exactly when it occurs
+2. Identify the root cause (not just the symptom)
+3. Propose the fix before implementing it
+4. Apply the minimal fix
+5. Verify the fix with a test
+
+## Constraints
+- Fix the ROOT CAUSE, not the symptom
+- Minimal diff — don't refactor while fixing
+- Add a regression test if one doesn't exist
+- Run {test_fw or "the test suite"} after fixing to ensure nothing broke
+"""
+
+    elif prompt_type == "refactor":
+        return f"""# Task: Refactor
+
+## Context
+**Project:** {project_name}
+{ctx_line}
+
+## Refactoring Goal
+{task}
+
+## Rules
+1. **Behavior must not change** — the external API/output stays identical
+2. Run {test_fw or "the test suite"} before starting to establish a baseline
+3. Make one change at a time — rename, then extract, then move
+4. Run tests after EACH change — stop immediately if tests fail
+5. Commit at each green state
+
+## What to Improve
+- Reduce complexity (functions > 30 lines, nesting > 3 levels)
+- Remove duplication
+- Improve naming
+- Extract reusable utilities
+
+## What NOT to Do
+- Don't add new functionality
+- Don't change external interfaces
+- Don't reformat in the same commit as logic changes
+"""
+
+    elif prompt_type == "review":
+        return f"""# Task: Code Review
+
+## Context
+**Project:** {project_name}
+{ctx_line}
+
+## Review Target
+{task}
+
+## Review Checklist
+
+### 🔴 Blocking (must fix)
+- Hardcoded secrets or credentials
+- Security vulnerabilities (injection, XSS, path traversal)
+- Broken or missing tests
+- Logic errors
+
+### 🟡 Important (should fix)
+- Missing error handling
+- Missing edge cases
+- Performance concerns
+- Breaking API changes without documentation
+
+### 🟢 Suggestions
+- Style improvements
+- Naming clarity
+- Code organization
+
+## Output Format
+For each issue: `[SEVERITY] file:line — description → suggested fix`
+End with: `Verdict: APPROVE / REQUEST_CHANGES`
+"""
+
+    elif prompt_type == "test":
+        return f"""# Task: Write Tests
+
+## Context
+**Project:** {project_name}
+{ctx_line}
+**Test Framework:** {test_fw or "auto-detect"}
+
+## What to Test
+{task}
+
+## Test Requirements
+- Use AAA pattern: Arrange → Act → Assert
+- Test naming: `test_<function>_<scenario>_<expected_outcome>`
+- Mock ALL external dependencies (DB, HTTP, filesystem, time)
+- Cover:
+  - [ ] Happy path
+  - [ ] Edge cases (empty, null, boundary values)
+  - [ ] Error cases (invalid input, network failure, etc.)
+- Tests must be independent — no shared mutable state
+
+## Don't Test
+- Implementation details (internal variable names)
+- Third-party library behavior
+- Trivial getters/setters
+"""
+
+    elif prompt_type == "docs":
+        return f"""# Task: Write Documentation
+
+## Context
+**Project:** {project_name}
+{ctx_line}
+
+## Documentation Target
+{task}
+
+## Documentation Standards
+- Explain WHAT the code does, not HOW it does it
+- Include: purpose, parameters, return value, errors, example
+- Use the language's standard doc format
+- Examples must be accurate and runnable
+- No placeholder text ("TODO: document this")
+
+## Quality Bar
+A good doc answers: "What does this do? How do I use it? What can go wrong?"
+"""
+
+    elif prompt_type == "explain":
+        return f"""# Task: Explain Code
+
+## Context
+**Project:** {project_name}
+{ctx_line}
+
+## What to Explain
+{task}
+
+## Explanation Format
+Please provide:
+1. **High-level summary** (1-2 sentences: what does it do and why?)
+2. **Key components** (bullet list of important parts)
+3. **Data flow** (how does data move through it?)
+4. **Dependencies** (what does it depend on / what depends on it?)
+5. **Non-obvious parts** (what would trip up a new developer?)
+
+Be concise — aim for understanding, not exhaustiveness.
+"""
+
+    return f"# {prompt_type.title()} Task\n\n{task}\n\nLanguage: {lang}\n"
+
+
 @main.command("langs")
 def list_languages():
     """List all supported languages and their detected properties.

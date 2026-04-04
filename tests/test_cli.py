@@ -1948,3 +1948,54 @@ class TestScaffoldNewFiles:
         content = (Path(tmp_dir) / ".github" / "pull_request_template.md").read_text()
         assert "Checklist" in content
         assert "Testing" in content
+
+
+class TestPromptCommand:
+    def test_prompt_feature_basic(self, runner):
+        result = runner.invoke(main, ["prompt", "add user auth", "--lang", "python", "--type", "feature"])
+        assert result.exit_code == 0
+        assert "Feature" in result.output or "feature" in result.output.lower()
+        assert "add user auth" in result.output
+
+    def test_prompt_bugfix(self, runner):
+        result = runner.invoke(main, ["prompt", "fix race condition", "--lang", "go", "--type", "bugfix"])
+        assert result.exit_code == 0
+        assert "Bug" in result.output or "fix" in result.output.lower()
+        assert "fix race condition" in result.output
+
+    def test_prompt_refactor(self, runner):
+        result = runner.invoke(main, ["prompt", "simplify auth module", "--lang", "python", "--type", "refactor"])
+        assert result.exit_code == 0
+        assert "Refactor" in result.output
+        assert "behavior must not change" in result.output.lower() or "Behavior" in result.output
+
+    def test_prompt_test_type(self, runner):
+        result = runner.invoke(main, ["prompt", "UserService", "--lang", "typescript", "--type", "test"])
+        assert result.exit_code == 0
+        assert "AAA" in result.output or "Arrange" in result.output or "test" in result.output.lower()
+
+    def test_prompt_docs(self, runner):
+        result = runner.invoke(main, ["prompt", "payment module", "--lang", "python", "--type", "docs"])
+        assert result.exit_code == 0
+        assert "Documentation" in result.output or "doc" in result.output.lower()
+
+    def test_prompt_explain(self, runner):
+        result = runner.invoke(main, ["prompt", "auth middleware", "--lang", "go", "--type", "explain"])
+        assert result.exit_code == 0
+        assert "Explain" in result.output or "explain" in result.output.lower()
+
+    def test_prompt_review(self, runner):
+        result = runner.invoke(main, ["prompt", "PR #42", "--lang", "rust", "--type", "review"])
+        assert result.exit_code == 0
+        assert "Review" in result.output
+        assert "APPROVE" in result.output or "Blocking" in result.output
+
+    def test_prompt_with_framework(self, runner):
+        result = runner.invoke(main, ["prompt", "add endpoint", "--lang", "python", "--framework", "fastapi"])
+        assert result.exit_code == 0
+        assert "fastapi" in result.output.lower()
+
+    def test_prompt_shows_separator(self, runner):
+        result = runner.invoke(main, ["prompt", "some task", "--lang", "python"])
+        assert result.exit_code == 0
+        assert "─" in result.output or "---" in result.output or "────" in result.output
