@@ -1999,3 +1999,43 @@ class TestPromptCommand:
         result = runner.invoke(main, ["prompt", "some task", "--lang", "python"])
         assert result.exit_code == 0
         assert "─" in result.output or "---" in result.output or "────" in result.output
+
+
+class TestScaffoldDeployFiles:
+    def test_scaffold_tsconfig(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "tsconfig", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "tsconfig.json").read_text()
+        assert '"strict": true' in content
+        assert "noUncheckedIndexedAccess" in content
+        assert '"outDir"' in content
+
+    def test_scaffold_pyproject(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "pyproject", "--lang", "python", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "pyproject.toml").read_text()
+        assert "[build-system]" in content
+        assert "pytest" in content
+        assert "ruff" in content
+
+    def test_scaffold_pyproject_fastapi(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "pyproject", "--lang", "python", "--framework", "fastapi", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "pyproject.toml").read_text()
+        assert "fastapi" in content
+
+    def test_scaffold_flytoml(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "flytoml", "--lang", "python", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "fly.toml").read_text()
+        assert "app = " in content
+        assert "services" in content
+        assert "health" in content
+
+    def test_scaffold_helmvalues(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "helmvalues", "--lang", "python", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "values.yaml").read_text()
+        assert "replicaCount:" in content
+        assert "autoscaling:" in content
+        assert "ingress:" in content

@@ -1,3 +1,3 @@
 """Vibe Coding Setup Expert (vcsx) — Automates AI coding environment setup."""
 
-__version__ = "5.15.0"
+__version__ = "5.16.0"

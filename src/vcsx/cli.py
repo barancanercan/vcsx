@@ -2719,6 +2719,10 @@ _SCAFFOLD_FILES = {
     "ciworkflow": "Generate GitHub Actions CI workflow",
     "codeowners": "Generate CODEOWNERS file",
     "pullrequest": "Generate GitHub PR template",
+    "tsconfig": "Generate tsconfig.json (strict TypeScript config)",
+    "pyproject": "Generate pyproject.toml (modern Python packaging)",
+    "flytoml": "Generate fly.toml (Fly.io deployment)",
+    "helmvalues": "Generate Helm values.yaml",
 }
 
 
@@ -2768,6 +2772,10 @@ def scaffold_file(file_type, lang, framework, output_dir, dry_run):
       ciworkflow    — GitHub Actions CI workflow
       codeowners    — CODEOWNERS file
       pullrequest   — GitHub PR template
+      tsconfig      — tsconfig.json (strict TypeScript)
+      pyproject     — pyproject.toml (modern Python packaging)
+      flytoml       — fly.toml (Fly.io deployment)
+      helmvalues    — Helm values.yaml
 
     \b
     Examples:
@@ -2853,6 +2861,18 @@ def _generate_scaffold_content(file_type: str, lang: str, framework: str) -> tup
 
     elif file_type == "pullrequest":
         return _scaffold_pr_template_content(), ".github/pull_request_template.md"
+
+    elif file_type == "tsconfig":
+        return _scaffold_tsconfig_content(), "tsconfig.json"
+
+    elif file_type == "pyproject":
+        return _scaffold_pyproject_toml_content(framework), "pyproject.toml"
+
+    elif file_type == "flytoml":
+        return _scaffold_flytoml_content(lang, framework), "fly.toml"
+
+    elif file_type == "helmvalues":
+        return _scaffold_helm_values_content(lang), "values.yaml"
 
     return "", f"{file_type}.txt"
 
@@ -3684,6 +3704,303 @@ def _scaffold_pr_template_content() -> str:
 ## Notes for Reviewers
 
 <!-- Anything the reviewer should pay special attention to -->
+"""
+
+
+def _scaffold_tsconfig_content() -> str:
+    return """{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    /* Language */
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    /* Strictness */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true,
+    "noPropertyAccessFromIndexSignature": true,
+
+    /* Output */
+    "outDir": "dist",
+    "rootDir": "src",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "removeComments": false,
+
+    /* Interop */
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Performance */
+    "skipLibCheck": true,
+    "incremental": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "coverage", "**/*.test.ts", "**/*.spec.ts"]
+}
+"""
+
+
+def _scaffold_pyproject_toml_content(framework: str) -> str:
+    fw_lower = (framework or "").lower()
+
+    # Framework-specific dependencies
+    if "fastapi" in fw_lower:
+        deps = '"fastapi>=0.110.0", "uvicorn[standard]>=0.29.0", "pydantic>=2.0.0"'
+        dev_extras = '"httpx>=0.27.0"'  # For testing FastAPI
+    elif "django" in fw_lower:
+        deps = '"django>=5.0.0", "djangorestframework>=3.15.0"'
+        dev_extras = '"pytest-django>=4.8.0"'
+    elif "flask" in fw_lower:
+        deps = '"flask>=3.0.0"'
+        dev_extras = '"pytest-flask>=1.3.0"'
+    else:
+        deps = '# Add your dependencies here'
+        dev_extras = ""
+
+    dev_deps_extra = f",\n  {dev_extras}" if dev_extras else ""
+
+    return f"""[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "my-project"
+version = "0.1.0"
+description = "A Python project"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {{text = "MIT"}}
+authors = [
+  {{name = "Your Name", email = "you@example.com"}},
+]
+keywords = []
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+  {deps},
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "pytest-cov>=5.0.0",
+  "ruff>=0.4.0",
+  "pyright>=1.1.0",
+  "pre-commit>=3.7.0"{dev_deps_extra},
+]
+
+[project.urls]
+Repository = "https://github.com/your-org/your-repo"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
+venvPath = "."
+venv = ".venv"
+"""
+
+
+def _scaffold_flytoml_content(lang: str, framework: str) -> str:
+    port = "8080"
+    if lang == "python":
+        port = "8000"
+        if "flask" in (framework or "").lower():
+            port = "5000"
+
+    return f"""# fly.toml — Fly.io deployment configuration
+# Reference: https://fly.io/docs/reference/configuration/
+
+app = "your-app-name"
+primary_region = "iad"  # Change to your preferred region
+
+[build]
+
+[env]
+  PORT = "{port}"
+  # Add non-secret environment variables here
+
+[[services]]
+  protocol = "tcp"
+  internal_port = {port}
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+  [[services.http_checks]]
+    interval = "10s"
+    timeout = "2s"
+    grace_period = "5s"
+    method = "GET"
+    path = "/health"
+    protocol = "http"
+
+[metrics]
+  port = 9091
+  path = "/metrics"
+
+# Scale: fly scale count 2 --region iad
+# Secrets: fly secrets set SECRET_KEY=value
+"""
+
+
+def _scaffold_helm_values_content(lang: str) -> str:
+    port = 8080
+    if lang == "python":
+        port = 8000
+
+    values = {
+        "replicaCount": 2,
+        "image": {
+            "repository": "your-registry/your-app",
+            "tag": "latest",
+            "pullPolicy": "IfNotPresent",
+        },
+        "service": {
+            "type": "ClusterIP",
+            "port": 80,
+            "targetPort": port,
+        },
+        "ingress": {
+            "enabled": True,
+            "className": "nginx",
+            "annotations": {
+                "cert-manager.io/cluster-issuer": "letsencrypt-prod",
+            },
+            "hosts": [{"host": "your-app.example.com", "paths": [{"path": "/", "pathType": "Prefix"}]}],
+            "tls": [{"secretName": "your-app-tls", "hosts": ["your-app.example.com"]}],
+        },
+        "resources": {
+            "requests": {"cpu": "100m", "memory": "128Mi"},
+            "limits": {"cpu": "500m", "memory": "512Mi"},
+        },
+        "autoscaling": {
+            "enabled": True,
+            "minReplicas": 2,
+            "maxReplicas": 10,
+            "targetCPUUtilizationPercentage": 80,
+        },
+        "env": [],
+        "envFrom": [],
+        "livenessProbe": {
+            "httpGet": {"path": "/health", "port": "http"},
+            "initialDelaySeconds": 30,
+            "periodSeconds": 10,
+        },
+        "readinessProbe": {
+            "httpGet": {"path": "/ready", "port": "http"},
+            "initialDelaySeconds": 5,
+            "periodSeconds": 5,
+        },
+    }
+
+    # Convert to YAML-like format manually for readability
+    return f"""# values.yaml — Helm chart configuration
+# Override with: helm upgrade -f custom-values.yaml
+
+replicaCount: {values['replicaCount']}
+
+image:
+  repository: your-registry/your-app
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: {port}
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: your-app.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: your-app-tls
+      hosts:
+        - your-app.example.com
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+env: []
+  # - name: DATABASE_URL
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: app-secrets
+  #       key: database-url
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
 """
 
 
