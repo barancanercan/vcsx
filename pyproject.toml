@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vcsx"
-version = "5.1.0"
+version = "5.2.0"
 description = "Vibe Coding Setup Expert — Multi-CLI AI coding environment generator"
 readme = "README.md"
 license = {text = "MIT"}

@@ -89,6 +89,10 @@ class CursorGenerator(BaseGenerator):
         if ctx.auth_needed:
             created.append(_rule_auth_mdc(rules_dir, ctx))
 
+        # Always include performance + refactoring rules
+        created.append(_rule_performance_mdc(rules_dir, ctx))
+        created.append(_rule_refactoring_mdc(rules_dir, ctx))
+
         return created
 
     def generate_hooks(self, ctx: ProjectContext, output_dir: str) -> dict:
@@ -389,6 +393,211 @@ raise AuthError("User not found")
 """
     d.write_text(content, encoding="utf-8")
     return "auth-conventions"
+
+
+def _rule_performance_mdc(rules_dir: Path, ctx: ProjectContext) -> str:
+    """Performance optimization rules — language-aware."""
+    d = rules_dir / "performance.mdc"
+    lang = (ctx.language or "").lower()
+
+    lang_tips: dict[str, list[str]] = {
+        "python": [
+            "Use `__slots__` for data classes with many instances.",
+            "Prefer list comprehensions over `map()`/`filter()` for clarity.",
+            "Use `functools.lru_cache` for pure functions called repeatedly.",
+            "Avoid `global` and module-level mutable state.",
+            "Use `asyncio` for I/O-bound work; `concurrent.futures` for CPU-bound.",
+            "Profile before optimizing: `python -m cProfile -s cumtime your_script.py`",
+            "Batch DB queries — avoid N+1 with `select_related` / `prefetch_related`.",
+            "Use `generators` for large datasets — never load everything into memory.",
+        ],
+        "typescript": [
+            "Avoid unnecessary re-renders — memoize with `React.memo`, `useMemo`, `useCallback`.",
+            "Lazy-load routes and heavy components with `React.lazy` + `Suspense`.",
+            "Use `Map`/`Set` over plain objects for frequent lookups.",
+            "Avoid synchronous loops over large arrays in render paths.",
+            "Prefer `structuredClone` over `JSON.parse(JSON.stringify(...))` for deep copies.",
+            "Debounce search inputs and expensive event handlers.",
+            "Profile with Chrome DevTools Performance tab before optimizing.",
+            "Tree-shake unused imports — check bundle with `vite-bundle-visualizer`.",
+        ],
+        "go": [
+            "Use `sync.Pool` for frequently allocated temporary objects.",
+            "Prefer `[]byte` over `string` for heavy manipulation.",
+            "Profile with `go tool pprof` before optimizing.",
+            "Use buffered channels to decouple producer/consumer goroutines.",
+            "Avoid reflection in hot paths.",
+            "Benchmark with `go test -bench=. -benchmem`.",
+            "Use `strings.Builder` for string concatenation in loops.",
+            "Reuse HTTP clients — don't create a new one per request.",
+        ],
+        "rust": [
+            "Prefer borrowing over cloning — avoid `.clone()` in hot paths.",
+            "Use `Vec` + index over linked lists for cache efficiency.",
+            "Benchmark with `criterion` before any micro-optimization.",
+            "Use `Rc`/`Arc` sparingly — prefer ownership.",
+            "Avoid `Box<dyn Trait>` in hot paths — prefer generics (monomorphization).",
+            "Use `rayon` for data-parallel CPU-bound work.",
+            "Profile with `perf` or `flamegraph` on Linux.",
+            "Prefer stack allocation; avoid heap when data is small and short-lived.",
+        ],
+    }
+
+    tips = lang_tips.get(lang, [
+        "Profile before optimizing — measure, don't guess.",
+        "Avoid premature optimization.",
+        "Cache expensive computations.",
+        "Minimize I/O in hot paths.",
+        "Use lazy loading for large resources.",
+    ])
+
+    tips_md = "\n".join(f"- {t}" for t in tips)
+    lang_display = ctx.language or "any language"
+
+    content = f"""---
+description: Performance optimization guidelines for {lang_display} projects
+globs: ["src/**", "lib/**", "app/**"]
+alwaysApply: false
+---
+
+# Performance Guidelines — {lang_display.title()}
+
+## Golden Rule
+**Measure first, optimize second.** Always profile before changing code for performance.
+
+## Language-Specific Tips
+{tips_md}
+
+## General Principles
+- **N+1 queries**: always batch or use eager loading for DB relationships.
+- **Caching**: cache at the right layer (DB, service, HTTP) — not everywhere.
+- **Pagination**: never return unbounded lists from APIs or DB queries.
+- **Async I/O**: don't block the event loop / goroutine scheduler with sync I/O.
+- **Memory**: prefer streaming over loading full datasets into memory.
+
+## Before Merging Performance Changes
+1. Run benchmarks to confirm improvement (not just "feels faster").
+2. Check memory usage doesn't increase unexpectedly.
+3. Verify the change doesn't break correctness under load.
+"""
+    d.write_text(content, encoding="utf-8")
+    return "performance"
+
+
+def _rule_refactoring_mdc(rules_dir: Path, ctx: ProjectContext) -> str:
+    """Safe refactoring workflow rule."""
+    d = rules_dir / "refactoring.mdc"
+    test_cmd = ctx.test_framework or "run tests"
+    lang = (ctx.language or "").lower()
+
+    if lang == "python":
+        smell_examples = [
+            "Function > 30 lines → extract sub-functions",
+            "Class > 300 lines → split responsibilities (SRP)",
+            "Nested ifs > 3 deep → invert conditions or extract",
+            "Duplicated logic in 3+ places → extract to shared function",
+            "Magic numbers → named constants",
+            "`except Exception: pass` → handle or re-raise with context",
+        ]
+    elif lang in ("typescript", "javascript"):
+        smell_examples = [
+            "Component > 200 lines → split into smaller components",
+            "Function > 30 lines → extract helpers",
+            "Prop drilling > 2 levels → use context or state management",
+            "Duplicated logic → custom hook or shared utility",
+            "Magic numbers → named constants or enums",
+            "`any` type in TypeScript → narrow to specific type",
+        ]
+    elif lang == "go":
+        smell_examples = [
+            "Function > 30 lines → extract helpers",
+            "Package with > 10 exported symbols doing different things → split packages",
+            "Repeated error wrapping patterns → helper function",
+            "Long parameter lists (> 4) → use struct options pattern",
+            "Magic numbers → typed constants",
+            "Global mutable state → inject as dependency",
+        ]
+    else:
+        smell_examples = [
+            "Function > 30 lines → extract",
+            "Deep nesting > 3 levels → invert / extract",
+            "Duplicated logic in 3+ places → DRY it",
+            "Magic numbers → named constants",
+            "Large class/module → split by responsibility",
+        ]
+
+    smells_md = "\n".join(f"- {s}" for s in smell_examples)
+
+    content = f"""---
+description: Safe refactoring workflow — step-by-step with tests as safety net
+globs: ["src/**", "lib/**", "app/**"]
+alwaysApply: false
+---
+
+# Refactoring Workflow
+
+## Golden Rules
+1. **Tests first** — if there are no tests, write them before refactoring.
+2. **One change at a time** — rename, then extract, then move. Not all at once.
+3. **Run tests after each step** — `{test_cmd}`
+4. **Commit at each green state** — small, reversible steps.
+
+## Code Smells to Watch For
+{smells_md}
+
+## Step-by-Step Process
+
+### 1. Understand before changing
+```bash
+# See what tests exist for this code
+# Read the code and its callers before touching anything
+```
+
+### 2. Make tests pass (if they don't)
+```bash
+{test_cmd}
+```
+
+### 3. Refactor one thing
+- Rename a variable → run tests → commit
+- Extract a function → run tests → commit
+- Move to a module → run tests → commit
+
+### 4. Verify behavior is identical
+```bash
+{test_cmd}
+# Compare output/API contracts before and after
+```
+
+### 5. Commit with clear message
+```
+refactor(<scope>): extract payment validation into PaymentValidator
+
+No behavior change. Splitting 80-line process_payment() for readability.
+```
+
+## Common Patterns
+
+### Extract Function
+```
+# Before: inline 15-line logic
+# After: call validate_payment(data) + test it independently
+```
+
+### Replace Magic Number
+```
+# Before: if retries > 3:
+# After: MAX_RETRIES = 3 ... if retries > MAX_RETRIES:
+```
+
+### Invert Condition (reduce nesting)
+```
+# Before: if user: if user.active: if user.has_role("admin"): ...
+# After: if not user: return; if not user.active: return; ...
+```
+"""
+    d.write_text(content, encoding="utf-8")
+    return "refactoring"
 
 
 def _rule_commit_message(rules_dir: Path) -> str:

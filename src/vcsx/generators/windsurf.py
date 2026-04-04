@@ -397,6 +397,62 @@ description: Data pipeline conventions
                 encoding="utf-8",
             )
 
+        # Refactoring rule (always available, not scoped)
+        test_cmd = _get_test_cmd(ctx)
+        (rules_dir / "refactoring.md").write_text(
+            f"""---
+alwaysApply: false
+description: Safe refactoring workflow — step-by-step with tests as safety net
+---
+
+# Refactoring Workflow
+
+## Golden Rules
+1. **Tests first** — if there are no tests, write them before refactoring.
+2. **One change at a time** — rename → extract → move. Not all at once.
+3. **Run tests after each step** — `{test_cmd}`
+4. **Commit at each green state** — small, reversible steps.
+
+## Code Smells to Address
+- Function > 30 lines → extract sub-functions
+- Nesting > 3 levels → invert conditions or extract
+- Duplicated logic in 3+ places → DRY it
+- Magic numbers → named constants
+- Large class > 300 lines → split by Single Responsibility
+
+## Process
+1. Understand the code and its callers before touching anything.
+2. Ensure tests cover the code being changed (`{test_cmd}`).
+3. Make one small change → run tests → commit if green.
+4. Repeat until the refactor is complete.
+
+## Commit Message Format
+```
+refactor(<scope>): <what changed>
+
+No behavior change. <why this improves the code>.
+```
+
+## Common Patterns
+
+### Extract Function
+Replace inline logic with a named function. Test it independently.
+
+### Invert Condition (reduce nesting)
+```python
+# Before: if user: if user.active: do_thing()
+# After:  if not user: return; if not user.active: return; do_thing()
+```
+
+### Replace Magic Number
+```python
+# Before: if retries > 3:
+# After:  MAX_RETRIES = 3 ... if retries > MAX_RETRIES:
+```
+""",
+            encoding="utf-8",
+        )
+
     def generate_skills(self, ctx: ProjectContext, output_dir: str) -> list[str]:
         """Generate Windsurf-specific skill files."""
         windsurf_dir = Path(output_dir) / ".windsurf"
