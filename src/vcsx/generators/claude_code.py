@@ -294,6 +294,8 @@ class ClaudeCodeGenerator(BaseGenerator):
         created.append(_agent_researcher(agents_dir))
         created.append(_agent_code_reviewer(agents_dir, ctx))
         created.append(_agent_debugger(agents_dir, ctx))
+        created.append(_agent_dependency_auditor(agents_dir, ctx))
+        created.append(_agent_performance_profiler(agents_dir, ctx))
         if ctx.project_type == "api":
             created.append(_agent_api_designer(agents_dir, ctx))
         if ctx.project_type in ("data-pipeline", "ml-model"):
@@ -3414,6 +3416,295 @@ PRAGMA temp_store=MEMORY;
     p = agents_dir / "data-analyst.md"
     p.write_text(content, encoding="utf-8")
     return "data-analyst"
+
+
+def _agent_dependency_auditor(agents_dir: Path, ctx: ProjectContext) -> str:
+    lang = (ctx.language or "").lower()
+
+    if lang == "python":
+        audit_cmds = """```bash
+# Check for known vulnerabilities
+pip-audit                     # pip install pip-audit
+safety check                  # pip install safety
+
+# List outdated packages
+pip list --outdated
+
+# Check for unused dependencies
+pip-check                     # pip install pip-check
+```"""
+        lock_file = "requirements.txt / pyproject.toml"
+        update_note = "Use `pip install --upgrade <pkg>` after reviewing the changelog."
+    elif lang in ("typescript", "javascript"):
+        audit_cmds = """```bash
+# Built-in audit
+npm audit
+npm audit --json              # machine-readable output
+npm audit fix                 # auto-fix compatible issues
+npm audit fix --force         # fix all (may break semver)
+
+# Check outdated
+npm outdated
+
+# Interactive upgrade (install first: npm i -g npm-check-updates)
+ncu                           # preview upgrades
+ncu -u && npm install         # apply all
+```"""
+        lock_file = "package-lock.json / yarn.lock"
+        update_note = "Check breaking changes in CHANGELOG before major version bumps."
+    elif lang == "go":
+        audit_cmds = """```bash
+# Check for known vulnerabilities
+govulncheck ./...             # go install golang.org/x/vuln/cmd/govulncheck@latest
+
+# List outdated modules
+go list -u -m all
+
+# Update a specific module
+go get module@latest
+go mod tidy
+```"""
+        lock_file = "go.mod / go.sum"
+        update_note = "Run `go mod tidy` after any dependency changes."
+    elif lang == "rust":
+        audit_cmds = """```bash
+# Check for known vulnerabilities
+cargo audit                   # cargo install cargo-audit
+
+# Check outdated crates
+cargo outdated                # cargo install cargo-outdated
+
+# Update dependencies
+cargo update                  # update within semver constraints
+```"""
+        lock_file = "Cargo.toml / Cargo.lock"
+        update_note = "Commit Cargo.lock for binaries; .gitignore it for libraries."
+    else:
+        audit_cmds = """```bash
+# Run your package manager's audit command
+# npm audit / pip-audit / cargo audit / govulncheck
+```"""
+        lock_file = "dependency manifest"
+        update_note = "Always review changelogs before upgrading major versions."
+
+    content = f"""---
+name: dependency-auditor
+description: Audits project dependencies for security vulnerabilities and outdated packages. Use when asked to audit deps, check vulnerabilities, or update packages.
+tools: Read, Bash
+---
+
+You are a dependency security auditor. Your job is to find vulnerable, outdated,
+and unnecessary dependencies and recommend safe upgrade paths.
+
+## Language: {ctx.language or "auto-detect"}
+## Lock File: {lock_file}
+
+## Audit Process
+
+### 1. Check for Known Vulnerabilities
+{audit_cmds}
+
+### 2. Categorize Findings
+
+**🔴 Critical / High** — must fix before next release
+- Known CVEs with CVSS score ≥ 7.0
+- Remote code execution, injection, auth bypass risks
+
+**🟡 Medium** — fix in next sprint
+- CVSS 4.0–6.9
+- Denial of service, information disclosure
+
+**🟢 Low / Info** — track but don't rush
+- Minor version drift
+- Deprecation warnings
+
+### 3. Upgrade Recommendations
+- For each vulnerable package: check if a patched version exists
+- If yes: provide exact upgrade command
+- If no patch: suggest alternative package or mitigation
+- {update_note}
+
+### 4. Unused Dependencies
+- Identify packages in the manifest that aren't imported anywhere
+- Recommend removal if safe
+
+## Output Format
+```
+## Dependency Audit Report
+
+### 🔴 Critical (fix now)
+| Package | Current | Safe Version | CVE | Command |
+|---------|---------|--------------|-----|---------|
+| lodash  | 4.17.15 | 4.17.21      | CVE-2021-23337 | npm install lodash@4.17.21 |
+
+### 🟡 Medium
+...
+
+### 🟢 Outdated (not vulnerable)
+...
+
+### 🗑️ Potentially Unused
+...
+
+### Summary
+- X critical, Y medium, Z low issues
+- Estimated fix time: N minutes
+```
+"""
+    p = agents_dir / "dependency-auditor.md"
+    p.write_text(content, encoding="utf-8")
+    return "dependency-auditor"
+
+
+def _agent_performance_profiler(agents_dir: Path, ctx: ProjectContext) -> str:
+    lang = (ctx.language or "").lower()
+
+    if lang == "python":
+        profile_cmds = """```bash
+# CPU profiling
+python -m cProfile -s cumtime your_script.py
+python -m cProfile -o profile.stats your_script.py
+python -c "import pstats; p = pstats.Stats('profile.stats'); p.sort_stats('cumulative'); p.print_stats(20)"
+
+# Memory profiling
+pip install memory-profiler
+python -m memory_profiler your_script.py
+
+# Line-level profiling
+pip install line-profiler
+kernprof -l -v your_script.py
+
+# Flamegraph (visual)
+pip install py-spy
+py-spy record -o profile.svg -- python your_script.py
+```"""
+    elif lang in ("typescript", "javascript"):
+        profile_cmds = """```bash
+# Node.js CPU profiling
+node --prof your_script.js
+node --prof-process isolate-*.log > profile.txt
+
+# Clinic.js (visual profiling)
+npm install -g clinic
+clinic doctor -- node your_script.js
+clinic flame -- node your_script.js
+
+# Browser: Chrome DevTools Performance tab
+# React: React DevTools Profiler (built-in)
+
+# Bundle size analysis
+npm run build
+npx vite-bundle-visualizer     # for Vite
+npx webpack-bundle-analyzer    # for webpack
+```"""
+    elif lang == "go":
+        profile_cmds = """```bash
+# CPU profiling
+go test -cpuprofile=cpu.prof -bench=.
+go tool pprof cpu.prof
+
+# Memory profiling
+go test -memprofile=mem.prof -bench=.
+go tool pprof mem.prof
+
+# Flamegraph (visual)
+go install github.com/google/pprof@latest
+pprof -http=:8080 cpu.prof
+
+# HTTP profiling endpoint (add to main.go for live profiling)
+import _ "net/http/pprof"
+go tool pprof http://localhost:6060/debug/pprof/profile
+```"""
+    elif lang == "rust":
+        profile_cmds = """```bash
+# Criterion benchmarks
+cargo bench
+
+# Flamegraph
+cargo install flamegraph
+cargo flamegraph --bin your_binary
+
+# Perf (Linux)
+cargo build --release
+perf record target/release/your_binary
+perf report
+
+# Heaptrack (memory)
+heaptrack target/release/your_binary
+heaptrack_gui heaptrack.your_binary.*.zst
+```"""
+    else:
+        profile_cmds = """```bash
+# Use your language's profiling tools:
+# Python: cProfile, py-spy
+# Node.js: --prof, clinic.js
+# Go: pprof
+# Rust: flamegraph, criterion
+```"""
+
+    content = f"""---
+name: performance-profiler
+description: Profiles application performance to find bottlenecks. Use when asked to profile, optimize performance, or investigate slowness.
+tools: Read, Bash, Grep
+---
+
+You are a performance engineer. Find real bottlenecks with data, then optimize.
+
+## Language: {ctx.language or "auto-detect"}
+
+## Golden Rule
+**Never optimize without profiling first.** Intuition is wrong 80% of the time.
+Measure → Find real bottleneck → Optimize → Measure again.
+
+## Step 1: Profile
+{profile_cmds}
+
+## Step 2: Identify the Real Bottleneck
+Look for:
+- Functions with highest **cumulative time** (hot paths)
+- Functions called **millions of times** with tiny individual cost
+- **Memory allocation pressure** (GC pauses, frequent allocs)
+- **I/O waits** (DB queries, network calls, disk reads)
+- **N+1 query patterns** (DB call inside a loop)
+
+## Step 3: Optimize (in order of impact)
+1. **Algorithm**: O(n²) → O(n log n) gives 1000x at scale
+2. **I/O batching**: 1 query for 100 items vs 100 queries
+3. **Caching**: avoid recomputing identical results
+4. **Data structures**: wrong choice → 10-100x slowdown
+5. **Parallelism**: CPU-bound work → worker pool / threads
+6. **Memory**: excessive copies → borrow/reuse
+
+## Step 4: Verify Improvement
+```bash
+# Benchmark BEFORE
+# Make change
+# Benchmark AFTER
+# Confirm: Xms → Yms improvement (Z% faster)
+```
+
+## Output Format
+```
+## Performance Analysis
+
+### Profiling Results
+- Top hotspot: `function_name` — X% of total time
+- Called N times, avg Xms per call
+
+### Root Cause
+[Explain exactly why it's slow]
+
+### Optimization Applied
+[What was changed and why]
+
+### Results
+Before: Xms / Xrps
+After:  Yms / Yrps (+Z% improvement)
+```
+"""
+    p = agents_dir / "performance-profiler.md"
+    p.write_text(content, encoding="utf-8")
+    return "performance-profiler"
 
 
 def _agent_researcher(agents_dir: Path) -> str:

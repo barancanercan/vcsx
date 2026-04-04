@@ -163,6 +163,62 @@ class TestClaudeCodeGenerator:
         assert "security-reviewer" in agents
         assert "test-writer" in agents
         assert "researcher" in agents
+        assert "dependency-auditor" in agents
+        assert "performance-profiler" in agents
+
+    def test_dependency_auditor_agent_file_created(self, ctx, tmp_dir):
+        gen = ClaudeCodeGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        agent_file = Path(tmp_dir) / ".claude" / "agents" / "dependency-auditor.md"
+        assert agent_file.exists()
+        content = agent_file.read_text()
+        assert "dependency" in content.lower()
+        assert "vulnerability" in content.lower() or "vulnerabil" in content.lower() or "audit" in content.lower()
+
+    def test_performance_profiler_agent_file_created(self, ctx, tmp_dir):
+        gen = ClaudeCodeGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        agent_file = Path(tmp_dir) / ".claude" / "agents" / "performance-profiler.md"
+        assert agent_file.exists()
+        content = agent_file.read_text()
+        assert "profile" in content.lower() or "profil" in content.lower()
+        assert "bottleneck" in content.lower() or "hotspot" in content.lower() or "optimize" in content.lower()
+
+    def test_dependency_auditor_python_language(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="pyproject", language="python", lang="en")
+        gen = ClaudeCodeGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        agent_file = Path(tmp_dir) / ".claude" / "agents" / "dependency-auditor.md"
+        content = agent_file.read_text()
+        assert "pip" in content or "pip-audit" in content
+
+    def test_dependency_auditor_typescript_language(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="tsproject", language="typescript", lang="en")
+        gen = ClaudeCodeGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        agent_file = Path(tmp_dir) / ".claude" / "agents" / "dependency-auditor.md"
+        content = agent_file.read_text()
+        assert "npm audit" in content
+
+    def test_performance_profiler_go_language(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="goproject", language="go", lang="en")
+        gen = ClaudeCodeGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        agent_file = Path(tmp_dir) / ".claude" / "agents" / "performance-profiler.md"
+        content = agent_file.read_text()
+        assert "pprof" in content
+
+    def test_performance_profiler_rust_language(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="rustproject", language="rust", lang="en")
+        gen = ClaudeCodeGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        agent_file = Path(tmp_dir) / ".claude" / "agents" / "performance-profiler.md"
+        content = agent_file.read_text()
+        assert "flamegraph" in content or "criterion" in content
 
     def test_generate_scaffold(self, ctx, tmp_dir):
         gen = ClaudeCodeGenerator()
