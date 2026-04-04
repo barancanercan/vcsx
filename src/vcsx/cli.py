@@ -2723,6 +2723,9 @@ _SCAFFOLD_FILES = {
     "pyproject": "Generate pyproject.toml (modern Python packaging)",
     "flytoml": "Generate fly.toml (Fly.io deployment)",
     "helmvalues": "Generate Helm values.yaml",
+    "testfile": "Generate a test file template for a module",
+    "envexample": "Generate .env.example with common variables",
+    "githook": "Generate a git pre-commit hook script",
 }
 
 
@@ -2753,7 +2756,13 @@ _SCAFFOLD_FILES = {
     is_flag=True,
     help="Print content to stdout without writing files",
 )
-def scaffold_file(file_type, lang, framework, output_dir, dry_run):
+@click.option(
+    "--name",
+    "-n",
+    default=None,
+    help="Module/class name for testfile scaffold (e.g. UserService)",
+)
+def scaffold_file(file_type, lang, framework, output_dir, dry_run, name):
     """Generate a single scaffold file — no full wizard needed.
 
     \b
@@ -2776,6 +2785,9 @@ def scaffold_file(file_type, lang, framework, output_dir, dry_run):
       pyproject     — pyproject.toml (modern Python packaging)
       flytoml       — fly.toml (Fly.io deployment)
       helmvalues    — Helm values.yaml
+      testfile      — test file template (use --name ModuleName)
+      envexample    — .env.example with common variables
+      githook       — git pre-commit hook script
 
     \b
     Examples:
@@ -2799,7 +2811,7 @@ def scaffold_file(file_type, lang, framework, output_dir, dry_run):
 
     lang_lower = lang.lower()
     fw_lower = (framework or "").lower()
-    content, filename = _generate_scaffold_content(file_type, lang_lower, fw_lower)
+    content, filename = _generate_scaffold_content(file_type, lang_lower, fw_lower, name or "MyModule")
 
     if dry_run:
         console.print(f"\n[bold]# {filename}[/]\n")
@@ -2817,7 +2829,7 @@ def scaffold_file(file_type, lang, framework, output_dir, dry_run):
     console.print(f"\n[green]✓ Created:[/] {out_path.relative_to(target)}")
 
 
-def _generate_scaffold_content(file_type: str, lang: str, framework: str) -> tuple[str, str]:
+def _generate_scaffold_content(file_type: str, lang: str, framework: str, name: str = "MyModule") -> tuple[str, str]:
     """Return (content, filename) for the given scaffold type."""
 
     if file_type == "gitignore":
@@ -2873,6 +2885,16 @@ def _generate_scaffold_content(file_type: str, lang: str, framework: str) -> tup
 
     elif file_type == "helmvalues":
         return _scaffold_helm_values_content(lang), "values.yaml"
+
+    elif file_type == "testfile":
+        content, filename = _scaffold_testfile_content(lang, name)
+        return content, filename
+
+    elif file_type == "envexample":
+        return _scaffold_env_example_content(framework), ".env.example"
+
+    elif file_type == "githook":
+        return _scaffold_githook_content(lang), ".githooks/pre-commit"
 
     return "", f"{file_type}.txt"
 
@@ -4001,6 +4023,346 @@ readinessProbe:
     port: http
   initialDelaySeconds: 5
   periodSeconds: 5
+"""
+
+
+def _scaffold_testfile_content(lang: str, name: str) -> tuple[str, str]:
+    """Generate a test file template for a given module name."""
+    snake = "".join(["_" + c.lower() if c.isupper() else c for c in name]).lstrip("_")
+    # e.g. UserService → user_service
+
+    if lang == "python":
+        filename = f"tests/test_{snake}.py"
+        content = f"""\"\"\"Tests for {name}.\"\"\"
+import pytest
+
+
+class Test{name}:
+    \"\"\"Test suite for {name}.\"\"\"
+
+    # ─── Fixtures ──────────────────────────────────────────────────────────
+
+    @pytest.fixture
+    def subject(self):
+        \"\"\"Return a fresh instance of {name} for each test.\"\"\"
+        # TODO: return {name}(...)
+        pass
+
+    # ─── Happy Path ────────────────────────────────────────────────────────
+
+    def test_{snake}_returns_expected_value(self, subject):
+        \"\"\"Describe the happy-path behavior here.\"\"\"
+        # Arrange
+        # TODO: set up input data
+
+        # Act
+        # result = subject.some_method(...)
+
+        # Assert
+        # assert result == expected
+        pass
+
+    # ─── Edge Cases ────────────────────────────────────────────────────────
+
+    def test_{snake}_with_empty_input_raises(self, subject):
+        \"\"\"Empty input should raise ValueError (or appropriate error).\"\"\"
+        with pytest.raises((ValueError, TypeError)):
+            pass  # TODO: subject.some_method("")
+
+    def test_{snake}_with_none_input_raises(self, subject):
+        with pytest.raises((ValueError, TypeError)):
+            pass  # TODO: subject.some_method(None)
+
+    # ─── Error Cases ───────────────────────────────────────────────────────
+
+    def test_{snake}_handles_external_failure_gracefully(self, subject, mocker):
+        \"\"\"When external dependency fails, should raise specific error.\"\"\"
+        # mocker.patch("module.external_call", side_effect=ConnectionError)
+        pass
+"""
+
+    elif lang in ("typescript", "javascript"):
+        filename = f"tests/{snake}.test.ts" if lang == "typescript" else f"tests/{snake}.test.js"
+        content = f"""import {{ describe, it, expect, beforeEach, vi }} from 'vitest'
+// import {{ {name} }} from '../src/{snake}'
+
+describe('{name}', () => {{
+  // ─── Setup ───────────────────────────────────────────────────────────────
+
+  let subject: any // TODO: type as {name}
+
+  beforeEach(() => {{
+    // subject = new {name}(...)
+  }})
+
+  // ─── Happy Path ──────────────────────────────────────────────────────────
+
+  it('should return expected value', () => {{
+    // Arrange
+    // const input = ...
+
+    // Act
+    // const result = subject.someMethod(input)
+
+    // Assert
+    // expect(result).toBe(expected)
+    expect(true).toBe(true) // TODO: replace with real assertion
+  }})
+
+  // ─── Edge Cases ──────────────────────────────────────────────────────────
+
+  it('should throw on empty input', () => {{
+    expect(() => {{
+      // subject.someMethod('')
+    }}).toThrow()
+  }})
+
+  it('should throw on null input', () => {{
+    expect(() => {{
+      // subject.someMethod(null)
+    }}).toThrow()
+  }})
+
+  // ─── Mocking External Dependencies ──────────────────────────────────────
+
+  it('should handle external failure gracefully', () => {{
+    // vi.spyOn(externalModule, 'call').mockRejectedValue(new Error('network'))
+    // await expect(subject.someMethod()).rejects.toThrow('network')
+    expect(true).toBe(true)
+  }})
+}})
+"""
+
+    elif lang == "go":
+        pkg = snake.replace("_", "")
+        filename = f"{snake}_test.go"
+        content = f"""package {pkg}
+
+import (
+\t"testing"
+)
+
+func Test{name}(t *testing.T) {{
+\tt.Run("returns expected value", func(t *testing.T) {{
+\t\t// Arrange
+\t\t// input := ...
+
+\t\t// Act
+\t\t// result, err := Some{name}Function(input)
+
+\t\t// Assert
+\t\t// if err != nil {{
+\t\t// \tt.Fatalf("unexpected error: %v", err)
+\t\t// }}
+\t\t// if result != expected {{
+\t\t// \tt.Errorf("got %v, want %v", result, expected)
+\t\t// }}
+\t}})
+
+\tt.Run("returns error on empty input", func(t *testing.T) {{
+\t\t// _, err := Some{name}Function("")
+\t\t// if err == nil {{
+\t\t// \tt.Fatal("expected error, got nil")
+\t\t// }}
+\t}})
+}}
+
+// Table-driven test pattern (preferred for multiple cases)
+func Test{name}Cases(t *testing.T) {{
+\ttests := []struct {{
+\t\tname    string
+\t\tinput   string
+\t\twant    string
+\t\twantErr bool
+\t}}{{
+\t\t{{name: "valid input", input: "hello", want: "HELLO", wantErr: false}},
+\t\t{{name: "empty input", input: "", want: "", wantErr: true}},
+\t}}
+
+\tfor _, tc := range tests {{
+\t\tt.Run(tc.name, func(t *testing.T) {{
+\t\t\t// got, err := SomeFunc(tc.input)
+\t\t\t// if (err != nil) != tc.wantErr {{
+\t\t\t// \tt.Errorf("error = %v, wantErr %v", err, tc.wantErr)
+\t\t\t// }}
+\t\t}})
+\t}}
+}}
+"""
+
+    elif lang == "rust":
+        filename = f"tests/{snake}.rs"
+        content = f"""// Tests for {name}
+// Add to Cargo.toml: [[test]] name = "{snake}" path = "tests/{snake}.rs"
+// Or place inline in src/{snake}.rs inside #[cfg(test)]
+
+#[cfg(test)]
+mod tests {{
+    use super::*;
+
+    // ─── Happy Path ──────────────────────────────────────────────────────
+
+    #[test]
+    fn test_{snake}_returns_expected() {{
+        // Arrange
+        // let input = ...;
+
+        // Act
+        // let result = some_function(input);
+
+        // Assert
+        // assert_eq!(result, expected);
+        assert!(true); // TODO: replace with real assertion
+    }}
+
+    // ─── Edge Cases ──────────────────────────────────────────────────────
+
+    #[test]
+    fn test_{snake}_empty_input_returns_error() {{
+        // let result = some_function("");
+        // assert!(result.is_err());
+        assert!(true);
+    }}
+
+    // ─── Error Cases ─────────────────────────────────────────────────────
+
+    #[test]
+    #[should_panic(expected = "expected panic message")]
+    fn test_{snake}_panics_on_invariant_violation() {{
+        // Call function that should panic
+        // panic!("expected panic message"); // TODO: replace
+    }}
+}}
+"""
+
+    else:
+        filename = f"tests/test_{snake}.txt"
+        content = f"# Test template for {name}\n# TODO: add tests\n"
+
+    return content, filename
+
+
+def _scaffold_env_example_content(framework: str) -> str:
+    fw = (framework or "").lower()
+
+    base = """# .env.example — Copy to .env and fill in values
+# Never commit .env to version control
+
+# Application
+APP_ENV=development
+APP_PORT=8000
+APP_SECRET_KEY=change-me-in-production
+DEBUG=true
+
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/mydb
+# Alternatives:
+# DATABASE_URL=sqlite:///./app.db
+# DATABASE_URL=mysql://user:password@localhost:3306/mydb
+
+# Redis (optional)
+REDIS_URL=redis://localhost:6379/0
+
+"""
+
+    if "fastapi" in fw or "django" in fw or "flask" in fw:
+        base += """# Python web framework
+ALLOWED_HOSTS=localhost,127.0.0.1
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+
+"""
+    elif "next" in fw or "react" in fw or "vite" in fw:
+        base += """# Frontend
+NEXT_PUBLIC_API_URL=http://localhost:8000
+VITE_API_URL=http://localhost:8000
+
+"""
+
+    base += """# Auth (pick one)
+JWT_SECRET=change-me
+# OAUTH_CLIENT_ID=
+# OAUTH_CLIENT_SECRET=
+# GITHUB_TOKEN=
+
+# AI / LLM (optional)
+# OPENAI_API_KEY=sk-...
+# ANTHROPIC_API_KEY=sk-ant-...
+# GEMINI_API_KEY=AIza...
+
+# Storage (optional)
+# S3_BUCKET=my-bucket
+# S3_REGION=us-east-1
+# AWS_ACCESS_KEY_ID=
+# AWS_SECRET_ACCESS_KEY=
+
+# Monitoring (optional)
+# SENTRY_DSN=https://...
+# DATADOG_API_KEY=
+"""
+    return base
+
+
+def _scaffold_githook_content(lang: str) -> str:
+    if lang == "python":
+        lint_cmd = "ruff check ."
+        fmt_cmd = "ruff format --check ."
+        test_hint = "# pytest tests/ -q --tb=short  # Uncomment to run tests pre-commit"
+    elif lang in ("typescript", "javascript"):
+        lint_cmd = "npx eslint ."
+        fmt_cmd = "npx prettier --check ."
+        test_hint = "# npx vitest run  # Uncomment to run tests pre-commit"
+    elif lang == "go":
+        lint_cmd = "go vet ./..."
+        fmt_cmd = "gofmt -l . | grep -q . && echo 'Run gofmt' && exit 1 || true"
+        test_hint = "# go test ./...  # Uncomment to run tests pre-commit"
+    elif lang == "rust":
+        lint_cmd = "cargo clippy -- -D warnings"
+        fmt_cmd = "cargo fmt --all -- --check"
+        test_hint = "# cargo test  # Uncomment to run tests pre-commit"
+    else:
+        lint_cmd = "echo 'No linter configured'"
+        fmt_cmd = "echo 'No formatter configured'"
+        test_hint = "# Add test command here"
+
+    return f"""#!/bin/bash
+# Git pre-commit hook — runs automatically before each commit
+# Install: chmod +x .githooks/pre-commit && git config core.hooksPath .githooks
+#
+# To skip for a specific commit: git commit --no-verify
+
+set -e  # Exit immediately on any error
+
+echo "🔍 Pre-commit checks..."
+
+# ─── Secrets scan ────────────────────────────────────────────────────────────
+echo "  Checking for secrets..."
+if git diff --cached --name-only | xargs grep -l -E "(AKIA[0-9A-Z]{{16}}|sk-[a-zA-Z0-9]{{20,}}|ghp_[a-zA-Z0-9]{{36}}|AIza[0-9A-Za-z_-]{{35}})" 2>/dev/null; then
+    echo "❌ Potential secret detected in staged files. Aborting commit."
+    echo "   Remove the secret and use environment variables instead."
+    exit 1
+fi
+
+# ─── No debug artifacts ──────────────────────────────────────────────────────
+echo "  Checking for debug artifacts..."
+if git diff --cached | grep -E "^\\+.*(console\\.log|print(f)?\\(|debugger|pdb\\.set_trace|breakpoint\\()" | grep -v "//.*console\\.log\\|#.*print" | grep -q .; then
+    echo "⚠️  Possible debug statement in staged changes."
+    echo "   Review with: git diff --cached | grep -E 'console.log|print|debugger'"
+    # Uncomment to make this a hard block:
+    # exit 1
+fi
+
+# ─── Format check ────────────────────────────────────────────────────────────
+echo "  Checking formatting..."
+{fmt_cmd}
+
+# ─── Lint ────────────────────────────────────────────────────────────────────
+echo "  Running linter..."
+{lint_cmd}
+
+# ─── Tests (optional) ────────────────────────────────────────────────────────
+{test_hint}
+
+echo "✅ All pre-commit checks passed!"
 """
 
 

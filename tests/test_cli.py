@@ -2157,3 +2157,79 @@ class TestPromptAllTypes:
         result = runner.invoke(main, ["prompt", "add OAuth", "--lang", "python"])
         assert result.exit_code == 0
         assert "OAuth" in result.output
+
+
+class TestScaffoldNewTypes:
+    """Test new scaffold types: testfile, envexample, githook."""
+
+    def test_scaffold_testfile_python(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "testfile", "--lang", "python", "--name", "UserService", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / "tests" / "test_user_service.py").exists()
+        content = (Path(tmp_dir) / "tests" / "test_user_service.py").read_text()
+        assert "TestUserService" in content
+        assert "pytest" in content
+        assert "Arrange" in content
+
+    def test_scaffold_testfile_typescript(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "testfile", "--lang", "typescript", "--name", "AuthService", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content_file = Path(tmp_dir) / "tests" / "auth_service.test.ts"
+        assert content_file.exists()
+        content = content_file.read_text()
+        assert "AuthService" in content
+        assert "describe" in content
+
+    def test_scaffold_testfile_go(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "testfile", "--lang", "go", "--name", "PaymentService", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "payment_service_test.go").read_text()
+        assert "TestPaymentService" in content
+        assert "testing.T" in content
+
+    def test_scaffold_testfile_rust(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "testfile", "--lang", "rust", "--name", "DbHandler", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "tests" / "db_handler.rs").read_text()
+        assert "#[cfg(test)]" in content
+        assert "fn test_db_handler" in content
+
+    def test_scaffold_testfile_default_name(self, runner, tmp_dir):
+        """Should use MyModule as default name if --name not given."""
+        result = runner.invoke(main, ["scaffold", "testfile", "--lang", "python", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / "tests" / "test_my_module.py").exists()
+
+    def test_scaffold_envexample(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "envexample", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / ".env.example").read_text()
+        assert "DATABASE_URL" in content
+        assert "APP_SECRET_KEY" in content
+        assert "OPENAI_API_KEY" in content
+
+    def test_scaffold_envexample_fastapi(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "envexample", "--framework", "fastapi", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / ".env.example").read_text()
+        assert "CORS_ORIGINS" in content or "ALLOWED_HOSTS" in content
+
+    def test_scaffold_githook_python(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "githook", "--lang", "python", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / ".githooks" / "pre-commit").read_text()
+        assert "ruff" in content
+        assert "secret" in content.lower()
+        assert "#!/bin/bash" in content
+
+    def test_scaffold_githook_typescript(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "githook", "--lang", "typescript", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / ".githooks" / "pre-commit").read_text()
+        assert "eslint" in content
+
+    def test_scaffold_githook_rust(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "githook", "--lang", "rust", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / ".githooks" / "pre-commit").read_text()
+        assert "cargo" in content
