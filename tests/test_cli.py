@@ -904,6 +904,19 @@ class TestDoctorPlatformInfo:
         assert result.exit_code == 0
         assert "Platform" in result.output or "python" in result.output.lower()
 
+    def test_doctor_shows_ai_cli_tools_section(self, runner):
+        """Doctor should show the AI CLI Tools section."""
+        result = runner.invoke(main, ["doctor"])
+        assert result.exit_code == 0
+        assert "AI CLI Tools" in result.output
+
+    def test_doctor_ai_cli_shows_install_count(self, runner):
+        """Doctor should report installed count even if 0."""
+        result = runner.invoke(main, ["doctor"])
+        assert result.exit_code == 0
+        # Either "X AI CLI tool(s) installed" or "not installed"
+        assert "installed" in result.output.lower()
+
     def test_doctor_detects_aider(self, runner, tmp_dir):
         (Path(tmp_dir) / ".aider.conf.yaml").write_text("model: gpt-4o\n")
         result = runner.invoke(main, ["doctor", "--dir", tmp_dir])

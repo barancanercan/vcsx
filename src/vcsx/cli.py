@@ -553,6 +553,56 @@ def install_vcsx(method):
             console.print(f"  $ {cmd}")
 
 
+def _show_installed_ai_tools() -> None:
+    """Check which AI coding CLIs are installed on the system."""
+    # (cli_command, display_name, install_hint)
+    ai_cli_tools = [
+        ("claude", "Claude Code", "npm install -g @anthropic-ai/claude-code"),
+        ("cursor", "Cursor", "https://cursor.com"),
+        ("windsurf", "Windsurf", "https://windsurf.com"),
+        ("aider", "Aider", "pip install aider-install && aider-install"),
+        ("gemini", "Gemini CLI", "npm install -g @google/gemini-cli"),
+        ("codex", "OpenAI Codex", "npm install -g @openai/codex"),
+        ("gh", "GitHub CLI (Copilot)", "https://cli.github.com"),
+        ("continue", "Continue.dev", "VS Code extension"),
+    ]
+
+    found = []
+    missing = []
+
+    for cmd, name, hint in ai_cli_tools:
+        path = shutil.which(cmd)
+        if path:
+            found.append((name, path))
+        else:
+            missing.append((name, hint))
+
+    if not found and not missing:
+        return
+
+    console.print("\n[bold]AI CLI Tools (system-wide):[/]")
+    tools_table = Table(show_header=False, border_style="dim")
+    tools_table.add_column("Tool")
+    tools_table.add_column("Status")
+
+    for name, path in found:
+        # Shorten the path for display
+        short_path = path.replace(str(Path.home()), "~") if str(Path.home()) in path else path
+        tools_table.add_row(name, f"[green]✓[/] {short_path}")
+
+    for name, hint in missing[:4]:  # Show first 4 missing only
+        tools_table.add_row(name, f"[dim]✗ not installed[/]  [dim]{hint}[/]")
+
+    console.print(tools_table)
+
+    if found:
+        console.print(f"\n[green]{len(found)} AI CLI tool(s) installed.[/]")
+    if missing:
+        console.print(
+            f"[dim]{len(missing)} not installed — install to use those AI tools locally.[/]"
+        )
+
+
 @main.command("doctor")
 @click.option(
     "--dir",
@@ -659,6 +709,9 @@ def doctor(dir):
                 "\n[yellow]Tip:[/] Claude Code detected but no .claudeignore found.\n"
                 "Run: [cyan]vcsx update --tool claude-code[/] to generate it."
             )
+
+    # --- AI CLI Tools installed on system ---
+    _show_installed_ai_tools()
 
     # Platform info
     console.print(f"\n[dim]Platform:[/] {platform.system()} {platform.machine()}")
