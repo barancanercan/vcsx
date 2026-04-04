@@ -145,6 +145,8 @@ class ClaudeCodeGenerator(BaseGenerator):
 
         created.append(_skill_security_review(skills_dir))
         created.append(_skill_refactor(skills_dir))
+        created.append(_skill_architecture_review(skills_dir, ctx))
+        created.append(_skill_feature_spec(skills_dir, ctx))
 
         return created
 
@@ -1163,6 +1165,293 @@ Improve code quality while preserving behavior.
 """
     (d / "SKILL.md").write_text(content, encoding="utf-8")
     return "refactor"
+
+
+def _skill_architecture_review(skills_dir: Path, ctx: ProjectContext) -> str:
+    d = skills_dir / "architecture-review"
+    d.mkdir(parents=True, exist_ok=True)
+    lang = (ctx.language or "").lower()
+    project_type = ctx.project_type or "application"
+
+    # Language-specific architecture concerns
+    if lang == "python":
+        lang_concerns = """### Python-Specific Architecture Concerns
+- Is the project using src layout? (`src/package/` vs flat `package/`)
+- Are circular imports present? (`python -c "import src.app"` to check)
+- Is dependency injection used, or are globals/singletons everywhere?
+- Are Pydantic models used at API boundaries for validation?
+- Is the async/sync boundary well-defined?"""
+    elif lang in ("typescript", "javascript"):
+        lang_concerns = """### TypeScript/JavaScript Architecture Concerns
+- Is state management well-scoped? (local vs global vs server state)
+- Are API calls in dedicated service files, or scattered in components?
+- Is the bundle split logically? (vendor, app, lazy chunks)
+- Are shared types centralized? (e.g., `src/types/`)
+- Are environment variables validated at startup?"""
+    elif lang == "go":
+        lang_concerns = """### Go Architecture Concerns
+- Is the `cmd/internal/pkg` layout used correctly?
+- Are interfaces defined where they're used (consumer side)?
+- Is there global state? It should be minimal.
+- Are contexts propagated correctly through the call chain?
+- Is error handling consistent? (wrap with context, not swallow)"""
+    elif lang == "rust":
+        lang_concerns = """### Rust Architecture Concerns
+- Is the error hierarchy well-defined? (`thiserror` for lib, `anyhow` for bin)
+- Are trait boundaries clean? (no unnecessary `dyn Trait` in hot paths)
+- Is the module visibility appropriate? (`pub(crate)` vs `pub`)
+- Are lifetimes explicit only where necessary?
+- Is async runtime choice consistent? (tokio vs async-std, not mixed)"""
+    else:
+        lang_concerns = ""
+
+    content = f"""---
+name: architecture-review
+description: Reviews the overall architecture and design of the codebase. Use when planning a major refactor, onboarding to a new project, or assessing technical health.
+---
+
+# Architecture Review Skill
+
+Perform a thorough architectural analysis of the {project_type} and produce a structured report.
+
+## Overview Exploration
+
+### 1. Map the structure
+```bash
+# Top-level structure
+find . -maxdepth 3 -type d | grep -v -E '(node_modules|__pycache__|.git|target|dist|build)'
+
+# Entry points
+find . -name "main.*" -o -name "index.*" -o -name "app.*" | grep -v node_modules | head -20
+
+# Largest files (complexity hotspots)
+find src -name "*.py" -o -name "*.ts" -o -name "*.go" -o -name "*.rs" \\
+  | xargs wc -l 2>/dev/null | sort -rn | head -20
+```
+
+### 2. Understand dependencies
+```bash
+# External dependencies
+cat pyproject.toml || cat package.json || cat Cargo.toml || cat go.mod
+
+# Internal imports (who depends on what)
+grep -r "^import\\|^from" src/ --include="*.py" | grep -v test | head -30
+```
+
+### 3. Find patterns and anti-patterns
+```bash
+# Global state
+grep -rn "global \\|GLOBAL_\\|module.exports\\|singleton" src/ | grep -v test | head -20
+
+# Long functions
+grep -rn "def \\|function \\|func " src/ | wc -l  # count functions
+
+# TODO/FIXME debt
+grep -rn "TODO\\|FIXME\\|HACK\\|XXX" src/ | wc -l
+```
+
+## Architecture Review Checklist
+
+### Structure & Separation of Concerns
+- [ ] Clear separation between layers (API, business logic, data access)
+- [ ] No business logic in API handlers
+- [ ] No direct database access from UI/API layer
+- [ ] Shared utilities in a dedicated module, not scattered
+- [ ] Feature modules cohesive (related code together)
+
+### Coupling & Cohesion
+- [ ] Modules have single, clear responsibilities
+- [ ] Dependencies flow in one direction (no circular deps)
+- [ ] External services abstracted behind interfaces/adapters
+- [ ] Configuration injected, not hardcoded
+
+### Scalability & Maintainability
+- [ ] No god files/classes (> 300 lines)
+- [ ] No god functions (> 50 lines)
+- [ ] Duplicate code extracted into shared utilities
+- [ ] Consistent error handling strategy
+
+### Testability
+- [ ] Business logic testable without DB/HTTP/filesystem
+- [ ] Dependencies injectable (not hardcoded)
+- [ ] Side effects isolated and mockable
+- [ ] Test coverage exists for critical paths
+
+{lang_concerns}
+
+## Output Format
+
+```markdown
+## Architecture Review — {{project_name}}
+
+### Executive Summary
+[2-3 sentence overview of architectural health]
+
+### Strengths
+- [Well-designed aspect 1]
+- [Well-designed aspect 2]
+
+### Structural Issues
+
+#### 🔴 Critical (fix before next major feature)
+- **Issue**: [What and where]
+  **Impact**: [Why it matters]
+  **Fix**: [Concrete recommendation]
+
+#### 🟡 Important (schedule for next sprint)
+- **Issue**: ...
+  **Fix**: ...
+
+#### 🟢 Nice to Have
+- [Minor improvement suggestions]
+
+### Recommended Refactoring Plan
+1. [Week 1: Quick wins]
+2. [Week 2-3: Medium tasks]
+3. [Month 2: Large structural changes]
+
+### Metrics
+| Metric | Current | Target |
+|--------|---------|--------|
+| Largest file | X lines | < 300 lines |
+| Longest function | X lines | < 50 lines |
+| TODO count | X | 0 |
+| Test coverage | X% | > 80% |
+```
+"""
+    (d / "SKILL.md").write_text(content, encoding="utf-8")
+    return "architecture-review"
+
+
+def _skill_feature_spec(skills_dir: Path, ctx: ProjectContext) -> str:
+    d = skills_dir / "feature-spec"
+    d.mkdir(parents=True, exist_ok=True)
+    project_type = ctx.project_type or "application"
+    lang = ctx.language or "the project language"
+    test_fw = ctx.test_framework or "the test suite"
+
+    content = f"""---
+name: feature-spec
+description: Creates a detailed feature specification before implementation. Use when asked to plan or spec out a new feature, especially before writing code.
+---
+
+# Feature Spec Skill
+
+Create a complete feature specification *before* writing any code.
+Good specs prevent rework and misunderstandings.
+
+## Why spec first?
+- Catches ambiguities before they become bugs
+- Enables useful code review before implementation starts
+- Forces you to think through edge cases
+- Creates documentation that outlasts the code
+
+## Process
+
+### 1. Understand the request
+Ask clarifying questions if anything is unclear:
+- What problem does this solve for the user?
+- What does "done" look like?
+- Are there any constraints (performance, compatibility, deadline)?
+- What should explicitly NOT be included?
+
+### 2. Explore the codebase for context
+```bash
+# Find related existing code
+grep -rn "<feature keyword>" src/
+
+# Find tests for similar features
+find tests/ -name "*.py" | xargs grep -l "<related concept>"
+
+# Check for existing patterns to follow
+find src/ -name "*.{lang.lower().replace(" ", "")}" | head -10
+```
+
+### 3. Write the spec
+
+Use this template:
+
+---
+
+## Feature Spec: {{Feature Name}}
+
+**Date:** {{YYYY-MM-DD}}
+**Requester:** {{who asked for this}}
+**Status:** Draft / Review / Approved
+
+### Problem Statement
+[1-2 sentences: what problem does this solve?]
+
+### Proposed Solution
+[High-level description of the approach]
+
+### User Stories
+- As a [user type], I want to [action] so that [benefit].
+- As a [user type], I want to [action] so that [benefit].
+
+### Acceptance Criteria
+These must all be true for the feature to be "done":
+- [ ] [Specific, testable criterion]
+- [ ] [Specific, testable criterion]
+- [ ] [Specific, testable criterion]
+
+### API Changes (if applicable)
+```
+# New endpoint / changed interface
+POST /v1/{{resource}}
+Body: {{ "field": "value" }}
+Response 201: {{ "id": "..." }}
+```
+
+### Data Model Changes (if applicable)
+```
+# New fields or tables
+{{table}}: add column {{name}} ({{type}}, nullable/required)
+```
+
+### Edge Cases & Error Handling
+| Scenario | Expected Behavior |
+|----------|-------------------|
+| Empty input | Return 422 with validation message |
+| Duplicate | Return 409 Conflict |
+| Not found | Return 404 |
+| Rate limited | Return 429 |
+
+### Implementation Notes
+[Language: {lang} / Framework: {ctx.framework or "None"} / Type: {project_type}]
+- [Key implementation decision]
+- [What NOT to do and why]
+
+### Testing Plan
+Framework: {test_fw}
+
+- Unit tests: [what to unit test]
+- Integration tests: [what to integration test]
+- Edge cases to cover: [list]
+
+### Out of Scope
+- [Thing explicitly not included in this feature]
+- [Future enhancement, not now]
+
+### Open Questions
+- [ ] [Unresolved question that needs an answer]
+
+---
+
+### 4. Get approval before coding
+Share the spec with the requester. Only start implementation when:
+- Acceptance criteria are agreed upon
+- Edge cases are addressed
+- No open questions remain
+
+### 5. Link spec to implementation
+After coding:
+- Reference the spec in the PR description
+- Update the spec if implementation diverged
+- Check all acceptance criteria in the PR checklist
+"""
+    (d / "SKILL.md").write_text(content, encoding="utf-8")
+    return "feature-spec"
 
 
 def _skill_squash(skills_dir: Path) -> str:

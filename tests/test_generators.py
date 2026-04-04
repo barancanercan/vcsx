@@ -138,6 +138,50 @@ class TestClaudeCodeGenerator:
         assert "auth-conventions" in skills
         assert "api-conventions" in skills
         assert "test-patterns" in skills
+        assert "architecture-review" in skills
+        assert "feature-spec" in skills
+
+    def test_architecture_review_skill_file(self, ctx, tmp_dir):
+        gen = ClaudeCodeGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        skill_file = Path(tmp_dir) / ".claude" / "skills" / "architecture-review" / "SKILL.md"
+        assert skill_file.exists()
+        content = skill_file.read_text()
+        assert "name: architecture-review" in content
+        assert "Structure" in content
+        assert "Checklist" in content
+
+    def test_architecture_review_python_specific(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="pyproj", language="python", lang="en")
+        ClaudeCodeGenerator().generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".claude" / "skills" / "architecture-review" / "SKILL.md").read_text()
+        assert "Python-Specific" in content or "src layout" in content
+
+    def test_architecture_review_typescript_specific(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="tsproj", language="typescript", lang="en")
+        ClaudeCodeGenerator().generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".claude" / "skills" / "architecture-review" / "SKILL.md").read_text()
+        assert "TypeScript" in content or "bundle" in content
+
+    def test_feature_spec_skill_file(self, ctx, tmp_dir):
+        gen = ClaudeCodeGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        skill_file = Path(tmp_dir) / ".claude" / "skills" / "feature-spec" / "SKILL.md"
+        assert skill_file.exists()
+        content = skill_file.read_text()
+        assert "name: feature-spec" in content
+        assert "Acceptance Criteria" in content
+        assert "User Stories" in content
+        assert "Edge Cases" in content
+
+    def test_feature_spec_references_project_context(self, ctx, tmp_dir):
+        gen = ClaudeCodeGenerator()
+        gen.generate_skills(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".claude" / "skills" / "feature-spec" / "SKILL.md").read_text()
+        # Should reference the project's test framework or language
+        assert "pytest" in content or "python" in content.lower() or "test" in content.lower()
 
     def test_skill_frontmatter(self, ctx, tmp_dir):
         gen = ClaudeCodeGenerator()
