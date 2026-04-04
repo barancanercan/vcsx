@@ -403,6 +403,69 @@ class TestCopilotGeneratorExtended:
         gen = CopilotGenerator()
         result = gen.generate_agents(ctx, tmp_dir)
         assert isinstance(result, list)
+        assert "ci.yml" in result
+        assert "dependabot.yml" in result
+
+    def test_copilot_ci_workflow_created(self, ctx, tmp_dir):
+        gen = CopilotGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        ci_path = Path(tmp_dir) / ".github" / "workflows" / "ci.yml"
+        assert ci_path.exists()
+        content = ci_path.read_text()
+        assert "on:" in content or "on:" in content
+        assert "jobs:" in content
+
+    def test_copilot_dependabot_created(self, ctx, tmp_dir):
+        gen = CopilotGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        dep_path = Path(tmp_dir) / ".github" / "dependabot.yml"
+        assert dep_path.exists()
+        content = dep_path.read_text()
+        assert "github-actions" in content
+
+    def test_copilot_ci_python(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="pypkg", language="python", lang="en")
+        gen = CopilotGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        assert "setup-python" in content
+        assert "pip" in content.lower()
+
+    def test_copilot_ci_typescript(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="tspkg", language="typescript", lang="en")
+        gen = CopilotGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        assert "setup-node" in content
+        assert "npm ci" in content
+
+    def test_copilot_ci_go(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="gopkg", language="go", lang="en")
+        gen = CopilotGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        assert "setup-go" in content
+        assert "go test" in content
+
+    def test_copilot_ci_rust(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="rustpkg", language="rust", lang="en")
+        gen = CopilotGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        assert "rust-toolchain" in content
+        assert "clippy" in content
+
+    def test_copilot_dependabot_npm_for_ts(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="tspkg", language="typescript", lang="en")
+        gen = CopilotGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".github" / "dependabot.yml").read_text()
+        assert "npm" in content
 
     def test_copilot_hooks_returns_dict(self, ctx, tmp_dir):
         gen = CopilotGenerator()

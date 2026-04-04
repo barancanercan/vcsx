@@ -268,7 +268,195 @@ applyTo: "**/routes/**,**/api/**,**/controllers/**,**/endpoints/**"
         return {"note": "Copilot hooks not supported — use pre-commit hooks or GitHub Actions"}
 
     def generate_agents(self, ctx: ProjectContext, output_dir: str) -> list[str]:
-        return []
+        """Generate GitHub Actions CI workflow — complements Copilot setup."""
+        return self._generate_github_actions(ctx, output_dir)
+
+    def _generate_github_actions(self, ctx: ProjectContext, output_dir: str) -> list[str]:
+        """Generate .github/workflows/ci.yml — language-aware CI pipeline."""
+        workflows_dir = Path(output_dir) / ".github" / "workflows"
+        workflows_dir.mkdir(parents=True, exist_ok=True)
+
+        lang = (ctx.language or "").lower()
+        test_cmd = get_test_cmd(ctx)
+        lint_cmd = get_lint_cmd(ctx)
+        fmt_cmd = get_format_cmd(ctx)
+        build_cmd = get_build_cmd(ctx)
+
+        if lang == "python":
+            setup_steps = f"""      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check formatting
+        run: {fmt_cmd} --check .
+
+      - name: Lint
+        run: {lint_cmd} .
+
+      - name: Type check
+        run: pyright src/ || mypy src/ || true
+
+      - name: Test
+        run: {test_cmd} --tb=short"""
+            matrix_section = ""
+
+        elif lang in ("typescript", "javascript"):
+            setup_steps = f"""      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: {lint_cmd} .
+
+      - name: Type check
+        run: npx tsc --noEmit || true
+
+      - name: Test
+        run: {test_cmd}
+
+      - name: Build
+        run: {build_cmd}"""
+            matrix_section = """    strategy:
+      matrix:
+        node-version: ["18", "20", "22"]
+"""
+
+        elif lang == "go":
+            setup_steps = """      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Build
+        run: go build ./..."""
+            matrix_section = ""
+
+        elif lang == "rust":
+            setup_steps = """      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Test
+        run: cargo test
+
+      - name: Build release
+        run: cargo build --release"""
+            matrix_section = ""
+
+        else:
+            setup_steps = f"""      - name: Install dependencies
+        run: {get_setup_cmd(ctx)}
+
+      - name: Test
+        run: {test_cmd}"""
+            matrix_section = ""
+
+        workflow_content = f"""name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{{{ github.workflow }}}}-${{{{ github.ref }}}}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Build & Test
+    runs-on: ubuntu-latest
+{matrix_section}    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+{setup_steps}
+"""
+
+        (workflows_dir / "ci.yml").write_text(workflow_content, encoding="utf-8")
+
+        # Also generate dependabot.yml for automated dependency updates
+        dependabot_content = """version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+"""
+
+        if lang in ("typescript", "javascript"):
+            dependabot_content += """
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+"""
+        elif lang == "python":
+            dependabot_content += """
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+"""
+        elif lang == "rust":
+            dependabot_content += """
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+"""
+
+        (Path(output_dir) / ".github" / "dependabot.yml").write_text(
+            dependabot_content, encoding="utf-8"
+        )
+
+        return ["ci.yml", "dependabot.yml"]
 
     def generate_scaffold(self, ctx: ProjectContext, output_dir: str) -> list[str]:
         created = []
