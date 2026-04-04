@@ -25,6 +25,45 @@
 
 ---
 
+> **You're doing vibe coding.** Your AI tool is powerful — but without the right context files, skills, and hooks, it's flying blind. `vcsx` sets up everything your AI needs to understand your project, enforce your conventions, and never make the same mistake twice.
+
+```bash
+pip install vcsx
+vcsx init
+```
+
+**In 2 minutes you get:** CLAUDE.md · skills (`/commit`, `/deploy`, `/security-review`) · hooks (auto-format, block dangerous commands) · agents · `.cursorrules` · `.windsurfrules` — all tailored to your stack.
+
+---
+
+### 🎬 What happens when you run `vcsx init`
+
+```
+$ vcsx init
+
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  🎯 PROJECT OVERVIEW                                                 │
+  │  📌 Purpose:  Ship a production-grade FastAPI service                │
+  │  ❌ Problem:  Manual boilerplate + inconsistent AI context           │
+  │  👥 Target:   Backend engineers using Claude Code + Cursor           │
+  └─────────────────────────────────────────────────────────────────────┘
+
+  ✅ Generated for claude-code + cursor:
+     CLAUDE.md                          (project conventions, 87 lines)
+     .claude/skills/commit-message/     (/commit → conventional commits)
+     .claude/skills/deploy/             (/deploy → Railway pre-flight)
+     .claude/skills/security-review/    (/security → OWASP scan)
+     .claude/settings.json              (hooks: auto-format, secret-scan)
+     .claude/agents/security-reviewer/  (subagent)
+     .cursorrules                       (Cursor IDE rules)
+     .cursor/rules/api-conventions.mdc  (REST patterns)
+     .cursor/rules/test-patterns.mdc    (pytest patterns)
+
+  🚀 Done in 1.3s — 9 files, 0 manual edits required.
+```
+
+---
+
 ## ✨ What It Does
 
 `vcsx` is a CLI tool that generates **production-ready AI coding environments** in seconds.

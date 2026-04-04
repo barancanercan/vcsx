@@ -9,7 +9,7 @@ description = "Vibe Coding Setup Expert — Multi-CLI AI coding environment gene
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
-authors = [{name = "Vibe Coding Setup Expert Contributors", email = "vcsx@example.com"}]
+authors = [{name = "Vibe Coding Setup Expert Contributors", email = "barancanercan@gmail.com"}]
 keywords = ["claude-code", "cursor", "codex", "copilot", "windsurf", "zed", "aider", "setup", "automation", "cli", "ai-coding"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
