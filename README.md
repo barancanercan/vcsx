@@ -4,7 +4,7 @@
 ╔══════════════════╗
 ║       *          ║
 ║      vcsx        ║
-║     v5.0.0       ║
+║     v5.1.0       ║
 ╚══════════════════╝
 </pre>
 
@@ -16,8 +16,8 @@
 [![PyPI version](https://img.shields.io/pypi/v/vcsx.svg)](https://pypi.org/project/vcsx/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-513%20passing-brightgreen.svg)](https://github.com/barancanercan/vcsx)
-[![Coverage](https://img.shields.io/badge/coverage-87%25-green.svg)](https://github.com/barancanercan/vcsx)
+[![Tests](https://img.shields.io/badge/tests-783%20passing-brightgreen.svg)](https://github.com/barancanercan/vcsx)
+[![Coverage](https://img.shields.io/badge/coverage-95%25-green.svg)](https://github.com/barancanercan/vcsx)
 
 **Claude Code** · **Cursor** · **Windsurf** · **Zed** · **Aider** · **Bolt** · **Codex** · **Copilot** · **Gemini CLI** · **AGENTS.md**
 
