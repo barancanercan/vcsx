@@ -228,6 +228,52 @@ class TestClaudeCodeGenerator:
         assert (Path(tmp_dir) / ".env.example").exists()
         assert (Path(tmp_dir) / "pyproject.toml").exists()
         assert (Path(tmp_dir) / "requirements.txt").exists()
+        assert (Path(tmp_dir) / ".pre-commit-config.yaml").exists()
+
+    def test_precommit_python_content(self, ctx, tmp_dir):
+        gen = ClaudeCodeGenerator()
+        gen.generate_scaffold(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".pre-commit-config.yaml").read_text()
+        assert "pre-commit-hooks" in content
+        assert "ruff" in content or "black" in content
+        assert "detect-private-key" in content
+        assert "no-commit-to-branch" in content
+
+    def test_precommit_typescript(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="tsproj", language="typescript", lang="en")
+        gen = ClaudeCodeGenerator()
+        gen.generate_scaffold(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".pre-commit-config.yaml").read_text()
+        assert "eslint" in content or "prettier" in content
+
+    def test_precommit_go(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="goproj", language="go", lang="en")
+        gen = ClaudeCodeGenerator()
+        gen.generate_scaffold(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".pre-commit-config.yaml").read_text()
+        assert "go-fmt" in content or "go-vet" in content
+
+    def test_precommit_rust(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="rustproj", language="rust", lang="en")
+        gen = ClaudeCodeGenerator()
+        gen.generate_scaffold(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".pre-commit-config.yaml").read_text()
+        assert "cargo fmt" in content or "cargo-fmt" in content
+        assert "clippy" in content
+
+    def test_precommit_base_hooks_always_present(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        # Even unknown language gets base hooks
+        ctx = ProjectContext(project_name="proj", language="", lang="en")
+        gen = ClaudeCodeGenerator()
+        gen.generate_scaffold(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".pre-commit-config.yaml").read_text()
+        assert "trailing-whitespace" in content
+        assert "check-merge-conflict" in content
+        assert "check-added-large-files" in content
 
     def test_generate_all(self, ctx, tmp_dir):
         gen = ClaudeCodeGenerator()

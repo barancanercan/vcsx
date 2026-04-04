@@ -310,6 +310,7 @@ class ClaudeCodeGenerator(BaseGenerator):
         created.append(_scaffold_claudeignore(output_dir, ctx))
         created.append(_scaffold_readme(output_dir, ctx))
         created.append(_scaffold_env_example(output_dir, ctx))
+        created.append(_scaffold_precommit_config(output_dir, ctx))
 
         if ctx.language in ("typescript", "javascript"):
             created.append(_scaffold_tsconfig(output_dir))
@@ -4090,6 +4091,139 @@ def _scaffold_go_mod(output_dir: str, ctx: ProjectContext) -> str:
     p = Path(output_dir) / "go.mod"
     p.write_text(content, encoding="utf-8")
     return "go.mod"
+
+
+def _scaffold_precommit_config(output_dir: str, ctx: ProjectContext) -> str:
+    """Generate .pre-commit-config.yaml — language-aware pre-commit hooks."""
+    lang = (ctx.language or "").lower()
+    fmt = ctx.formatter or ""
+    lint = ctx.linter or ""
+    test_cmd = ctx.test_framework or ""
+
+    # Base hooks (language-agnostic)
+    base_hooks = """  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: detect-private-key
+      - id: no-commit-to-branch
+        args: ["--branch", "main", "--branch", "develop"]"""
+
+    if lang == "python":
+        ruff_rev = "v0.4.0"
+        formatter_id = "ruff-format" if "ruff" in fmt else "black"
+        linter_id = "ruff" if "ruff" in lint else "flake8"
+        lang_hooks = f"""
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: {ruff_rev}
+    hooks:
+      - id: {linter_id}
+        args: ["--fix"]
+      - id: {formatter_id}
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        additional_dependencies: ["types-requests", "types-PyYAML"]
+        args: ["--ignore-missing-imports"]"""
+
+        test_hook = f"""
+  - repo: local
+    hooks:
+      - id: pytest-fast
+        name: pytest (fast)
+        entry: {test_cmd or "pytest"}
+        language: system
+        pass_filenames: false
+        always_run: false
+        stages: [pre-push]""" if test_cmd or lang == "python" else ""
+
+    elif lang in ("typescript", "javascript"):
+        lang_hooks = """
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.57.0
+    hooks:
+      - id: eslint
+        files: \\.(js|ts|jsx|tsx)$
+        additional_dependencies:
+          - eslint
+          - "@typescript-eslint/parser"
+          - "@typescript-eslint/eslint-plugin"
+
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.1.0
+    hooks:
+      - id: prettier
+        files: \\.(js|ts|jsx|tsx|json|md|yaml|css)$"""
+
+        test_hook = """
+  - repo: local
+    hooks:
+      - id: vitest
+        name: vitest
+        entry: npx vitest run
+        language: system
+        pass_filenames: false
+        always_run: false
+        stages: [pre-push]"""
+
+    elif lang == "go":
+        lang_hooks = """
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-fmt
+      - id: go-vet
+      - id: go-lint
+      - id: go-unit-tests
+        args: ["-race"]"""
+        test_hook = ""
+
+    elif lang == "rust":
+        lang_hooks = """
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt --all -- --check
+        language: system
+        pass_filenames: false
+
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: cargo clippy -- -D warnings
+        language: system
+        pass_filenames: false
+        stages: [pre-push]"""
+        test_hook = ""
+
+    else:
+        lang_hooks = ""
+        test_hook = ""
+
+    content = f"""# .pre-commit-config.yaml
+# Install: pip install pre-commit && pre-commit install
+# Run all: pre-commit run --all-files
+# Update hooks: pre-commit autoupdate
+
+repos:
+{base_hooks}{lang_hooks}{test_hook}
+
+# CI integration: add `pre-commit run --all-files` to your CI pipeline
+# or use: https://pre-commit.ci (free for open source)
+"""
+
+    p = Path(output_dir) / ".pre-commit-config.yaml"
+    p.write_text(content, encoding="utf-8")
+    return ".pre-commit-config.yaml"
 
 
 def _scaffold_source_dirs(output_dir: str, ctx: ProjectContext) -> str:
