@@ -1885,3 +1885,66 @@ class TestScaffoldCommand:
         content = (Path(tmp_dir) / "docker-compose.yml").read_text()
         assert "services:" in content
         assert "postgres" in content.lower() or "db:" in content
+
+
+class TestScaffoldNewFiles:
+    def test_scaffold_lintconfig_python(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "lintconfig", "--lang", "python", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / "ruff.toml").exists()
+        content = (Path(tmp_dir) / "ruff.toml").read_text()
+        assert "target-version" in content
+        assert "select" in content
+
+    def test_scaffold_lintconfig_typescript(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "lintconfig", "--lang", "typescript", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / "eslint.config.mjs").exists()
+        content = (Path(tmp_dir) / "eslint.config.mjs").read_text()
+        assert "@typescript-eslint" in content
+
+    def test_scaffold_lintconfig_go(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "lintconfig", "--lang", "go", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / ".golangci.yml").exists()
+        content = (Path(tmp_dir) / ".golangci.yml").read_text()
+        assert "errcheck" in content or "linters" in content
+
+    def test_scaffold_lintconfig_rust(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "lintconfig", "--lang", "rust", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / ".clippy.toml").exists()
+
+    def test_scaffold_security(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "security", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "SECURITY.md").read_text()
+        assert "Reporting a Vulnerability" in content
+        assert "coordinated disclosure" in content.lower() or "Disclosure" in content
+
+    def test_scaffold_ciworkflow_python(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "ciworkflow", "--lang", "python", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        assert "pytest" in content
+        assert "ruff" in content
+
+    def test_scaffold_ciworkflow_go(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "ciworkflow", "--lang", "go", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        assert "go test" in content
+
+    def test_scaffold_codeowners(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "codeowners", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "CODEOWNERS").read_text()
+        assert "*" in content
+        assert "@" in content
+
+    def test_scaffold_pullrequest(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "pullrequest", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / ".github" / "pull_request_template.md").read_text()
+        assert "Checklist" in content
+        assert "Testing" in content

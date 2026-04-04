@@ -2437,6 +2437,11 @@ _SCAFFOLD_FILES = {
     "pythonversion": "Generate a .python-version file",
     "renovate": "Generate a renovate.json (dependency updates)",
     "githubissue": "Generate GitHub issue templates",
+    "lintconfig": "Generate linter config (ruff.toml / eslint.config.mjs / golangci.yml)",
+    "security": "Generate SECURITY.md (vulnerability disclosure policy)",
+    "ciworkflow": "Generate GitHub Actions CI workflow",
+    "codeowners": "Generate CODEOWNERS file",
+    "pullrequest": "Generate GitHub PR template",
 }
 
 
@@ -2481,6 +2486,11 @@ def scaffold_file(file_type, lang, framework, output_dir, dry_run):
       pythonversion — .python-version
       renovate      — renovate.json (dependency automation)
       githubissue   — GitHub issue templates
+      lintconfig    — ruff.toml / eslint.config.mjs / golangci.yml / clippy.toml
+      security      — SECURITY.md (vulnerability disclosure policy)
+      ciworkflow    — GitHub Actions CI workflow
+      codeowners    — CODEOWNERS file
+      pullrequest   — GitHub PR template
 
     \b
     Examples:
@@ -2551,6 +2561,21 @@ def _generate_scaffold_content(file_type: str, lang: str, framework: str) -> tup
 
     elif file_type == "githubissue":
         return _scaffold_github_issue_content(), ".github/ISSUE_TEMPLATE/bug_report.md"
+
+    elif file_type == "lintconfig":
+        return _scaffold_lintconfig_content(lang), _lintconfig_filename(lang)
+
+    elif file_type == "security":
+        return _scaffold_security_md(), "SECURITY.md"
+
+    elif file_type == "ciworkflow":
+        return _scaffold_ci_workflow_content(lang), ".github/workflows/ci.yml"
+
+    elif file_type == "codeowners":
+        return _scaffold_codeowners_content(), "CODEOWNERS"
+
+    elif file_type == "pullrequest":
+        return _scaffold_pr_template_content(), ".github/pull_request_template.md"
 
     return "", f"{file_type}.txt"
 
@@ -3042,6 +3067,346 @@ What actually happened. Include error messages and stack traces.
 
 ## Additional Context
 Any other context, screenshots, or logs.
+"""
+
+
+def _lintconfig_filename(lang: str) -> str:
+    return {
+        "python": "ruff.toml",
+        "typescript": "eslint.config.mjs",
+        "javascript": "eslint.config.mjs",
+        "go": ".golangci.yml",
+        "rust": ".clippy.toml",
+    }.get(lang, "ruff.toml")
+
+
+def _scaffold_lintconfig_content(lang: str) -> str:
+    if lang == "python":
+        return """# ruff.toml — https://docs.astral.sh/ruff/configuration/
+target-version = "py312"
+line-length = 100
+indent-width = 4
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "UP",   # pyupgrade
+    "SIM",  # flake8-simplify
+    "TCH",  # flake8-type-checking
+    "RUF",  # ruff-specific rules
+]
+ignore = [
+    "E501",   # Line too long — handled by formatter
+    "B008",   # Do not perform function calls in default arguments
+    "B904",   # Use raise X from Y
+]
+
+[lint.isort]
+known-first-party = ["src"]
+
+[lint.per-file-ignores]
+"tests/**" = ["S101"]  # Allow assert in tests
+
+[format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+"""
+    elif lang in ("typescript", "javascript"):
+        return """// eslint.config.mjs
+import js from "@eslint/js";
+import ts from "@typescript-eslint/eslint-plugin";
+import tsParser from "@typescript-eslint/parser";
+import globals from "globals";
+
+/** @type {import('eslint').Linter.Config[]} */
+export default [
+  js.configs.recommended,
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    plugins: { "@typescript-eslint": ts },
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: "./tsconfig.json",
+        ecmaVersion: "latest",
+        sourceType: "module",
+      },
+      globals: { ...globals.browser, ...globals.node },
+    },
+    rules: {
+      ...ts.configs["recommended"].rules,
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/explicit-function-return-type": "warn",
+      "no-console": ["warn", { allow: ["warn", "error"] }],
+      "prefer-const": "error",
+      "no-var": "error",
+      eqeqeq: ["error", "always"],
+    },
+  },
+  {
+    files: ["**/*.test.ts", "**/*.spec.ts", "tests/**"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
+  {
+    ignores: ["dist/", "build/", ".next/", "node_modules/", "coverage/"],
+  },
+];
+"""
+    elif lang == "go":
+        return """# .golangci.yml — https://golangci-lint.run/usage/configuration/
+run:
+  timeout: 5m
+  go: "1.22"
+
+linters:
+  enable:
+    - errcheck       # Check returned errors
+    - gosimple       # Simplify code
+    - govet          # Go vet
+    - ineffassign    # Detect ineffectual assignments
+    - staticcheck    # Static analysis
+    - unused         # Detect unused code
+    - gofmt          # Formatting
+    - goimports      # Import ordering
+    - misspell       # Spelling errors
+    - godot          # Comment periods
+    - exhaustive     # Exhaustive switch statements
+    - noctx          # HTTP requests without context
+    - bodyclose      # HTTP response body close
+    - sqlcloserows   # sql.Rows close
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+  govet:
+    enable:
+      - shadow
+  goimports:
+    local-prefixes: github.com/your-org/your-repo
+
+issues:
+  exclude-rules:
+    - path: "_test.go"
+      linters:
+        - errcheck
+        - exhaustive
+"""
+    elif lang == "rust":
+        return """# .clippy.toml — https://doc.rust-lang.org/clippy/configuration.html
+msrv = "1.78"
+cognitive-complexity-threshold = 25
+too-many-arguments-threshold = 7
+too-many-lines-threshold = 100
+type-complexity-threshold = 250
+"""
+    else:
+        return """# Linter configuration
+# Add your language-specific linter config here
+"""
+
+
+def _scaffold_security_md() -> str:
+    return """# Security Policy
+
+## Supported Versions
+
+| Version | Supported |
+|---------|-----------|
+| Latest  | ✅        |
+| < 1.0   | ❌        |
+
+## Reporting a Vulnerability
+
+**Please do not report security vulnerabilities through public GitHub issues.**
+
+To report a security vulnerability:
+
+1. **Email** the maintainers at: security@example.com
+   (Replace with your actual security contact)
+
+2. **Include** in your report:
+   - Description of the vulnerability
+   - Steps to reproduce
+   - Potential impact
+   - Suggested fix (if any)
+
+3. **Response time**: We aim to acknowledge reports within **48 hours**
+   and provide a fix timeline within **7 days** for critical issues.
+
+## What to Report
+
+- Remote code execution
+- SQL injection or other injection attacks
+- Authentication bypass
+- Sensitive data exposure
+- Cross-site scripting (XSS)
+- Insecure direct object references
+- Security misconfiguration
+
+## What NOT to Report
+
+- Issues that require physical access to the machine
+- Denial of service attacks that require > 100 requests/second
+- Issues in dependencies (report those to the respective project)
+
+## Disclosure Policy
+
+We follow **coordinated disclosure**:
+1. Reporter submits vulnerability privately
+2. We confirm and assess the issue
+3. We develop and test a fix
+4. We release the fix and credit the reporter (if desired)
+5. Public disclosure after users have had time to update
+
+Thank you for helping keep this project secure.
+"""
+
+
+def _scaffold_ci_workflow_content(lang: str) -> str:
+    """Generate GitHub Actions CI workflow (standalone scaffold version)."""
+    if lang == "python":
+        steps = """      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - run: pip install -r requirements.txt
+      - run: ruff format --check .
+      - run: ruff check .
+      - run: pytest --tb=short -q"""
+    elif lang in ("typescript", "javascript"):
+        steps = """      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build"""
+    elif lang == "go":
+        steps = """      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+      - run: go mod download
+      - run: go vet ./...
+      - run: go test -race -coverprofile=coverage.out ./...
+      - run: go build ./..."""
+    elif lang == "rust":
+        steps = """      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy -- -D warnings
+      - run: cargo test"""
+    else:
+        steps = """      - run: echo "Add build and test steps here\""""
+
+    return f"""name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{{{ github.workflow }}}}-${{{{ github.ref }}}}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+{steps}
+"""
+
+
+def _scaffold_codeowners_content() -> str:
+    return """# CODEOWNERS — https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global owners (catch-all)
+* @your-username
+
+# Source code
+/src/ @your-username
+
+# Tests
+/tests/ @your-username
+
+# CI/CD
+/.github/ @your-username
+
+# Documentation
+/docs/ @your-username
+*.md @your-username
+
+# Dependencies
+package.json @your-username
+requirements*.txt @your-username
+go.mod @your-username
+Cargo.toml @your-username
+"""
+
+
+def _scaffold_pr_template_content() -> str:
+    return """## Summary
+
+<!-- One sentence: what does this PR do? -->
+
+## Motivation
+
+<!-- Why is this change needed? Link to issue if applicable. Closes #X -->
+
+## Changes
+
+<!-- Bullet list of what was changed/added/removed -->
+
+- PLACEHOLDER
+- PLACEHOLDER
+- PLACEHOLDER
+
+## Testing
+
+<!-- How was this tested? What should reviewers verify? -->
+
+- [ ] Unit tests added/updated
+- [ ] Integration tests added/updated
+- [ ] Manual testing done (describe steps)
+
+## Checklist
+
+- [ ] Tests pass (`run test suite`)
+- [ ] No hardcoded secrets or credentials
+- [ ] Documentation updated (if behavior changed)
+- [ ] Breaking changes documented (if any)
+- [ ] PR is small and focused (one logical change)
+
+## Screenshots / Demo
+
+<!-- If applicable, add screenshots or a short demo -->
+
+## Notes for Reviewers
+
+<!-- Anything the reviewer should pay special attention to -->
 """
 
 
