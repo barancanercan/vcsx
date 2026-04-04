@@ -2039,3 +2039,121 @@ class TestScaffoldDeployFiles:
         assert "replicaCount:" in content
         assert "autoscaling:" in content
         assert "ingress:" in content
+
+
+class TestVersionCommandFull:
+    """Test the vcsx version command (shows changelog + version)."""
+
+    def test_vcsx_version_command(self, runner):
+        result = runner.invoke(main, ["version"])
+        assert result.exit_code == 0
+        assert __version__ in result.output
+
+    def test_vcsx_version_no_changelog_dir(self, runner, tmp_dir):
+        """version command handles missing CHANGELOG.md gracefully."""
+        import os
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_dir)
+            result = runner.invoke(main, ["version"])
+            assert result.exit_code == 0
+            # Either shows changelog or "not found" — either is OK
+        finally:
+            os.chdir(old_cwd)
+
+
+class TestCiWorkflowAllLangs:
+    """Test CI workflow scaffold for all language variants."""
+
+    def test_ciworkflow_rust(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "ciworkflow", "--lang", "rust", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        assert "cargo" in content
+        assert "clippy" in content
+
+    def test_ciworkflow_typescript(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "ciworkflow", "--lang", "typescript", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        assert "npm" in content
+
+    def test_ciworkflow_default_lang(self, runner, tmp_dir):
+        """Should fall back gracefully for unknown lang."""
+        result = runner.invoke(main, ["scaffold", "ciworkflow", "--lang", "java", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        assert "CI" in content
+
+
+class TestScaffoldMiscFiles:
+    """Test remaining scaffold targets for coverage."""
+
+    def test_scaffold_githubissue(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "githubissue", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / ".github" / "ISSUE_TEMPLATE" / "bug_report.md").read_text()
+        assert "Bug" in content
+        assert "Steps to Reproduce" in content
+
+    def test_scaffold_pythonversion(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "pythonversion", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / ".python-version").read_text()
+        assert "3.12" in content
+
+    def test_scaffold_dockerfile_rust(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "dockerfile", "--lang", "rust", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "Dockerfile").read_text()
+        assert "rust" in content.lower()
+
+    def test_scaffold_makefile_typescript(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "makefile", "--lang", "typescript", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "Makefile").read_text()
+        assert "npm" in content
+
+    def test_scaffold_makefile_rust(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "makefile", "--lang", "rust", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "Makefile").read_text()
+        assert "cargo" in content
+
+    def test_scaffold_flytoml_typescript(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "flytoml", "--lang", "typescript", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "fly.toml").read_text()
+        assert "app = " in content
+        assert "services" in content
+
+    def test_scaffold_lintconfig_javascript(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "lintconfig", "--lang", "javascript", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        assert (Path(tmp_dir) / "eslint.config.mjs").exists()
+
+    def test_scaffold_dockercompose_typescript(self, runner, tmp_dir):
+        result = runner.invoke(main, ["scaffold", "dockercompose", "--lang", "typescript", "--output-dir", tmp_dir])
+        assert result.exit_code == 0
+        content = (Path(tmp_dir) / "docker-compose.yml").read_text()
+        assert "3000" in content
+
+
+class TestPromptAllTypes:
+    """Test all 7 prompt types for coverage."""
+
+    def test_prompt_feature_typescript(self, runner):
+        result = runner.invoke(main, ["prompt", "add search", "--lang", "typescript", "--type", "feature"])
+        assert result.exit_code == 0
+        assert "add search" in result.output
+
+    def test_prompt_bugfix_rust(self, runner):
+        result = runner.invoke(main, ["prompt", "fix memory leak", "--lang", "rust", "--type", "bugfix"])
+        assert result.exit_code == 0
+        assert "memory leak" in result.output
+
+    def test_prompt_no_task_stdin(self, runner):
+        """Prompt with task inline works."""
+        result = runner.invoke(main, ["prompt", "add OAuth", "--lang", "python"])
+        assert result.exit_code == 0
+        assert "OAuth" in result.output
