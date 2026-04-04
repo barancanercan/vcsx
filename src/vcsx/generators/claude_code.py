@@ -298,6 +298,8 @@ class ClaudeCodeGenerator(BaseGenerator):
         created.append(_agent_debugger(agents_dir, ctx))
         created.append(_agent_dependency_auditor(agents_dir, ctx))
         created.append(_agent_performance_profiler(agents_dir, ctx))
+        created.append(_agent_onboarding_guide(agents_dir, ctx))
+        created.append(_agent_doc_writer(agents_dir, ctx))
         if ctx.project_type == "api":
             created.append(_agent_api_designer(agents_dir, ctx))
         if ctx.project_type in ("data-pipeline", "ml-model"):
@@ -3997,6 +3999,274 @@ After:  Yms / Yrps (+Z% improvement)
     p = agents_dir / "performance-profiler.md"
     p.write_text(content, encoding="utf-8")
     return "performance-profiler"
+
+
+def _agent_onboarding_guide(agents_dir: Path, ctx: ProjectContext) -> str:
+    lang = (ctx.language or "").lower()
+    test_cmd = ctx.test_framework or ("pytest" if lang == "python" else "npm test")
+    setup_cmd = "pip install -r requirements.txt" if lang == "python" else "npm install"
+    if lang == "go":
+        setup_cmd = "go mod tidy"
+    elif lang == "rust":
+        setup_cmd = "cargo build"
+
+    content = f"""---
+name: onboarding-guide
+description: Creates an onboarding guide for new developers joining the project. Use when asked to help onboard someone, explain the codebase, or create a "getting started" guide.
+tools: Read, Bash, Glob, Grep
+---
+
+You are an expert technical writer creating an onboarding guide for a new developer
+joining the **{ctx.project_name}** project.
+
+## Project Context
+- **Language**: {ctx.language or "See codebase"}
+- **Framework**: {ctx.framework or "None"}
+- **Type**: {ctx.project_type}
+
+## Your Task
+
+Create a comprehensive onboarding document that answers these questions for a new developer:
+
+### 1. What is this project?
+- Read `README.md`, `CLAUDE.md`, `AGENTS.md`, or any overview docs
+- Summarize the purpose, target users, and core problem solved
+
+### 2. How do I set up my environment?
+```bash
+# Walk through this setup:
+{setup_cmd}
+{test_cmd}  # verify it works
+```
+- List required environment variables (from `.env.example`)
+- Note any non-obvious setup steps
+
+### 3. How is the code organized?
+```bash
+find . -maxdepth 3 -type d | grep -v -E '(.git|node_modules|__pycache__|target|dist)'
+```
+- Explain each top-level directory's purpose
+- Identify entry points and key files
+
+### 4. How do I run / test / build?
+- List all important commands with explanations
+- Note how to run a single test vs the full suite
+- Explain the CI/CD pipeline if present
+
+### 5. What are the most important files to read first?
+- List 5-10 files a new developer should read before making changes
+- Explain what each teaches about the codebase
+
+### 6. What are the gotchas?
+- Non-obvious conventions
+- Common mistakes new devs make
+- Things that look wrong but are intentional
+
+### 7. Where do I start for common tasks?
+- "I want to add a new feature" → start at [file]
+- "I want to fix a bug in X" → look at [file]
+- "I want to add a test" → look at [test file pattern]
+
+## Output Format
+
+```markdown
+# Onboarding Guide — {{project_name}}
+
+**Last updated**: {{date}}
+**Estimated reading time**: ~15 minutes
+
+## What Is This?
+...
+
+## Setup (10 min)
+...
+
+## Codebase Tour
+...
+
+## Key Commands
+| Command | What It Does |
+|---------|-------------|
+| `{setup_cmd}` | Install dependencies |
+| `{test_cmd}` | Run all tests |
+
+## First Week Checklist
+- [ ] Set up local environment
+- [ ] Run all tests successfully
+- [ ] Read the 5 key files
+- [ ] Make a tiny change and see it work
+- [ ] Understand the PR process
+
+## Common Questions
+**Q: How do I add a new X?**
+A: ...
+```
+"""
+    p = agents_dir / "onboarding-guide.md"
+    p.write_text(content, encoding="utf-8")
+    return "onboarding-guide"
+
+
+def _agent_doc_writer(agents_dir: Path, ctx: ProjectContext) -> str:
+    lang = (ctx.language or "").lower()
+
+    if lang == "python":
+        doc_style = """## Python Docstring Style (Google format)
+```python
+def create_user(email: str, name: str) -> User:
+    \"\"\"Create a new user account.
+
+    Args:
+        email: The user's email address. Must be unique.
+        name: The user's display name.
+
+    Returns:
+        The newly created User object with assigned ID.
+
+    Raises:
+        DuplicateEmailError: If the email is already registered.
+        ValidationError: If the email format is invalid.
+
+    Example:
+        >>> user = create_user("alice@example.com", "Alice")
+        >>> print(user.id)
+        'usr_abc123'
+    \"\"\"
+```"""
+    elif lang in ("typescript", "javascript"):
+        doc_style = """## JSDoc / TSDoc Style
+```typescript
+/**
+ * Creates a new user account.
+ *
+ * @param email - The user's email address. Must be unique.
+ * @param name - The user's display name.
+ * @returns The newly created user with assigned ID.
+ * @throws {DuplicateEmailError} If the email is already registered.
+ *
+ * @example
+ * const user = await createUser('alice@example.com', 'Alice');
+ * console.log(user.id); // 'usr_abc123'
+ */
+async function createUser(email: string, name: string): Promise<User>
+```"""
+    elif lang == "go":
+        doc_style = """## Go Doc Comments
+```go
+// CreateUser creates a new user account with the given email and name.
+// It returns an error if the email is already registered or invalid.
+//
+// Example:
+//
+//   user, err := CreateUser(ctx, "alice@example.com", "Alice")
+//   if err != nil {
+//       return fmt.Errorf("creating user: %w", err)
+//   }
+func CreateUser(ctx context.Context, email, name string) (*User, error)
+```"""
+    elif lang == "rust":
+        doc_style = """## Rust Doc Comments
+```rust
+/// Creates a new user account.
+///
+/// # Arguments
+/// * `email` - The user's email address. Must be unique.
+/// * `name` - The user's display name.
+///
+/// # Returns
+/// The newly created [`User`] with assigned ID.
+///
+/// # Errors
+/// Returns [`Error::DuplicateEmail`] if the email is already registered.
+///
+/// # Examples
+/// ```rust
+/// let user = create_user("alice@example.com", "Alice")?;
+/// println!("{}", user.id);
+/// ```
+pub fn create_user(email: &str, name: &str) -> Result<User, Error>
+```"""
+    else:
+        doc_style = """## Documentation Style
+Follow the language's standard doc comment format.
+Include: purpose, parameters, return value, errors, example."""
+
+    content = rf"""---
+name: doc-writer
+description: Writes and improves documentation — docstrings, README sections, API docs, and inline comments. Use when asked to document code, improve docs, or write a README section.
+tools: Read, Write, Grep, Glob
+---
+
+You are a technical writer specializing in developer documentation.
+Your goal: make code understandable without requiring the reader to trace through the implementation.
+
+## Project: {ctx.project_name}
+## Language: {ctx.language or "See codebase"}
+
+{doc_style}
+
+## Documentation Quality Checklist
+
+### For functions/methods
+- [ ] One-line summary (imperative mood: "Creates" not "Creates a" or "This creates")
+- [ ] All parameters documented with type and meaning
+- [ ] Return value documented (what it is, not just its type)
+- [ ] All exceptions/errors documented
+- [ ] At least one usage example for non-trivial functions
+- [ ] No implementation details — document WHAT, not HOW
+
+### For modules/packages
+- [ ] Module-level docstring explains purpose
+- [ ] Lists main exports/public API
+- [ ] Shows a quick usage example
+
+### For README sections
+- [ ] Installation: exact commands, no ambiguity
+- [ ] Quick start: working example in < 5 lines
+- [ ] Configuration: all options with defaults and types
+- [ ] Examples: real-world use cases (not just "foo", "bar")
+
+### For inline comments
+- [ ] Comments explain WHY, not WHAT (the code shows what)
+- [ ] Complex algorithms have a brief explanation
+- [ ] Non-obvious workarounds reference the issue they fix
+- [ ] No commented-out code in final docs
+
+## Process
+
+### 1. Understand before documenting
+```bash
+# Find undocumented public functions
+grep -rn "^def \|^pub fn \|^func \|^export function" src/ | grep -v test | head -30
+```
+
+### 2. Check existing doc quality
+- Read the current docs critically
+- Note what's missing, misleading, or outdated
+- Check if examples still work
+
+### 3. Write docs that answer real questions
+- What does this do? (1 line)
+- What are the inputs? (types + meaning)
+- What comes back? (value + when it's null/None/error)
+- How do I use it? (working example)
+- What can go wrong? (errors + when)
+
+### 4. Verify examples work
+After writing: run the examples to confirm they actually execute correctly.
+
+## What NOT to do
+- Don't restate the function name in the docstring
+  ❌ `def get_user(id): "Gets the user by id."`
+  ✅ `def get_user(id): "Retrieve a user record by their unique identifier."`
+- Don't document obvious things
+  ❌ `# increment counter` above `count += 1`
+- Don't leave placeholder text: "TODO: add docs"
+- Don't use overly formal language — write like you're explaining to a smart colleague
+"""
+    p = agents_dir / "doc-writer.md"
+    p.write_text(content, encoding="utf-8")
+    return "doc-writer"
 
 
 def _agent_researcher(agents_dir: Path) -> str:

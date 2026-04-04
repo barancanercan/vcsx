@@ -235,6 +235,55 @@ class TestClaudeCodeGenerator:
         assert "researcher" in agents
         assert "dependency-auditor" in agents
         assert "performance-profiler" in agents
+        assert "onboarding-guide" in agents
+        assert "doc-writer" in agents
+
+    def test_onboarding_guide_agent_file(self, ctx, tmp_dir):
+        gen = ClaudeCodeGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        agent_file = Path(tmp_dir) / ".claude" / "agents" / "onboarding-guide.md"
+        assert agent_file.exists()
+        content = agent_file.read_text()
+        assert "onboarding" in content.lower()
+        assert "setup" in content.lower() or "environment" in content.lower()
+        assert "First Week Checklist" in content or "Checklist" in content
+
+    def test_doc_writer_agent_file(self, ctx, tmp_dir):
+        gen = ClaudeCodeGenerator()
+        gen.generate_agents(ctx, tmp_dir)
+        agent_file = Path(tmp_dir) / ".claude" / "agents" / "doc-writer.md"
+        assert agent_file.exists()
+        content = agent_file.read_text()
+        assert "doc-writer" in content
+        assert "docstring" in content.lower() or "documentation" in content.lower()
+
+    def test_doc_writer_python_style(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="pypkg", language="python", lang="en")
+        ClaudeCodeGenerator().generate_agents(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".claude" / "agents" / "doc-writer.md").read_text()
+        assert "Google format" in content or "Args:" in content
+
+    def test_doc_writer_typescript_style(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="tspkg", language="typescript", lang="en")
+        ClaudeCodeGenerator().generate_agents(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".claude" / "agents" / "doc-writer.md").read_text()
+        assert "JSDoc" in content or "TSDoc" in content or "@param" in content
+
+    def test_doc_writer_go_style(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="gopkg", language="go", lang="en")
+        ClaudeCodeGenerator().generate_agents(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".claude" / "agents" / "doc-writer.md").read_text()
+        assert "Go Doc" in content or "// " in content
+
+    def test_doc_writer_rust_style(self, tmp_dir):
+        from vcsx.core.context import ProjectContext
+        ctx = ProjectContext(project_name="rustpkg", language="rust", lang="en")
+        ClaudeCodeGenerator().generate_agents(ctx, tmp_dir)
+        content = (Path(tmp_dir) / ".claude" / "agents" / "doc-writer.md").read_text()
+        assert "Rust Doc" in content or "///" in content
 
     def test_dependency_auditor_agent_file_created(self, ctx, tmp_dir):
         gen = ClaudeCodeGenerator()
