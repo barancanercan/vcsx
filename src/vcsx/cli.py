@@ -39,7 +39,7 @@ def _load_config() -> dict:
     config_file = Path.home() / ".vcsx" / "config.json"
     if config_file.exists():
         try:
-            return {**defaults, **json.loads(config_file.read_text())}
+            return {**defaults, **json.loads(config_file.read_text(encoding="utf-8"))}
         except Exception:
             pass
     return defaults
@@ -1205,7 +1205,7 @@ def stats(path):
     if claude_md.exists():
         stats_data["tools_configured"] += 1
         stats_data["total_config_files"] += 1
-        stats_data["total_config_lines"] += len(claude_md.read_text().splitlines())
+        stats_data["total_config_lines"] += len(claude_md.read_text(encoding="utf-8").splitlines())
         tool_counts["claude-code"] = {"skills": 0, "hooks": 0, "agents": 0}
 
         skills_dir = target / ".claude" / "skills"
@@ -1436,14 +1436,14 @@ def config_cmd(set_key, get_key, list_all, reset):
     # Load existing config
     if config_file.exists():
         try:
-            cfg = json.loads(config_file.read_text())
+            cfg = json.loads(config_file.read_text(encoding="utf-8"))
         except Exception:
             cfg = {}
     else:
         cfg = {}
 
     if reset:
-        config_file.write_text(json.dumps(defaults, indent=2))
+        config_file.write_text(json.dumps(defaults, indent=2), encoding="utf-8")
         console.print("[green]✓ Config reset to defaults.[/]")
         return
 
@@ -1457,7 +1457,7 @@ def config_cmd(set_key, get_key, list_all, reset):
         if key == "auto_push":
             value = value.lower() in ("true", "1", "yes")
         cfg[key] = value
-        config_file.write_text(json.dumps(cfg, indent=2))
+        config_file.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
         console.print(f"[green]✓ Set[/] {key} = {value}")
         return
 
@@ -1526,7 +1526,7 @@ def audit_project(path, auto_fix, output_json):
         if output_json:
             import json as json_mod
 
-            console.print(
+            click.echo(
                 json_mod.dumps(
                     {
                         "status": "pass",
@@ -1549,13 +1549,14 @@ def audit_project(path, auto_fix, output_json):
     # 2. Claude Code specific checks
     if "claude-code" in configured:
         claude_md = target / "CLAUDE.md"
-        lines = len(claude_md.read_text().splitlines())
+        lines = len(claude_md.read_text(encoding="utf-8").splitlines())
         if lines > 200:
             issues.append(f"CLAUDE.md: {lines} lines (max 200) — too large, AI context bloat")
         elif lines > 150:
             warnings.append(f"CLAUDE.md: {lines} lines — consider trimming to < 150")
         else:
-            console.print(f"  [green]✓[/] CLAUDE.md: {lines} lines (OK)")
+            if not output_json:
+                console.print(f"  [green]✓[/] CLAUDE.md: {lines} lines (OK)")
 
         if not (target / ".claudeignore").exists():
             issues.append("Missing .claudeignore — context window not optimized")
@@ -1567,7 +1568,8 @@ def audit_project(path, auto_fix, output_json):
                 ClaudeCodeGenerator().generate_scaffold(ctx, str(target))
                 fixes_applied.append("Generated .claudeignore")
         else:
-            console.print("  [green]✓[/] .claudeignore present")
+            if not output_json:
+                console.print("  [green]✓[/] .claudeignore present")
 
         skills_count = (
             sum(1 for _ in (target / ".claude" / "skills").glob("*/SKILL.md"))
@@ -1585,9 +1587,10 @@ def audit_project(path, auto_fix, output_json):
             else 0
         )
 
-        console.print(
-            f"  [green]✓[/] Skills: {skills_count} | Hooks: {hooks_count} | Agents: {agents_count}"
-        )
+        if not output_json:
+            console.print(
+                f"  [green]✓[/] Skills: {skills_count} | Hooks: {hooks_count} | Agents: {agents_count}"
+            )
         if skills_count < 5:
             warnings.append(
                 f"Only {skills_count} skills — run vcsx generate claude-code to add more"
@@ -1597,16 +1600,17 @@ def audit_project(path, auto_fix, output_json):
     gitignore = target / ".gitignore"
     env_file = target / ".env"
     if env_file.exists():
-        if gitignore.exists() and ".env" not in gitignore.read_text():
+        if gitignore.exists() and ".env" not in gitignore.read_text(encoding="utf-8"):
             issues.append("SECURITY: .env exists but not in .gitignore!")
         elif not gitignore.exists():
             issues.append("SECURITY: .env exists but no .gitignore found!")
         else:
-            console.print("  [green]✓[/] .env in .gitignore")
+            if not output_json:
+                console.print("  [green]✓[/] .env in .gitignore")
 
     # 4. Aider config validation
     if "aider" in configured:
-        aider_conf = (target / ".aider.conf.yaml").read_text()
+        aider_conf = (target / ".aider.conf.yaml").read_text(encoding="utf-8")
         invalid = [k for k in ["repo:", "tools:", "command:", "only:"] if k in aider_conf]
         if invalid:
             issues.append(f".aider.conf.yaml has invalid keys: {', '.join(invalid)}")
@@ -1625,7 +1629,24 @@ def audit_project(path, auto_fix, output_json):
     if "agents-md" not in configured:
         warnings.append("No AGENTS.md (universal standard) — run: vcsx update --tool agents-md")
 
-    # Print results
+    total = len(issues) + len(warnings)
+
+    if output_json:
+        import json as json_mod
+
+        result = {
+            "path": str(target),
+            "issues": issues,
+            "warnings": warnings,
+            "passed": [],
+            "total_issues": len(issues),
+            "total_warnings": len(warnings),
+            "status": "pass" if total == 0 else ("fail" if issues else "warn"),
+        }
+        click.echo(json_mod.dumps(result, indent=2))
+        return
+
+    # Print results (non-JSON mode)
     console.print()
     if issues:
         console.print("[bold red]Issues:[/]")
@@ -1641,23 +1662,6 @@ def audit_project(path, auto_fix, output_json):
         console.print("\n[bold green]Auto-fixed:[/]")
         for f in fixes_applied:
             console.print(f"  ✓ {f}")
-
-    total = len(issues) + len(warnings)
-
-    if output_json:
-        import json as json_mod
-
-        result = {
-            "path": str(target),
-            "issues": issues,
-            "warnings": warnings,
-            "passed": [],
-            "total_issues": len(issues),
-            "total_warnings": len(warnings),
-            "status": "pass" if total == 0 else ("fail" if issues else "warn"),
-        }
-        console.print(json_mod.dumps(result, indent=2))
-        return
 
     console.print()
     if total == 0:
@@ -1725,7 +1729,7 @@ def compare_projects(path_a, path_b):
                 fb = target_b / f
                 if fa.exists() and fb.exists():
                     try:
-                        same = fa.read_text() == fb.read_text()
+                        same = fa.read_text(encoding="utf-8") == fb.read_text(encoding="utf-8")
                         diff_note = "[green]identical[/]" if same else "[yellow]differs[/]"
                     except Exception:
                         diff_note = "[dim]binary[/]"
@@ -2073,9 +2077,12 @@ def generate_prompt(task, lang, framework, prompt_type, copy):
 
     if not task:
         from rich.prompt import Prompt
+
         task = Prompt.ask(f"What do you want to {prompt_type}")
 
-    prompt_content = _build_prompt(task, prompt_type, lang, framework, project_name, project_type, test_fw)
+    prompt_content = _build_prompt(
+        task, prompt_type, lang, framework, project_name, project_type, test_fw
+    )
 
     console.print(f"\n[bold cyan]Generated {prompt_type} prompt:[/]\n")
     console.print(f"[dim]{'─' * 60}[/]")
@@ -2085,12 +2092,15 @@ def generate_prompt(task, lang, framework, prompt_type, copy):
     if copy:
         try:
             import pyperclip
+
             pyperclip.copy(prompt_content)
             console.print("\n[green]✓ Copied to clipboard![/]")
         except ImportError:
             console.print("\n[yellow]Install pyperclip to use --copy: pip install pyperclip[/]")
 
-    console.print(f"\n[dim]Prompt type: {prompt_type} | Language: {lang}{f' / {framework}' if framework else ''}[/]")
+    console.print(
+        f"\n[dim]Prompt type: {prompt_type} | Language: {lang}{f' / {framework}' if framework else ''}[/]"
+    )
 
 
 def _build_prompt(
@@ -2811,7 +2821,9 @@ def scaffold_file(file_type, lang, framework, output_dir, dry_run, name):
 
     lang_lower = lang.lower()
     fw_lower = (framework or "").lower()
-    content, filename = _generate_scaffold_content(file_type, lang_lower, fw_lower, name or "MyModule")
+    content, filename = _generate_scaffold_content(
+        file_type, lang_lower, fw_lower, name or "MyModule"
+    )
 
     if dry_run:
         console.print(f"\n[bold]# {filename}[/]\n")
@@ -2829,7 +2841,9 @@ def scaffold_file(file_type, lang, framework, output_dir, dry_run, name):
     console.print(f"\n[green]✓ Created:[/] {out_path.relative_to(target)}")
 
 
-def _generate_scaffold_content(file_type: str, lang: str, framework: str, name: str = "MyModule") -> tuple[str, str]:
+def _generate_scaffold_content(
+    file_type: str, lang: str, framework: str, name: str = "MyModule"
+) -> tuple[str, str]:
     """Return (content, filename) for the given scaffold type."""
 
     if file_type == "gitignore":
@@ -3348,11 +3362,13 @@ def _scaffold_renovate_content(lang: str) -> str:
         ],
     }
     if lang in ("typescript", "javascript"):
-        config["packageRules"].append({
-            "matchPackagePatterns": ["^@types/"],
-            "automerge": True,
-            "description": "Auto-merge @types updates",
-        })
+        config["packageRules"].append(
+            {
+                "matchPackagePatterns": ["^@types/"],
+                "automerge": True,
+                "description": "Auto-merge @types updates",
+            }
+        )
     return _json.dumps(config, indent=2) + "\n"
 
 
@@ -3784,7 +3800,7 @@ def _scaffold_pyproject_toml_content(framework: str) -> str:
         deps = '"flask>=3.0.0"'
         dev_extras = '"pytest-flask>=1.3.0"'
     else:
-        deps = '# Add your dependencies here'
+        deps = "# Add your dependencies here"
         dev_extras = ""
 
     dev_deps_extra = f",\n  {dev_extras}" if dev_extras else ""
@@ -3931,7 +3947,9 @@ def _scaffold_helm_values_content(lang: str) -> str:
             "annotations": {
                 "cert-manager.io/cluster-issuer": "letsencrypt-prod",
             },
-            "hosts": [{"host": "your-app.example.com", "paths": [{"path": "/", "pathType": "Prefix"}]}],
+            "hosts": [
+                {"host": "your-app.example.com", "paths": [{"path": "/", "pathType": "Prefix"}]}
+            ],
             "tls": [{"secretName": "your-app-tls", "hosts": ["your-app.example.com"]}],
         },
         "resources": {
@@ -3962,7 +3980,7 @@ def _scaffold_helm_values_content(lang: str) -> str:
     return f"""# values.yaml — Helm chart configuration
 # Override with: helm upgrade -f custom-values.yaml
 
-replicaCount: {values['replicaCount']}
+replicaCount: {values["replicaCount"]}
 
 image:
   repository: your-registry/your-app
@@ -4496,7 +4514,7 @@ def validate_config(path):
                     # Check .gitignore
                     gitignore = target / ".gitignore"
                     if gitignore.exists():
-                        gi_content = gitignore.read_text()
+                        gi_content = gitignore.read_text(encoding="utf-8")
                         if ".env" not in gi_content:
                             issues.append(".gitignore: .env not listed! Add it immediately.")
             except Exception:

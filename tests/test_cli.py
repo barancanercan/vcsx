@@ -451,7 +451,7 @@ class TestConfigCorruptFile:
         original = None
         try:
             if config_file.exists():
-                original = config_file.read_text()
+                original = config_file.read_text(encoding="utf-8")
             config_file.parent.mkdir(exist_ok=True)
             config_file.write_text("not valid json{{{{")
             result = runner.invoke(main, ["config", "--list"])
@@ -1547,7 +1547,7 @@ class TestGenerateFromProject:
                 ["generate", "gemini", "--from-project", src_dir, "--output-dir", tmp_dir],
             )
             assert result.exit_code == 0
-            content = (Path(tmp_dir) / "GEMINI.md").read_text()
+            content = (Path(tmp_dir) / "GEMINI.md").read_text(encoding="utf-8")
             assert "typescript" in content.lower() or "GEMINI" in content
 
 
@@ -1792,62 +1792,62 @@ class TestScaffoldCommand:
         result = runner.invoke(main, ["scaffold", "gitignore", "--lang", "python", "--output-dir", tmp_dir])
         assert result.exit_code == 0
         assert (Path(tmp_dir) / ".gitignore").exists()
-        content = (Path(tmp_dir) / ".gitignore").read_text()
+        content = (Path(tmp_dir) / ".gitignore").read_text(encoding="utf-8")
         assert "__pycache__" in content
         assert ".venv" in content or "venv" in content
 
     def test_scaffold_gitignore_typescript(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "gitignore", "--lang", "typescript", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / ".gitignore").read_text()
+        content = (Path(tmp_dir) / ".gitignore").read_text(encoding="utf-8")
         assert "node_modules" in content
 
     def test_scaffold_gitignore_go(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "gitignore", "--lang", "go", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / ".gitignore").read_text()
+        content = (Path(tmp_dir) / ".gitignore").read_text(encoding="utf-8")
         assert "vendor" in content or "*.exe" in content
 
     def test_scaffold_dockerfile_python(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "dockerfile", "--lang", "python", "--output-dir", tmp_dir])
         assert result.exit_code == 0
         assert (Path(tmp_dir) / "Dockerfile").exists()
-        content = (Path(tmp_dir) / "Dockerfile").read_text()
+        content = (Path(tmp_dir) / "Dockerfile").read_text(encoding="utf-8")
         assert "python" in content.lower()
         assert "EXPOSE" in content
 
     def test_scaffold_dockerfile_typescript(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "dockerfile", "--lang", "typescript", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "Dockerfile").read_text()
+        content = (Path(tmp_dir) / "Dockerfile").read_text(encoding="utf-8")
         assert "node" in content.lower()
         assert "AS builder" in content  # Multi-stage
 
     def test_scaffold_dockerfile_go(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "dockerfile", "--lang", "go", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "Dockerfile").read_text()
+        content = (Path(tmp_dir) / "Dockerfile").read_text(encoding="utf-8")
         assert "golang" in content.lower()
         assert "scratch" in content  # Minimal runtime
 
     def test_scaffold_makefile_python(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "makefile", "--lang", "python", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "Makefile").read_text()
+        content = (Path(tmp_dir) / "Makefile").read_text(encoding="utf-8")
         assert "pytest" in content
         assert "ruff" in content
 
     def test_scaffold_makefile_go(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "makefile", "--lang", "go", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "Makefile").read_text()
+        content = (Path(tmp_dir) / "Makefile").read_text(encoding="utf-8")
         assert "go build" in content
         assert "go test" in content
 
     def test_scaffold_editorconfig(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "editorconfig", "--lang", "python", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / ".editorconfig").read_text()
+        content = (Path(tmp_dir) / ".editorconfig").read_text(encoding="utf-8")
         assert "root = true" in content
         assert "indent_size" in content
 
@@ -1864,13 +1864,13 @@ class TestScaffoldCommand:
         assert result.exit_code == 0
         assert "already exists" in result.output
         # Should NOT overwrite
-        assert (Path(tmp_dir) / ".gitignore").read_text() == "EXISTING"
+        assert (Path(tmp_dir) / ".gitignore").read_text(encoding="utf-8") == "EXISTING"
 
     def test_scaffold_renovate(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "renovate", "--lang", "typescript", "--output-dir", tmp_dir])
         assert result.exit_code == 0
         import json
-        data = json.loads((Path(tmp_dir) / "renovate.json").read_text())
+        data = json.loads((Path(tmp_dir) / "renovate.json").read_text(encoding="utf-8"))
         assert "$schema" in data
         assert "extends" in data
 
@@ -1882,7 +1882,7 @@ class TestScaffoldCommand:
     def test_scaffold_dockercompose(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "dockercompose", "--lang", "python", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "docker-compose.yml").read_text()
+        content = (Path(tmp_dir) / "docker-compose.yml").read_text(encoding="utf-8")
         assert "services:" in content
         assert "postgres" in content.lower() or "db:" in content
 
@@ -1892,7 +1892,7 @@ class TestScaffoldNewFiles:
         result = runner.invoke(main, ["scaffold", "lintconfig", "--lang", "python", "--output-dir", tmp_dir])
         assert result.exit_code == 0
         assert (Path(tmp_dir) / "ruff.toml").exists()
-        content = (Path(tmp_dir) / "ruff.toml").read_text()
+        content = (Path(tmp_dir) / "ruff.toml").read_text(encoding="utf-8")
         assert "target-version" in content
         assert "select" in content
 
@@ -1900,14 +1900,14 @@ class TestScaffoldNewFiles:
         result = runner.invoke(main, ["scaffold", "lintconfig", "--lang", "typescript", "--output-dir", tmp_dir])
         assert result.exit_code == 0
         assert (Path(tmp_dir) / "eslint.config.mjs").exists()
-        content = (Path(tmp_dir) / "eslint.config.mjs").read_text()
+        content = (Path(tmp_dir) / "eslint.config.mjs").read_text(encoding="utf-8")
         assert "@typescript-eslint" in content
 
     def test_scaffold_lintconfig_go(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "lintconfig", "--lang", "go", "--output-dir", tmp_dir])
         assert result.exit_code == 0
         assert (Path(tmp_dir) / ".golangci.yml").exists()
-        content = (Path(tmp_dir) / ".golangci.yml").read_text()
+        content = (Path(tmp_dir) / ".golangci.yml").read_text(encoding="utf-8")
         assert "errcheck" in content or "linters" in content
 
     def test_scaffold_lintconfig_rust(self, runner, tmp_dir):
@@ -1918,34 +1918,34 @@ class TestScaffoldNewFiles:
     def test_scaffold_security(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "security", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "SECURITY.md").read_text()
+        content = (Path(tmp_dir) / "SECURITY.md").read_text(encoding="utf-8")
         assert "Reporting a Vulnerability" in content
         assert "coordinated disclosure" in content.lower() or "Disclosure" in content
 
     def test_scaffold_ciworkflow_python(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "ciworkflow", "--lang", "python", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         assert "pytest" in content
         assert "ruff" in content
 
     def test_scaffold_ciworkflow_go(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "ciworkflow", "--lang", "go", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         assert "go test" in content
 
     def test_scaffold_codeowners(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "codeowners", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "CODEOWNERS").read_text()
+        content = (Path(tmp_dir) / "CODEOWNERS").read_text(encoding="utf-8")
         assert "*" in content
         assert "@" in content
 
     def test_scaffold_pullrequest(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "pullrequest", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / ".github" / "pull_request_template.md").read_text()
+        content = (Path(tmp_dir) / ".github" / "pull_request_template.md").read_text(encoding="utf-8")
         assert "Checklist" in content
         assert "Testing" in content
 
@@ -2005,7 +2005,7 @@ class TestScaffoldDeployFiles:
     def test_scaffold_tsconfig(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "tsconfig", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "tsconfig.json").read_text()
+        content = (Path(tmp_dir) / "tsconfig.json").read_text(encoding="utf-8")
         assert '"strict": true' in content
         assert "noUncheckedIndexedAccess" in content
         assert '"outDir"' in content
@@ -2013,7 +2013,7 @@ class TestScaffoldDeployFiles:
     def test_scaffold_pyproject(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "pyproject", "--lang", "python", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "pyproject.toml").read_text()
+        content = (Path(tmp_dir) / "pyproject.toml").read_text(encoding="utf-8")
         assert "[build-system]" in content
         assert "pytest" in content
         assert "ruff" in content
@@ -2021,13 +2021,13 @@ class TestScaffoldDeployFiles:
     def test_scaffold_pyproject_fastapi(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "pyproject", "--lang", "python", "--framework", "fastapi", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "pyproject.toml").read_text()
+        content = (Path(tmp_dir) / "pyproject.toml").read_text(encoding="utf-8")
         assert "fastapi" in content
 
     def test_scaffold_flytoml(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "flytoml", "--lang", "python", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "fly.toml").read_text()
+        content = (Path(tmp_dir) / "fly.toml").read_text(encoding="utf-8")
         assert "app = " in content
         assert "services" in content
         assert "health" in content
@@ -2035,7 +2035,7 @@ class TestScaffoldDeployFiles:
     def test_scaffold_helmvalues(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "helmvalues", "--lang", "python", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "values.yaml").read_text()
+        content = (Path(tmp_dir) / "values.yaml").read_text(encoding="utf-8")
         assert "replicaCount:" in content
         assert "autoscaling:" in content
         assert "ingress:" in content
@@ -2068,21 +2068,21 @@ class TestCiWorkflowAllLangs:
     def test_ciworkflow_rust(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "ciworkflow", "--lang", "rust", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         assert "cargo" in content
         assert "clippy" in content
 
     def test_ciworkflow_typescript(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "ciworkflow", "--lang", "typescript", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         assert "npm" in content
 
     def test_ciworkflow_default_lang(self, runner, tmp_dir):
         """Should fall back gracefully for unknown lang."""
         result = runner.invoke(main, ["scaffold", "ciworkflow", "--lang", "java", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         assert "CI" in content
 
 
@@ -2092,38 +2092,38 @@ class TestScaffoldMiscFiles:
     def test_scaffold_githubissue(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "githubissue", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / ".github" / "ISSUE_TEMPLATE" / "bug_report.md").read_text()
+        content = (Path(tmp_dir) / ".github" / "ISSUE_TEMPLATE" / "bug_report.md").read_text(encoding="utf-8")
         assert "Bug" in content
         assert "Steps to Reproduce" in content
 
     def test_scaffold_pythonversion(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "pythonversion", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / ".python-version").read_text()
+        content = (Path(tmp_dir) / ".python-version").read_text(encoding="utf-8")
         assert "3.12" in content
 
     def test_scaffold_dockerfile_rust(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "dockerfile", "--lang", "rust", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "Dockerfile").read_text()
+        content = (Path(tmp_dir) / "Dockerfile").read_text(encoding="utf-8")
         assert "rust" in content.lower()
 
     def test_scaffold_makefile_typescript(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "makefile", "--lang", "typescript", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "Makefile").read_text()
+        content = (Path(tmp_dir) / "Makefile").read_text(encoding="utf-8")
         assert "npm" in content
 
     def test_scaffold_makefile_rust(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "makefile", "--lang", "rust", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "Makefile").read_text()
+        content = (Path(tmp_dir) / "Makefile").read_text(encoding="utf-8")
         assert "cargo" in content
 
     def test_scaffold_flytoml_typescript(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "flytoml", "--lang", "typescript", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "fly.toml").read_text()
+        content = (Path(tmp_dir) / "fly.toml").read_text(encoding="utf-8")
         assert "app = " in content
         assert "services" in content
 
@@ -2135,7 +2135,7 @@ class TestScaffoldMiscFiles:
     def test_scaffold_dockercompose_typescript(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "dockercompose", "--lang", "typescript", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "docker-compose.yml").read_text()
+        content = (Path(tmp_dir) / "docker-compose.yml").read_text(encoding="utf-8")
         assert "3000" in content
 
 
@@ -2166,7 +2166,7 @@ class TestScaffoldNewTypes:
         result = runner.invoke(main, ["scaffold", "testfile", "--lang", "python", "--name", "UserService", "--output-dir", tmp_dir])
         assert result.exit_code == 0
         assert (Path(tmp_dir) / "tests" / "test_user_service.py").exists()
-        content = (Path(tmp_dir) / "tests" / "test_user_service.py").read_text()
+        content = (Path(tmp_dir) / "tests" / "test_user_service.py").read_text(encoding="utf-8")
         assert "TestUserService" in content
         assert "pytest" in content
         assert "Arrange" in content
@@ -2176,21 +2176,21 @@ class TestScaffoldNewTypes:
         assert result.exit_code == 0
         content_file = Path(tmp_dir) / "tests" / "auth_service.test.ts"
         assert content_file.exists()
-        content = content_file.read_text()
+        content = content_file.read_text(encoding="utf-8")
         assert "AuthService" in content
         assert "describe" in content
 
     def test_scaffold_testfile_go(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "testfile", "--lang", "go", "--name", "PaymentService", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "payment_service_test.go").read_text()
+        content = (Path(tmp_dir) / "payment_service_test.go").read_text(encoding="utf-8")
         assert "TestPaymentService" in content
         assert "testing.T" in content
 
     def test_scaffold_testfile_rust(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "testfile", "--lang", "rust", "--name", "DbHandler", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / "tests" / "db_handler.rs").read_text()
+        content = (Path(tmp_dir) / "tests" / "db_handler.rs").read_text(encoding="utf-8")
         assert "#[cfg(test)]" in content
         assert "fn test_db_handler" in content
 
@@ -2203,7 +2203,7 @@ class TestScaffoldNewTypes:
     def test_scaffold_envexample(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "envexample", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / ".env.example").read_text()
+        content = (Path(tmp_dir) / ".env.example").read_text(encoding="utf-8")
         assert "DATABASE_URL" in content
         assert "APP_SECRET_KEY" in content
         assert "OPENAI_API_KEY" in content
@@ -2211,13 +2211,13 @@ class TestScaffoldNewTypes:
     def test_scaffold_envexample_fastapi(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "envexample", "--framework", "fastapi", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / ".env.example").read_text()
+        content = (Path(tmp_dir) / ".env.example").read_text(encoding="utf-8")
         assert "CORS_ORIGINS" in content or "ALLOWED_HOSTS" in content
 
     def test_scaffold_githook_python(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "githook", "--lang", "python", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / ".githooks" / "pre-commit").read_text()
+        content = (Path(tmp_dir) / ".githooks" / "pre-commit").read_text(encoding="utf-8")
         assert "ruff" in content
         assert "secret" in content.lower()
         assert "#!/bin/bash" in content
@@ -2225,11 +2225,11 @@ class TestScaffoldNewTypes:
     def test_scaffold_githook_typescript(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "githook", "--lang", "typescript", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / ".githooks" / "pre-commit").read_text()
+        content = (Path(tmp_dir) / ".githooks" / "pre-commit").read_text(encoding="utf-8")
         assert "eslint" in content
 
     def test_scaffold_githook_rust(self, runner, tmp_dir):
         result = runner.invoke(main, ["scaffold", "githook", "--lang", "rust", "--output-dir", tmp_dir])
         assert result.exit_code == 0
-        content = (Path(tmp_dir) / ".githooks" / "pre-commit").read_text()
+        content = (Path(tmp_dir) / ".githooks" / "pre-commit").read_text(encoding="utf-8")
         assert "cargo" in content

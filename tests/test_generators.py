@@ -125,7 +125,7 @@ class TestClaudeCodeGeneratorExtended:
 
         gen = ClaudeCodeGenerator()
         gen.generate_scaffold(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".claudeignore").read_text()
+        content = (Path(tmp_dir) / ".claudeignore").read_text(encoding="utf-8")
         assert "data/raw" in content or "data" in content
 
     def test_script_header_ps1(self):
@@ -168,7 +168,7 @@ class TestClaudeCodeGenerator:
         gen.generate_skills(ctx, tmp_dir)
         skill_file = Path(tmp_dir) / ".claude" / "skills" / "incident-response" / "SKILL.md"
         assert skill_file.exists()
-        content = skill_file.read_text()
+        content = skill_file.read_text(encoding="utf-8")
         assert "name: incident-response" in content
         assert "Post-Incident" in content or "post-mortem" in content.lower()
         assert "P0" in content or "severity" in content.lower()
@@ -177,7 +177,7 @@ class TestClaudeCodeGenerator:
         from vcsx.core.context import ProjectContext
         ctx = ProjectContext(project_name="pypkg", language="python", lang="en")
         ClaudeCodeGenerator().generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".claude" / "skills" / "incident-response" / "SKILL.md").read_text()
+        content = (Path(tmp_dir) / ".claude" / "skills" / "incident-response" / "SKILL.md").read_text(encoding="utf-8")
         assert "curl" in content or "health" in content.lower()
 
     def test_api_versioning_skill_file(self, ctx, tmp_dir):
@@ -185,7 +185,7 @@ class TestClaudeCodeGenerator:
         gen.generate_skills(ctx, tmp_dir)
         skill_file = Path(tmp_dir) / ".claude" / "skills" / "api-versioning" / "SKILL.md"
         assert skill_file.exists()
-        content = skill_file.read_text()
+        content = skill_file.read_text(encoding="utf-8")
         assert "name: api-versioning" in content
         assert "breaking" in content.lower()
         assert "deprecat" in content.lower()
@@ -195,7 +195,7 @@ class TestClaudeCodeGenerator:
         ctx = ProjectContext(project_name="fastapi-app", language="python",
                              framework="fastapi", project_type="api", lang="en")
         ClaudeCodeGenerator().generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".claude" / "skills" / "api-versioning" / "SKILL.md").read_text()
+        content = (Path(tmp_dir) / ".claude" / "skills" / "api-versioning" / "SKILL.md").read_text(encoding="utf-8")
         assert "FastAPI" in content or "APIRouter" in content
 
     def test_architecture_review_skill_file(self, ctx, tmp_dir):
@@ -203,7 +203,7 @@ class TestClaudeCodeGenerator:
         gen.generate_skills(ctx, tmp_dir)
         skill_file = Path(tmp_dir) / ".claude" / "skills" / "architecture-review" / "SKILL.md"
         assert skill_file.exists()
-        content = skill_file.read_text()
+        content = skill_file.read_text(encoding="utf-8")
         assert "name: architecture-review" in content
         assert "Structure" in content
         assert "Checklist" in content
@@ -215,7 +215,7 @@ class TestClaudeCodeGenerator:
         ClaudeCodeGenerator().generate_skills(ctx, tmp_dir)
         content = (
             Path(tmp_dir) / ".claude" / "skills" / "architecture-review" / "SKILL.md"
-        ).read_text()
+        ).read_text(encoding="utf-8")
         assert "Python-Specific" in content or "src layout" in content
 
     def test_architecture_review_typescript_specific(self, tmp_dir):
@@ -225,7 +225,7 @@ class TestClaudeCodeGenerator:
         ClaudeCodeGenerator().generate_skills(ctx, tmp_dir)
         content = (
             Path(tmp_dir) / ".claude" / "skills" / "architecture-review" / "SKILL.md"
-        ).read_text()
+        ).read_text(encoding="utf-8")
         assert "TypeScript" in content or "bundle" in content
 
     def test_feature_spec_skill_file(self, ctx, tmp_dir):
@@ -233,7 +233,7 @@ class TestClaudeCodeGenerator:
         gen.generate_skills(ctx, tmp_dir)
         skill_file = Path(tmp_dir) / ".claude" / "skills" / "feature-spec" / "SKILL.md"
         assert skill_file.exists()
-        content = skill_file.read_text()
+        content = skill_file.read_text(encoding="utf-8")
         assert "name: feature-spec" in content
         assert "Acceptance Criteria" in content
         assert "User Stories" in content
@@ -242,7 +242,7 @@ class TestClaudeCodeGenerator:
     def test_feature_spec_references_project_context(self, ctx, tmp_dir):
         gen = ClaudeCodeGenerator()
         gen.generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".claude" / "skills" / "feature-spec" / "SKILL.md").read_text()
+        content = (Path(tmp_dir) / ".claude" / "skills" / "feature-spec" / "SKILL.md").read_text(encoding="utf-8")
         # Should reference the project's test framework or language
         assert "pytest" in content or "python" in content.lower() or "test" in content.lower()
 
@@ -250,7 +250,7 @@ class TestClaudeCodeGenerator:
         gen = ClaudeCodeGenerator()
         gen.generate_skills(ctx, tmp_dir)
         sf = Path(tmp_dir) / ".claude" / "skills" / "commit-message" / "SKILL.md"
-        content = sf.read_text()
+        content = sf.read_text(encoding="utf-8")
         assert "---" in content
         assert "name:" in content
         assert "description:" in content
@@ -280,7 +280,7 @@ class TestClaudeCodeGenerator:
         gen.generate_agents(ctx, tmp_dir)
         agent_file = Path(tmp_dir) / ".claude" / "agents" / "onboarding-guide.md"
         assert agent_file.exists()
-        content = agent_file.read_text()
+        content = agent_file.read_text(encoding="utf-8")
         assert "onboarding" in content.lower()
         assert "setup" in content.lower() or "environment" in content.lower()
         assert "First Week Checklist" in content or "Checklist" in content
@@ -290,7 +290,7 @@ class TestClaudeCodeGenerator:
         gen.generate_agents(ctx, tmp_dir)
         agent_file = Path(tmp_dir) / ".claude" / "agents" / "doc-writer.md"
         assert agent_file.exists()
-        content = agent_file.read_text()
+        content = agent_file.read_text(encoding="utf-8")
         assert "doc-writer" in content
         assert "docstring" in content.lower() or "documentation" in content.lower()
 
@@ -298,28 +298,28 @@ class TestClaudeCodeGenerator:
         from vcsx.core.context import ProjectContext
         ctx = ProjectContext(project_name="pypkg", language="python", lang="en")
         ClaudeCodeGenerator().generate_agents(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".claude" / "agents" / "doc-writer.md").read_text()
+        content = (Path(tmp_dir) / ".claude" / "agents" / "doc-writer.md").read_text(encoding="utf-8")
         assert "Google format" in content or "Args:" in content
 
     def test_doc_writer_typescript_style(self, tmp_dir):
         from vcsx.core.context import ProjectContext
         ctx = ProjectContext(project_name="tspkg", language="typescript", lang="en")
         ClaudeCodeGenerator().generate_agents(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".claude" / "agents" / "doc-writer.md").read_text()
+        content = (Path(tmp_dir) / ".claude" / "agents" / "doc-writer.md").read_text(encoding="utf-8")
         assert "JSDoc" in content or "TSDoc" in content or "@param" in content
 
     def test_doc_writer_go_style(self, tmp_dir):
         from vcsx.core.context import ProjectContext
         ctx = ProjectContext(project_name="gopkg", language="go", lang="en")
         ClaudeCodeGenerator().generate_agents(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".claude" / "agents" / "doc-writer.md").read_text()
+        content = (Path(tmp_dir) / ".claude" / "agents" / "doc-writer.md").read_text(encoding="utf-8")
         assert "Go Doc" in content or "// " in content
 
     def test_doc_writer_rust_style(self, tmp_dir):
         from vcsx.core.context import ProjectContext
         ctx = ProjectContext(project_name="rustpkg", language="rust", lang="en")
         ClaudeCodeGenerator().generate_agents(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".claude" / "agents" / "doc-writer.md").read_text()
+        content = (Path(tmp_dir) / ".claude" / "agents" / "doc-writer.md").read_text(encoding="utf-8")
         assert "Rust Doc" in content or "///" in content
 
     def test_dependency_auditor_agent_file_created(self, ctx, tmp_dir):
@@ -327,7 +327,7 @@ class TestClaudeCodeGenerator:
         gen.generate_agents(ctx, tmp_dir)
         agent_file = Path(tmp_dir) / ".claude" / "agents" / "dependency-auditor.md"
         assert agent_file.exists()
-        content = agent_file.read_text()
+        content = agent_file.read_text(encoding="utf-8")
         assert "dependency" in content.lower()
         assert (
             "vulnerability" in content.lower()
@@ -340,7 +340,7 @@ class TestClaudeCodeGenerator:
         gen.generate_agents(ctx, tmp_dir)
         agent_file = Path(tmp_dir) / ".claude" / "agents" / "performance-profiler.md"
         assert agent_file.exists()
-        content = agent_file.read_text()
+        content = agent_file.read_text(encoding="utf-8")
         assert "profile" in content.lower() or "profil" in content.lower()
         assert (
             "bottleneck" in content.lower()
@@ -355,7 +355,7 @@ class TestClaudeCodeGenerator:
         gen = ClaudeCodeGenerator()
         gen.generate_agents(ctx, tmp_dir)
         agent_file = Path(tmp_dir) / ".claude" / "agents" / "dependency-auditor.md"
-        content = agent_file.read_text()
+        content = agent_file.read_text(encoding="utf-8")
         assert "pip" in content or "pip-audit" in content
 
     def test_dependency_auditor_typescript_language(self, tmp_dir):
@@ -365,7 +365,7 @@ class TestClaudeCodeGenerator:
         gen = ClaudeCodeGenerator()
         gen.generate_agents(ctx, tmp_dir)
         agent_file = Path(tmp_dir) / ".claude" / "agents" / "dependency-auditor.md"
-        content = agent_file.read_text()
+        content = agent_file.read_text(encoding="utf-8")
         assert "npm audit" in content
 
     def test_performance_profiler_go_language(self, tmp_dir):
@@ -375,7 +375,7 @@ class TestClaudeCodeGenerator:
         gen = ClaudeCodeGenerator()
         gen.generate_agents(ctx, tmp_dir)
         agent_file = Path(tmp_dir) / ".claude" / "agents" / "performance-profiler.md"
-        content = agent_file.read_text()
+        content = agent_file.read_text(encoding="utf-8")
         assert "pprof" in content
 
     def test_performance_profiler_rust_language(self, tmp_dir):
@@ -385,7 +385,7 @@ class TestClaudeCodeGenerator:
         gen = ClaudeCodeGenerator()
         gen.generate_agents(ctx, tmp_dir)
         agent_file = Path(tmp_dir) / ".claude" / "agents" / "performance-profiler.md"
-        content = agent_file.read_text()
+        content = agent_file.read_text(encoding="utf-8")
         assert "flamegraph" in content or "criterion" in content
 
     def test_generate_scaffold(self, ctx, tmp_dir):
@@ -403,7 +403,7 @@ class TestClaudeCodeGenerator:
     def test_contributing_md_content(self, ctx, tmp_dir):
         gen = ClaudeCodeGenerator()
         gen.generate_scaffold(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "CONTRIBUTING.md").read_text()
+        content = (Path(tmp_dir) / "CONTRIBUTING.md").read_text(encoding="utf-8")
         assert "Getting Started" in content
         assert "Pull Request" in content
         assert "conventional commits" in content.lower() or "feat" in content
@@ -414,13 +414,13 @@ class TestClaudeCodeGenerator:
 
         ctx = ProjectContext(project_name="pyproj", language="python", lang="en")
         ClaudeCodeGenerator().generate_scaffold(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "CONTRIBUTING.md").read_text()
+        content = (Path(tmp_dir) / "CONTRIBUTING.md").read_text(encoding="utf-8")
         assert "pip install" in content or "ruff" in content
 
     def test_changelog_md_content(self, ctx, tmp_dir):
         gen = ClaudeCodeGenerator()
         gen.generate_scaffold(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "CHANGELOG.md").read_text()
+        content = (Path(tmp_dir) / "CHANGELOG.md").read_text(encoding="utf-8")
         assert "Unreleased" in content
         assert "Keep a Changelog" in content
         assert "Semantic Versioning" in content
@@ -432,12 +432,12 @@ class TestClaudeCodeGenerator:
         existing = Path(tmp_dir) / "CHANGELOG.md"
         existing.write_text("EXISTING CONTENT", encoding="utf-8")
         ClaudeCodeGenerator().generate_scaffold(ctx, tmp_dir)
-        assert existing.read_text() == "EXISTING CONTENT"
+        assert existing.read_text(encoding="utf-8") == "EXISTING CONTENT"
 
     def test_precommit_python_content(self, ctx, tmp_dir):
         gen = ClaudeCodeGenerator()
         gen.generate_scaffold(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".pre-commit-config.yaml").read_text()
+        content = (Path(tmp_dir) / ".pre-commit-config.yaml").read_text(encoding="utf-8")
         assert "pre-commit-hooks" in content
         assert "ruff" in content or "black" in content
         assert "detect-private-key" in content
@@ -449,7 +449,7 @@ class TestClaudeCodeGenerator:
         ctx = ProjectContext(project_name="tsproj", language="typescript", lang="en")
         gen = ClaudeCodeGenerator()
         gen.generate_scaffold(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".pre-commit-config.yaml").read_text()
+        content = (Path(tmp_dir) / ".pre-commit-config.yaml").read_text(encoding="utf-8")
         assert "eslint" in content or "prettier" in content
 
     def test_precommit_go(self, tmp_dir):
@@ -458,7 +458,7 @@ class TestClaudeCodeGenerator:
         ctx = ProjectContext(project_name="goproj", language="go", lang="en")
         gen = ClaudeCodeGenerator()
         gen.generate_scaffold(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".pre-commit-config.yaml").read_text()
+        content = (Path(tmp_dir) / ".pre-commit-config.yaml").read_text(encoding="utf-8")
         assert "go-fmt" in content or "go-vet" in content
 
     def test_precommit_rust(self, tmp_dir):
@@ -467,7 +467,7 @@ class TestClaudeCodeGenerator:
         ctx = ProjectContext(project_name="rustproj", language="rust", lang="en")
         gen = ClaudeCodeGenerator()
         gen.generate_scaffold(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".pre-commit-config.yaml").read_text()
+        content = (Path(tmp_dir) / ".pre-commit-config.yaml").read_text(encoding="utf-8")
         assert "cargo fmt" in content or "cargo-fmt" in content
         assert "clippy" in content
 
@@ -478,7 +478,7 @@ class TestClaudeCodeGenerator:
         ctx = ProjectContext(project_name="proj", language="", lang="en")
         gen = ClaudeCodeGenerator()
         gen.generate_scaffold(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".pre-commit-config.yaml").read_text()
+        content = (Path(tmp_dir) / ".pre-commit-config.yaml").read_text(encoding="utf-8")
         assert "trailing-whitespace" in content
         assert "check-merge-conflict" in content
         assert "check-added-large-files" in content
@@ -658,7 +658,7 @@ class TestCopilotGeneratorExtended:
         gen.generate_config(ctx, tmp_dir)
         content = (
             Path(tmp_dir) / ".github" / "instructions" / "code-style.instructions.md"
-        ).read_text()
+        ).read_text(encoding="utf-8")
         assert "*.py" in content
 
     def test_copilot_agents_returns_list(self, ctx, tmp_dir):
@@ -673,7 +673,7 @@ class TestCopilotGeneratorExtended:
         gen.generate_agents(ctx, tmp_dir)
         ci_path = Path(tmp_dir) / ".github" / "workflows" / "ci.yml"
         assert ci_path.exists()
-        content = ci_path.read_text()
+        content = ci_path.read_text(encoding="utf-8")
         assert "on:" in content or "on:" in content
         assert "jobs:" in content
 
@@ -682,7 +682,7 @@ class TestCopilotGeneratorExtended:
         gen.generate_agents(ctx, tmp_dir)
         dep_path = Path(tmp_dir) / ".github" / "dependabot.yml"
         assert dep_path.exists()
-        content = dep_path.read_text()
+        content = dep_path.read_text(encoding="utf-8")
         assert "github-actions" in content
 
     def test_copilot_ci_python(self, tmp_dir):
@@ -691,7 +691,7 @@ class TestCopilotGeneratorExtended:
         ctx = ProjectContext(project_name="pypkg", language="python", lang="en")
         gen = CopilotGenerator()
         gen.generate_agents(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         assert "setup-python" in content
         assert "pip" in content.lower()
 
@@ -701,7 +701,7 @@ class TestCopilotGeneratorExtended:
         ctx = ProjectContext(project_name="tspkg", language="typescript", lang="en")
         gen = CopilotGenerator()
         gen.generate_agents(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         assert "setup-node" in content
         assert "npm ci" in content
 
@@ -711,7 +711,7 @@ class TestCopilotGeneratorExtended:
         ctx = ProjectContext(project_name="gopkg", language="go", lang="en")
         gen = CopilotGenerator()
         gen.generate_agents(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         assert "setup-go" in content
         assert "go test" in content
 
@@ -721,7 +721,7 @@ class TestCopilotGeneratorExtended:
         ctx = ProjectContext(project_name="rustpkg", language="rust", lang="en")
         gen = CopilotGenerator()
         gen.generate_agents(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text()
+        content = (Path(tmp_dir) / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         assert "rust-toolchain" in content
         assert "clippy" in content
 
@@ -731,7 +731,7 @@ class TestCopilotGeneratorExtended:
         ctx = ProjectContext(project_name="tspkg", language="typescript", lang="en")
         gen = CopilotGenerator()
         gen.generate_agents(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".github" / "dependabot.yml").read_text()
+        content = (Path(tmp_dir) / ".github" / "dependabot.yml").read_text(encoding="utf-8")
         assert "npm" in content
 
     def test_copilot_hooks_returns_dict(self, ctx, tmp_dir):
@@ -841,7 +841,7 @@ class TestGeminiGeneratorExtended:
         )
         gen = GeminiGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "GEMINI.md").read_text()
+        content = (Path(tmp_dir) / "GEMINI.md").read_text(encoding="utf-8")
         assert "Automate workflows" in content
         assert "Manual processes are slow" in content
 
@@ -851,7 +851,7 @@ class TestGeminiGeneratorExtended:
         ctx = ProjectContext(project_name="web-app", project_type="web", language="typescript")
         gen = GeminiGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "GEMINI.md").read_text()
+        content = (Path(tmp_dir) / "GEMINI.md").read_text(encoding="utf-8")
         assert "component" in content.lower() or "Web" in content
 
     def test_gemini_project_type_cli(self, tmp_dir):
@@ -860,7 +860,7 @@ class TestGeminiGeneratorExtended:
         ctx = ProjectContext(project_name="my-cli", project_type="cli", language="python")
         gen = GeminiGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "GEMINI.md").read_text()
+        content = (Path(tmp_dir) / "GEMINI.md").read_text(encoding="utf-8")
         assert "--help" in content or "CLI" in content
 
     def test_gemini_project_type_library(self, tmp_dir):
@@ -869,7 +869,7 @@ class TestGeminiGeneratorExtended:
         ctx = ProjectContext(project_name="my-lib", project_type="library", language="python")
         gen = GeminiGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "GEMINI.md").read_text()
+        content = (Path(tmp_dir) / "GEMINI.md").read_text(encoding="utf-8")
         assert "docstring" in content.lower() or "Library" in content
 
     def test_gemini_ignore_patterns_java(self, tmp_dir):
@@ -878,7 +878,7 @@ class TestGeminiGeneratorExtended:
         ctx = ProjectContext(project_name="java-app", language="java")
         gen = GeminiGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "GEMINI.md").read_text()
+        content = (Path(tmp_dir) / "GEMINI.md").read_text(encoding="utf-8")
         assert ".jar" in content or "target/" in content
 
     def test_gemini_ignore_patterns_rust(self, tmp_dir):
@@ -887,7 +887,7 @@ class TestGeminiGeneratorExtended:
         ctx = ProjectContext(project_name="rust-app", language="rust")
         gen = GeminiGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "GEMINI.md").read_text()
+        content = (Path(tmp_dir) / "GEMINI.md").read_text(encoding="utf-8")
         assert "target/" in content
 
 
@@ -899,7 +899,7 @@ class TestGeminiGenerator:
         assert gen.name == "gemini"
         path = gen.generate_config(ctx, tmp_dir)
         assert (Path(tmp_dir) / "GEMINI.md").exists()
-        content = (Path(tmp_dir) / "GEMINI.md").read_text()
+        content = (Path(tmp_dir) / "GEMINI.md").read_text(encoding="utf-8")
         assert "test-project" in content
         assert "Gemini CLI" in content
 
@@ -913,7 +913,7 @@ class TestGeminiGenerator:
         )
         gen = GeminiGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "GEMINI.md").read_text()
+        content = (Path(tmp_dir) / "GEMINI.md").read_text(encoding="utf-8")
         assert "Data Pipeline" in content
         assert "SQLite" in content
 
@@ -925,7 +925,7 @@ class TestAgentsMdFullCoverage:
         ctx = ProjectContext(project_name="rust-app", language="rust")
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "cargo" in content
 
     def test_agents_md_go_commands(self, tmp_dir):
@@ -934,7 +934,7 @@ class TestAgentsMdFullCoverage:
         ctx = ProjectContext(project_name="go-app", language="go")
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "go" in content.lower()
 
     def test_agents_md_with_code_style(self, tmp_dir):
@@ -947,7 +947,7 @@ class TestAgentsMdFullCoverage:
         )
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "Google Python Style Guide" in content
 
     def test_agents_md_with_external_services(self, tmp_dir):
@@ -960,7 +960,7 @@ class TestAgentsMdFullCoverage:
         )
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "Stripe" in content or "External" in content
 
     def test_agents_md_generic_fallback_commands(self, tmp_dir):
@@ -975,7 +975,7 @@ class TestAgentsMdFullCoverage:
         )
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "my-formatter" in content or "my-linter" in content
 
     def test_agents_md_no_commands_fallback(self, tmp_dir):
@@ -984,7 +984,7 @@ class TestAgentsMdFullCoverage:
         ctx = ProjectContext(project_name="minimal", language="cobol")
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "AGENTS.md" in content  # file exists at minimum
 
     def test_agents_md_with_hosting(self, tmp_dir):
@@ -997,7 +997,7 @@ class TestAgentsMdFullCoverage:
         )
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "Railway" in content or "Deployment" in content
 
 
@@ -1016,7 +1016,7 @@ class TestAgentsMdExtended:
 
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "Build a fintech app" in content
         assert "No good tools exist" in content
 
@@ -1032,7 +1032,7 @@ class TestAgentsMdExtended:
 
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "pytest" in content
         assert "ruff" in content
 
@@ -1046,7 +1046,7 @@ class TestAgentsMdExtended:
 
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "pnpm" in content or "npm" in content
 
     def test_agents_md_with_auth(self, tmp_dir):
@@ -1060,7 +1060,7 @@ class TestAgentsMdExtended:
 
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "JWT" in content or "auth" in content.lower()
 
     def test_agents_md_data_pipeline(self, tmp_dir):
@@ -1073,7 +1073,7 @@ class TestAgentsMdExtended:
 
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "chunk" in content.lower() or "idempotent" in content.lower()
 
 
@@ -1085,7 +1085,7 @@ class TestAgentsMdGenerator:
         assert gen.name == "agents-md"
         path = gen.generate_config(ctx, tmp_dir)
         assert (Path(tmp_dir) / "AGENTS.md").exists()
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "test-project" in content
         assert "pytest" in content
         assert "agents.md" in content.lower()
@@ -1100,7 +1100,7 @@ class TestAgentsMdGenerator:
         )
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "kubectl delete" in content
 
     def test_working_guide_python(self, tmp_dir):
@@ -1109,7 +1109,7 @@ class TestAgentsMdGenerator:
         ctx = ProjectContext(project_name="pypkg", language="python", lang="en")
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "Working With This Codebase" in content
         assert "pathlib" in content
         assert "ruff" in content or "pytest" in content
@@ -1120,7 +1120,7 @@ class TestAgentsMdGenerator:
         ctx = ProjectContext(project_name="tspkg", language="typescript", lang="en")
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "Working With This Codebase" in content
         assert "const" in content
 
@@ -1130,7 +1130,7 @@ class TestAgentsMdGenerator:
         ctx = ProjectContext(project_name="gopkg", language="go", lang="en")
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "Working With This Codebase" in content
         assert "go vet" in content or "gofmt" in content
 
@@ -1140,7 +1140,7 @@ class TestAgentsMdGenerator:
         ctx = ProjectContext(project_name="rustpkg", language="rust", lang="en")
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "Working With This Codebase" in content
         assert "clippy" in content
 
@@ -1152,7 +1152,7 @@ class TestAgentsMdGenerator:
         )
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "API-Specific" in content
         assert "HTTP status" in content or "status code" in content
 
@@ -1162,7 +1162,7 @@ class TestAgentsMdGenerator:
         ctx = ProjectContext(project_name="proj", language="python", lang="en")
         gen = AgentsMdGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / "AGENTS.md").read_text()
+        content = (Path(tmp_dir) / "AGENTS.md").read_text(encoding="utf-8")
         assert "Commit Style" in content
         assert "feat:" in content
         assert "72 chars" in content or "72" in content
@@ -1173,7 +1173,7 @@ class TestClaudeIgnore:
         gen = ClaudeCodeGenerator()
         gen.generate_scaffold(ctx, tmp_dir)
         assert (Path(tmp_dir) / ".claudeignore").exists()
-        content = (Path(tmp_dir) / ".claudeignore").read_text()
+        content = (Path(tmp_dir) / ".claudeignore").read_text(encoding="utf-8")
         assert "node_modules/" in content
         assert "__pycache__/" in content
         assert ".env" in content
@@ -1186,7 +1186,7 @@ class TestClaudeIgnore:
         )
         gen = ClaudeCodeGenerator()
         gen.generate_scaffold(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".claudeignore").read_text()
+        content = (Path(tmp_dir) / ".claudeignore").read_text(encoding="utf-8")
         assert "data/raw/" in content
 
 
@@ -1242,7 +1242,7 @@ class TestCopilotScopedInstructions:
         gen.generate_config(ctx, tmp_dir)
         content = (
             Path(tmp_dir) / ".github" / "instructions" / "security.instructions.md"
-        ).read_text()
+        ).read_text(encoding="utf-8")
         assert "applyTo" in content
 
 
@@ -1253,7 +1253,7 @@ class TestAiderReadFiles:
         ctx = ProjectContext(language="go", project_name="go-proj")
         gen = AiderGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".aider.conf.yaml").read_text()
+        content = (Path(tmp_dir) / ".aider.conf.yaml").read_text(encoding="utf-8")
         assert "go.mod" in content
 
     def test_aider_empty_read_files(self):
@@ -1274,7 +1274,7 @@ class TestAiderReadFiles:
         gen.generate_config(ctx, tmp_dir)
         rules_dir = Path(tmp_dir) / ".windsurf" / "rules"
         assert (rules_dir / "data-conventions.md").exists()
-        content = (rules_dir / "data-conventions.md").read_text()
+        content = (rules_dir / "data-conventions.md").read_text(encoding="utf-8")
         assert "chunk" in content.lower() or "idempotent" in content.lower()
 
 
@@ -1285,7 +1285,7 @@ class TestAiderGeneratorExtended:
         ctx = ProjectContext(language="go", project_name="go-proj")
         gen = AiderGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".aider.conf.yaml").read_text()
+        content = (Path(tmp_dir) / ".aider.conf.yaml").read_text(encoding="utf-8")
         assert "go" in content.lower() or "model" in content
 
     def test_aider_context_with_purpose(self, tmp_dir):
@@ -1297,21 +1297,21 @@ class TestAiderGeneratorExtended:
         )
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        content = (Path(tmp_dir) / ".aider.context.md").read_text(encoding="utf-8")
         assert "Build a REST API" in content
 
     def test_aider_read_files_typescript(self, tmp_dir):
         ctx = ProjectContext(language="typescript", project_name="ts-proj")
         gen = AiderGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".aider.conf.yaml").read_text()
+        content = (Path(tmp_dir) / ".aider.conf.yaml").read_text(encoding="utf-8")
         assert "package.json" in content
 
     def test_aider_read_files_rust(self, tmp_dir):
         ctx = ProjectContext(language="rust", project_name="rust-proj")
         gen = AiderGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".aider.conf.yaml").read_text()
+        content = (Path(tmp_dir) / ".aider.conf.yaml").read_text(encoding="utf-8")
         assert "Cargo.toml" in content
 
     def test_aider_hooks_returns_empty(self, ctx, tmp_dir):
@@ -1345,13 +1345,13 @@ class TestAiderGenerator:
     def test_aider_config_content(self, ctx, tmp_dir):
         gen = AiderGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".aider.conf.yaml").read_text()
+        content = (Path(tmp_dir) / ".aider.conf.yaml").read_text(encoding="utf-8")
         assert "test-project" in content
 
     def test_aider_context_content(self, ctx, tmp_dir):
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        content = (Path(tmp_dir) / ".aider.context.md").read_text(encoding="utf-8")
         assert "test-project" in content
         assert "FastAPI" in content or "Python" in content
 
@@ -1381,7 +1381,7 @@ class TestBoltPortDetection:
         ctx = ProjectContext(project_name="app", language="typescript", framework="React")
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
-        data = __import__("json").loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
+        data = __import__("json").loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text(encoding="utf-8"))
         assert data["sandbox"]["port"] == 5173
 
     def test_port_flask(self, tmp_dir):
@@ -1398,7 +1398,7 @@ class TestBoltPortDetection:
         ctx = ProjectContext(project_name="app", language="go")
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
-        data = __import__("json").loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
+        data = __import__("json").loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text(encoding="utf-8"))
         assert data["sandbox"]["port"] == 8080
 
     def test_port_rust(self, tmp_dir):
@@ -1407,7 +1407,7 @@ class TestBoltPortDetection:
         ctx = ProjectContext(project_name="app", language="rust")
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
-        data = __import__("json").loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
+        data = __import__("json").loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text(encoding="utf-8"))
         assert data["sandbox"]["port"] == 3000
 
     def test_port_vue(self, tmp_dir):
@@ -1416,7 +1416,7 @@ class TestBoltPortDetection:
         ctx = ProjectContext(project_name="app", language="typescript", framework="Vue")
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
-        data = __import__("json").loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
+        data = __import__("json").loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text(encoding="utf-8"))
         assert data["sandbox"]["port"] == 5173
 
     def test_env_vars_web_project(self, tmp_dir):
@@ -1425,7 +1425,7 @@ class TestBoltPortDetection:
         ctx = ProjectContext(project_name="app", language="typescript", project_type="web")
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
-        data = __import__("json").loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
+        data = __import__("json").loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text(encoding="utf-8"))
         assert "DATABASE_URL" in data["env"]["required"]
 
     def test_env_vars_with_hosting(self, tmp_dir):
@@ -1434,7 +1434,7 @@ class TestBoltPortDetection:
         ctx = ProjectContext(project_name="app", language="python", hosting="Railway")
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
-        data = __import__("json").loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
+        data = __import__("json").loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text(encoding="utf-8"))
         assert "NODE_ENV" in data["env"]["required"]
 
 
@@ -1446,7 +1446,7 @@ class TestBoltGeneratorExtended:
 
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
-        data = json.loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
+        data = json.loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text(encoding="utf-8"))
         assert "systemPrompt" in data["ai"]
         assert "test-project" in data["ai"]["systemPrompt"]
 
@@ -1455,7 +1455,7 @@ class TestBoltGeneratorExtended:
 
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
-        data = json.loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
+        data = json.loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text(encoding="utf-8"))
         assert "required" in data["env"]
         assert len(data["env"]["required"]) > 0
 
@@ -1465,7 +1465,7 @@ class TestBoltGeneratorExtended:
         ctx = ProjectContext(project_name="api", language="python", framework="FastAPI")
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
-        data = json.loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
+        data = json.loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text(encoding="utf-8"))
         assert data["sandbox"]["port"] == 8000
 
     def test_workspace_json_nextjs_port(self, tmp_dir):
@@ -1474,7 +1474,7 @@ class TestBoltGeneratorExtended:
         ctx = ProjectContext(project_name="app", language="typescript", framework="Next.js")
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
-        data = json.loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
+        data = json.loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text(encoding="utf-8"))
         assert data["sandbox"]["port"] == 3000
 
     def test_prompts_md_has_all_sections(self, ctx, tmp_dir):
@@ -1482,7 +1482,7 @@ class TestBoltGeneratorExtended:
 
         gen = BoltGenerator()
         gen.generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".bolt" / "prompts.md").read_text()
+        content = (Path(tmp_dir) / ".bolt" / "prompts.md").read_text(encoding="utf-8")
         assert "New Feature" in content
         assert "Bug Fix" in content
         assert "Refactor" in content
@@ -1494,7 +1494,7 @@ class TestBoltGeneratorExtended:
 
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".bolt" / "workspace.json").read_text()
+        content = (Path(tmp_dir) / ".bolt" / "workspace.json").read_text(encoding="utf-8")
         assert "claude-sonnet-4-5" in content
 
     def test_auth_needed_adds_jwt_secret(self, tmp_dir):
@@ -1505,7 +1505,7 @@ class TestBoltGeneratorExtended:
         )
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
-        data = json.loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text())
+        data = json.loads((Path(tmp_dir) / ".bolt" / "workspace.json").read_text(encoding="utf-8"))
         assert "JWT_SECRET" in data["env"]["required"]
 
 
@@ -1518,7 +1518,7 @@ class TestBoltGenerator:
     def test_workspace_json_valid(self, ctx, tmp_dir):
         gen = BoltGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".bolt" / "workspace.json").read_text()
+        content = (Path(tmp_dir) / ".bolt" / "workspace.json").read_text(encoding="utf-8")
         data = json.loads(content)
         assert "project" in data
         assert data["project"]["name"] == "test-project"
@@ -1552,7 +1552,7 @@ class TestZedGenerator:
     def test_settings_json_valid(self, ctx, tmp_dir):
         gen = ZedGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".zed" / "settings.json").read_text()
+        content = (Path(tmp_dir) / ".zed" / "settings.json").read_text(encoding="utf-8")
         data = json.loads(content)
         assert "assistant" in data
         assert "tab_size" in data
@@ -1571,7 +1571,7 @@ class TestZedGenerator:
     def test_context_md_content(self, ctx, tmp_dir):
         gen = ZedGenerator()
         gen.generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".zed" / "context.md").read_text()
+        content = (Path(tmp_dir) / ".zed" / "context.md").read_text(encoding="utf-8")
         assert "test-project" in content
 
     def test_generate_all(self, ctx, tmp_dir):
@@ -1593,7 +1593,7 @@ class TestZedGenerator:
         gen.generate_agents(ctx, tmp_dir)
         tasks_path = Path(tmp_dir) / ".zed" / "tasks.json"
         assert tasks_path.exists()
-        data = json.loads(tasks_path.read_text())
+        data = json.loads(tasks_path.read_text(encoding="utf-8"))
         assert isinstance(data, list)
         labels = [t["label"] for t in data]
         assert "Build" in labels
@@ -1605,7 +1605,7 @@ class TestZedGenerator:
         gen.generate_agents(ctx, tmp_dir)
         kb_path = Path(tmp_dir) / ".zed" / "keybindings.json"
         assert kb_path.exists()
-        data = json.loads(kb_path.read_text())
+        data = json.loads(kb_path.read_text(encoding="utf-8"))
         assert isinstance(data, list)
 
     def test_tasks_python_extras(self, tmp_dir):
@@ -1614,7 +1614,7 @@ class TestZedGenerator:
         ctx = ProjectContext(project_name="pyproj", language="python", lang="en")
         gen = ZedGenerator()
         gen.generate_agents(ctx, tmp_dir)
-        data = json.loads((Path(tmp_dir) / ".zed" / "tasks.json").read_text())
+        data = json.loads((Path(tmp_dir) / ".zed" / "tasks.json").read_text(encoding="utf-8"))
         labels = [t["label"] for t in data]
         assert "Coverage report" in labels
         assert "Type check" in labels
@@ -1625,7 +1625,7 @@ class TestZedGenerator:
         ctx = ProjectContext(project_name="tsproj", language="typescript", lang="en")
         gen = ZedGenerator()
         gen.generate_agents(ctx, tmp_dir)
-        data = json.loads((Path(tmp_dir) / ".zed" / "tasks.json").read_text())
+        data = json.loads((Path(tmp_dir) / ".zed" / "tasks.json").read_text(encoding="utf-8"))
         labels = [t["label"] for t in data]
         assert "Type check" in labels
         assert "Coverage report" in labels
@@ -1636,7 +1636,7 @@ class TestZedGenerator:
         ctx = ProjectContext(project_name="goproj", language="go", lang="en")
         gen = ZedGenerator()
         gen.generate_agents(ctx, tmp_dir)
-        data = json.loads((Path(tmp_dir) / ".zed" / "tasks.json").read_text())
+        data = json.loads((Path(tmp_dir) / ".zed" / "tasks.json").read_text(encoding="utf-8"))
         labels = [t["label"] for t in data]
         assert "Vet" in labels
 
@@ -1646,7 +1646,7 @@ class TestZedGenerator:
         ctx = ProjectContext(project_name="rustproj", language="rust", lang="en")
         gen = ZedGenerator()
         gen.generate_agents(ctx, tmp_dir)
-        data = json.loads((Path(tmp_dir) / ".zed" / "tasks.json").read_text())
+        data = json.loads((Path(tmp_dir) / ".zed" / "tasks.json").read_text(encoding="utf-8"))
         labels = [t["label"] for t in data]
         assert "Clippy" in labels
 
@@ -1656,14 +1656,14 @@ class TestZedGenerator:
         ctx = ProjectContext(project_name="pyproj", language="python", lang="en")
         gen = ZedGenerator()
         gen.generate_agents(ctx, tmp_dir)
-        data = json.loads((Path(tmp_dir) / ".zed" / "keybindings.json").read_text())
+        data = json.loads((Path(tmp_dir) / ".zed" / "keybindings.json").read_text(encoding="utf-8"))
         contexts = [kb.get("context", "") for kb in data]
         assert any("Python" in c for c in contexts)
 
     def test_tasks_allow_concurrent_field(self, ctx, tmp_dir):
         gen = ZedGenerator()
         gen.generate_agents(ctx, tmp_dir)
-        data = json.loads((Path(tmp_dir) / ".zed" / "tasks.json").read_text())
+        data = json.loads((Path(tmp_dir) / ".zed" / "tasks.json").read_text(encoding="utf-8"))
         for task in data:
             assert "allow_concurrent_runs" in task
 
@@ -1717,7 +1717,7 @@ class TestCodexLegacyHelpers:
         ctx = ProjectContext(project_name="my-proj", language="python")
         result = _scaffold_readme(tmp_dir, ctx)
         assert result == "README.md"
-        assert "my-proj" in (Path(tmp_dir) / "README.md").read_text()
+        assert "my-proj" in (Path(tmp_dir) / "README.md").read_text(encoding="utf-8")
 
 
 class TestCopilotPurposeProblem:
@@ -2264,7 +2264,7 @@ class TestWindsurfGoRustLanguages:
         ctx = ProjectContext(project_name="go-app", language="go")
         gen = WindsurfGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".windsurf" / "rules" / "go-conventions.md").read_text()
+        content = (Path(tmp_dir) / ".windsurf" / "rules" / "go-conventions.md").read_text(encoding="utf-8")
         assert "gofmt" in content
         assert "golangci-lint" in content
         assert "go test" in content
@@ -2285,7 +2285,7 @@ class TestWindsurfGoRustLanguages:
         ctx = ProjectContext(project_name="rust-app", language="rust")
         gen = WindsurfGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".windsurf" / "rules" / "rust-conventions.md").read_text()
+        content = (Path(tmp_dir) / ".windsurf" / "rules" / "rust-conventions.md").read_text(encoding="utf-8")
         assert "rustfmt" in content
         assert "clippy" in content
         assert "cargo test" in content
@@ -2315,7 +2315,7 @@ class TestWindsurfGoRustLanguages:
         ctx = ProjectContext(project_name="go-app", language="go")
         gen = WindsurfGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".windsurf" / "rules" / "core-conventions.md").read_text()
+        content = (Path(tmp_dir) / ".windsurf" / "rules" / "core-conventions.md").read_text(encoding="utf-8")
         assert "gofmt" in content
 
     def test_rust_core_conventions_uses_cargo_fmt(self, tmp_dir):
@@ -2324,7 +2324,7 @@ class TestWindsurfGoRustLanguages:
         ctx = ProjectContext(project_name="rust-app", language="rust")
         gen = WindsurfGenerator()
         gen.generate_config(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".windsurf" / "rules" / "core-conventions.md").read_text()
+        content = (Path(tmp_dir) / ".windsurf" / "rules" / "core-conventions.md").read_text(encoding="utf-8")
         assert "cargo fmt" in content
 
     def test_go_test_cmd(self, tmp_dir):
@@ -2387,7 +2387,7 @@ class TestAiderContextEnriched:
         ctx = ProjectContext(project_name="test", language="python")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        content = (Path(tmp_dir) / ".aider.context.md").read_text(encoding="utf-8")
         assert "ruff check" in content or "lint" in content.lower()
 
     def test_context_has_format_cmd(self, tmp_dir):
@@ -2396,7 +2396,7 @@ class TestAiderContextEnriched:
         ctx = ProjectContext(project_name="test", language="python")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        content = (Path(tmp_dir) / ".aider.context.md").read_text(encoding="utf-8")
         assert "ruff format" in content or "format" in content.lower()
 
     def test_context_has_file_structure(self, tmp_dir):
@@ -2405,7 +2405,7 @@ class TestAiderContextEnriched:
         ctx = ProjectContext(project_name="myapp", language="python")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        content = (Path(tmp_dir) / ".aider.context.md").read_text(encoding="utf-8")
         assert "File Structure" in content
         assert "src/" in content
 
@@ -2415,7 +2415,7 @@ class TestAiderContextEnriched:
         ctx = ProjectContext(project_name="test", language="python")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        content = (Path(tmp_dir) / ".aider.context.md").read_text(encoding="utf-8")
         assert "Architecture" in content
 
     def test_context_has_key_decisions(self, tmp_dir):
@@ -2424,7 +2424,7 @@ class TestAiderContextEnriched:
         ctx = ProjectContext(project_name="test", language="python")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        content = (Path(tmp_dir) / ".aider.context.md").read_text(encoding="utf-8")
         assert "Key Decisions" in content
 
     def test_context_has_gotchas(self, tmp_dir):
@@ -2433,7 +2433,7 @@ class TestAiderContextEnriched:
         ctx = ProjectContext(project_name="test", language="python")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        content = (Path(tmp_dir) / ".aider.context.md").read_text(encoding="utf-8")
         assert "Gotcha" in content
 
     def test_go_context_gotchas(self, tmp_dir):
@@ -2442,7 +2442,7 @@ class TestAiderContextEnriched:
         ctx = ProjectContext(project_name="go-app", language="go")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        content = (Path(tmp_dir) / ".aider.context.md").read_text(encoding="utf-8")
         assert "goroutine" in content.lower() or "defer" in content.lower()
 
     def test_rust_context_gotchas(self, tmp_dir):
@@ -2451,7 +2451,7 @@ class TestAiderContextEnriched:
         ctx = ProjectContext(project_name="rust-app", language="rust")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        content = (Path(tmp_dir) / ".aider.context.md").read_text(encoding="utf-8")
         assert "borrow" in content.lower() or "unwrap" in content.lower()
 
     def test_go_context_file_structure(self, tmp_dir):
@@ -2460,7 +2460,7 @@ class TestAiderContextEnriched:
         ctx = ProjectContext(project_name="go-app", language="go")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        content = (Path(tmp_dir) / ".aider.context.md").read_text(encoding="utf-8")
         assert "cmd/" in content
         assert "internal/" in content
 
@@ -2470,7 +2470,7 @@ class TestAiderContextEnriched:
         ctx = ProjectContext(project_name="rust-app", language="rust")
         gen = AiderGenerator()
         gen.generate_skills(ctx, tmp_dir)
-        content = (Path(tmp_dir) / ".aider.context.md").read_text()
+        content = (Path(tmp_dir) / ".aider.context.md").read_text(encoding="utf-8")
         assert "Cargo.toml" in content
         assert "src/" in content
 
